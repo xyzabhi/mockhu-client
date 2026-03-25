@@ -1,0 +1,25 @@
+export const theme={
+    typography:{
+        regular:'Inter_400Regular',
+        medium:'Inter_500Medium',
+        semiBold:'Inter_600SemiBold',
+        bold:'Inter_700Bold',
+        extraBold:'Inter_800ExtraBold',
+        black:'Inter_900Black',
+        thin:'Inter_100Thin',
+        light:'Inter_200Light',
+        extraLight:'Inter_300ExtraLight',
+    },
+    fintSizes:{
+        xs:12,
+        sm:14,
+        md:16,
+        lg:18,
+        xl:20,
+        xxl:24,
+        xxxl:32,
+        xxxxl:40,
+        xxxxxl:48,
+        xxxxxxl:56,
+    }
+};
