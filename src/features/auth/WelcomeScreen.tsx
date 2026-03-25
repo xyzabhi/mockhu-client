@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GoogleLogo } from '../../presentation/components/GoogleLogo';
 import { theme } from '../../presentation/theme/theme';
@@ -33,6 +33,7 @@ function SocialButton({
 
 function WelcomeScreen() {
   const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 12);
 
   return (
     <View style={styles.root}>
@@ -43,16 +44,22 @@ function WelcomeScreen() {
         />
       </View>
 
-      <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <View style={styles.sheetInner}>
-          <View>
-            <View style={styles.titleBlock}>
-              <Text style={styles.title}>Create your account</Text>
-              <Text style={styles.description}>
-                Join thousands of students from around the world
-              </Text>
-            </View>
+      <View style={[styles.sheet, { paddingBottom: bottomPad }]}>
+        <View style={styles.titleBlock}>
+          <Text style={styles.title}>Create your account</Text>
+          <Text style={styles.description}>
+            Join thousands of students from around the world
+          </Text>
+        </View>
 
+        <View style={styles.sheetCenterSlot}>
+          <ScrollView
+            style={styles.sheetBodyScroll}
+            contentContainerStyle={styles.sheetBodyScrollContent}
+            bounces
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator
+          >
             <View style={styles.buttonsGroup}>
               <SocialButton
                 leading={
@@ -116,18 +123,18 @@ function WelcomeScreen() {
                 </Text>
               </Pressable>
             </View>
-          </View>
+          </ScrollView>
+        </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              By continuing, you agree to our{' '}
-              <Text style={styles.footerTextLink}>Terms of Service</Text>
-              {', '}
-              <Text style={styles.footerTextLink}>Privacy Policy</Text>
-              {', and '}
-              <Text style={styles.footerTextLink}>Cookies Policy</Text>.
-            </Text>
-          </View>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            By continuing, you agree to our{' '}
+            <Text style={styles.footerTextLink}>Terms of Service</Text>
+            {', '}
+            <Text style={styles.footerTextLink}>Privacy Policy</Text>
+            {', and '}
+            <Text style={styles.footerTextLink}>Cookies Policy</Text>.
+          </Text>
         </View>
       </View>
     </View>
@@ -136,12 +143,19 @@ function WelcomeScreen() {
 
 const ICON_SLOT = 48;
 
+/** Bigger `HERO_FLEX` vs `SHEET_FLEX` = shorter sheet (e.g. 2 and 1 ≈ 33% sheet). */
+const HERO_FLEX = 1;
+const SHEET_FLEX = 1;
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     width: '100%',
+    backgroundColor: '#f6f8fc',
   },
   hero: {
+    flex: HERO_FLEX,
+    minHeight: 0,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 24,
@@ -152,22 +166,36 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   sheet: {
-    flex: 1,
+    flex: SHEET_FLEX,
+    minHeight: 0,
     width: '100%',
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
-    paddingTop: 28,
+    paddingTop: 22,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 6,
   },
-  sheetInner: {
+  sheetCenterSlot: {
     flex: 1,
-    justifyContent: 'space-between',
+    minHeight: 0,
+    width: '100%',
+    marginTop: 16,
+  },
+  sheetBodyScroll: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+  },
+  sheetBodyScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    width: '100%',
+    paddingVertical: 8,
   },
   titleBlock: {
     alignItems: 'center',
@@ -187,7 +215,6 @@ const styles = StyleSheet.create({
   },
   buttonsGroup: {
     width: '100%',
-    marginTop: 32,
     gap: 10,
   },
   socialButton: {
@@ -222,7 +249,9 @@ const styles = StyleSheet.create({
   footer: {
     width: '100%',
     alignItems: 'center',
-    paddingTop: 16,
+    flexShrink: 0,
+    marginTop: 12,
+    paddingTop: 8,
   },
   footerText: {
     fontFamily: theme.typography.regular,
