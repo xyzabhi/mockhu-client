@@ -1,4 +1,18 @@
 export const theme={
+    colors:{
+        brand:'#00D26A',
+        textPrimary:'#111827',
+        textMuted:'#6b7280',
+        iconPhone:'#111827',
+        iconEmail:'#111827',
+        iconFacebook:'#1877F2',
+        iconApple:'#111827',
+        surface:'#ffffff',
+        borderSubtle:'#E5E7EB',
+        borderStrong:'#000000',
+        footerLink:'#9CA3AF',
+        footerLinkUnderline:'#D1D5DB',
+    },
     typography:{
         regular:'Inter_400Regular',
         medium:'Inter_500Medium',
@@ -7,8 +21,8 @@ export const theme={
         extraBold:'Inter_800ExtraBold',
         black:'Inter_900Black',
         thin:'Inter_100Thin',
-        light:'Inter_200Light',
-        extraLight:'Inter_300ExtraLight',
+        light:'Inter_200ExtraLight',
+        extraLight:'Inter_300Light',
     },
     fintSizes:{
         xs:12,

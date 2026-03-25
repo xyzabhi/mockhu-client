@@ -1,18 +1,19 @@
 {
   "expo": {
-    "name": "mockhu-client",
-    "slug": "mockhu-client",
+    "name": "mockhu",
+    "slug": "mockhu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.mockhu"
     },
     "android": {
       "adaptiveIcon": {
