@@ -62,8 +62,12 @@ export function AuthWithEmail({ mode, onBack }: AuthWithEmailProps) {
                     <View style={styles.formFields}>
                         <Text style={styles.label}>Email</Text>
                         <TextInput
-                            style={[styles.input, email.length > 0 ? styles.inputFilled : styles.inputDefault]}
+                            style={[
+                                styles.input,
+                                email.length > 0 ? styles.inputFilled : styles.inputDefault,
+                            ]}
                             placeholder="Enter your email"
+                            placeholderTextColor={theme.colors.surface}
                             keyboardType="email-address"
                             autoCapitalize="none"
                             value={email}
@@ -72,14 +76,58 @@ export function AuthWithEmail({ mode, onBack }: AuthWithEmailProps) {
 
                         <Text style={styles.label}>Password</Text>
                         <TextInput
-                            style={[styles.input, password.length > 0 ? styles.inputFilled : styles.inputDefault]}
+                            style={[
+                                styles.input,
+                                password.length > 0 ? styles.inputFilled : styles.inputDefault,
+                            ]}
                             placeholder="Enter your password"
+                            placeholderTextColor={theme.colors.surface}
                             secureTextEntry
                             autoCapitalize="none"
                             value={password}
                             onChangeText={setPassword}
                         />
                     </View>
+                    {
+                        mode === 'signup' ? <View style={styles.passwordRequirementsContainer}>
+                            <View style={styles.passwordRequirement}>
+                                <MaterialCommunityIcons
+                                    name="information-outline"
+                                    size={16}
+                                    color={theme.colors.textMuted}
+                                />
+                                <Text>Minimum 8 characters</Text>
+                            </View>
+                            <View style={styles.passwordRequirement}>
+                                <MaterialCommunityIcons
+                                    name="information-outline"
+                                    size={16}
+                                    color={theme.colors.textMuted}
+                                />
+                                <Text>Lower and uppercase letters</Text>
+                            </View>
+                            <View style={styles.passwordRequirement}>
+                                <MaterialCommunityIcons
+                                    name={password.includes('1') ? "check-circle" : "information-outline"}
+                                    size={16}
+                                    color={password.includes('1') ? theme.colors.brand : theme.colors.textMuted}
+                                />
+                                <Text>At least 1 number</Text>
+                            </View>
+                            <View style={styles.passwordRequirement}>
+                                <MaterialCommunityIcons
+                                    name={true ? "check-circle" : "information-outline"}
+                                    size={16}
+                                    color={true ? theme.colors.brand : theme.colors.textMuted}
+                                />
+                                <Text>At least 1 special character</Text>
+                            </View>
+                        </View> : <View style={styles.forgotPasswordContainer}>
+                            <Pressable onPress={() => { console.log('forgot password') }}>
+                                <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
+                            </Pressable>
+                        </View>
+                    }
                 </View>
             </View>
 
@@ -102,7 +150,7 @@ export function AuthWithEmail({ mode, onBack }: AuthWithEmailProps) {
                     <View style={styles.primaryButtonContent}>
                         {isSubmitting ? (
                             <ActivityIndicator size="small" color={theme.colors.textPrimary} />
-                        ) : null}<Text style={styles.primaryButtonText}>{ isSubmitting ? "" : primaryCta}</Text>
+                        ) : null}<Text style={styles.primaryButtonText}>{isSubmitting ? "" : primaryCta}</Text>
                     </View>
                 </Pressable>
             </View>
@@ -173,7 +221,7 @@ const styles = StyleSheet.create({
     },
     input: {
         borderWidth: 1,
-        borderColor: theme.colors.borderSubtle,
+        borderColor: theme.colors.borderStrong,
         borderRadius: 12,
         paddingHorizontal: 14,
         paddingVertical: 12,
@@ -226,5 +274,31 @@ const styles = StyleSheet.create({
         fontFamily: theme.typography.medium,
         fontSize: theme.fintSizes.md,
         color: theme.colors.textPrimary,
+    },
+    passwordRequirement: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        columnGap: 6,
+        marginTop: 6,
+    },
+    passwordRequirementsContainer: {
+        marginVertical: 16,
+        marginLeft: 4,
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        rowGap: 6,
+    },
+    forgotPasswordContainer: {
+        marginVertical: 16,
+        marginLeft: 4,
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        rowGap: 6,
+    },
+    forgotPasswordText: {
+        fontFamily: theme.typography.regular,
+        fontSize: theme.fintSizes.sm,
+        color: theme.colors.brand,
+        textDecorationLine: 'underline',
     },
 });

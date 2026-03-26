@@ -73,6 +73,7 @@ export function AuthWithPhone({ mode, onBack }: AuthWithPhoneProps) {
                             <TextInput
                                 style={[styles.input, styles.phoneInput, phone.length > 0 ? styles.inputFilled : styles.inputDefault]}
                                 placeholder="99999 99999"
+                                placeholderTextColor={theme.colors.surface}
                                 keyboardType="phone-pad"
                                 value={phone}
                                 onChangeText={handlePhoneChange}
@@ -174,7 +175,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: theme.colors.borderSubtle,
+        borderColor: theme.colors.borderStrong,
         borderRadius: 12,
         backgroundColor: theme.colors.surface,
         overflow: 'hidden',
