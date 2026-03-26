@@ -25,7 +25,7 @@ export function AuthWithEmail({ mode, onBack }: AuthWithEmailProps) {
         mode === 'login'
             ? 'Login with your email and password.'
             : 'Create your account using your email and password\nWe use your email to create your account and for account recovery.';
-    const primaryCta = mode === 'login' ? 'Login' : 'Create account';
+    const primaryCta = mode === 'login' ? 'Login' : 'Continue';
     const primaryCtaDescription = mode === 'login' ? '' : 'We will send link to your email address to verify your account.';
 
     return (
