@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -12,38 +12,32 @@ import {
 } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
 
-type AuthWithPhoneProps = {
+type PhoneVerificationScreenProps = {
     mode: 'signup' | 'login';
     onBack: () => void;
-    onVerify: () => void;
 };
 
-export function AuthWithPhone({ mode, onBack, onVerify }: AuthWithPhoneProps) {
-    const [phone, setPhone] = useState('');
+export function PhoneVerificationScreen({ onBack }: PhoneVerificationScreenProps) {
+    const [otp, setOtp] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const handlePhoneChange = (value: string) => {
-        const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
-        const formatted =
-            digitsOnly.length > 5
-                ? `${digitsOnly.slice(0, 5)} ${digitsOnly.slice(5)}`
-                : digitsOnly;
-        setPhone(formatted);
-    };
 
-    const title = mode === 'login' ? 'Login with Phone' : 'Sign up with Phone';
-    const subtitle =
-        mode === 'login'
-            ? 'Enter your mobile number to login'
-            : 'Your phone number will be used to login to your account.We will also using this for account recovery purposes.';
-    const primaryCta = mode === 'login' ? 'Login' : 'Continue';
-    const primaryCtaDescription = mode === 'login' ? '' : 'We will send OTP to your phone number for verification.';
+    const title = 'Verify your phone number';
+    const subtitle = 'Enter the 6-digit code sent to your phone number';
+    const primaryCta = 'Verify';
     const handlePrimaryAction = () => {
         if (isSubmitting) return;
         setIsSubmitting(true);
-        onVerify();
-        // If navigation doesn't happen for some reason, re-enable the button.
-        setIsSubmitting(false);
+        setTimeout(() => {
+            setIsSubmitting(false);
+        }, 1200);
     };
+
+
+    useEffect(() => {
+        if (otp.length === 6) {
+            handlePrimaryAction();
+        }
+    }, [otp]);
 
     return (
         <KeyboardAvoidingView
@@ -68,33 +62,26 @@ export function AuthWithPhone({ mode, onBack, onVerify }: AuthWithPhoneProps) {
 
                 <View style={styles.formCard}>
                     <View style={styles.form}>
-                        <Text style={styles.label}>Phone number</Text>
-                        <View style={styles.phoneInputRow}>
-                            <Text style={styles.countryCode}>+91</Text>
+                        <Text style={styles.label}>Enter OTP</Text>
+                        <View style={styles.otpInputRow}>
                             <TextInput
-                                style={[styles.input, styles.phoneInput, phone.length > 0 ? styles.inputFilled : styles.inputDefault]}
-                                placeholder="99999 99999"
-                                placeholderTextColor={theme.colors.textMuted}
-                                keyboardType="phone-pad"
-                                value={phone}
-                                onChangeText={handlePhoneChange}
-                                maxLength={11}
+                                style={[
+                                    styles.input,
+                                    styles.otpInput,
+                                    otp.length > 0 ? styles.inputFilled : styles.inputDefault,
+                                ]}
+                                placeholder="Enter your OTP"
+                                placeholderTextColor={theme.colors.surface}
+                                keyboardType="numeric"
+                                value={otp}
+                                onChangeText={setOtp}
+                                maxLength={6}
                             />
                         </View>
                     </View>
                 </View>
             </View>
             <View style={styles.primaryButtonContainer}>
-                {primaryCtaDescription ? (
-                    <View style={styles.primaryCtaDescRow}>
-                        <MaterialCommunityIcons
-                            name="information-outline"
-                            size={16}
-                            color={theme.colors.textMuted}
-                        />
-                        <Text style={styles.primaryCtaDesc}>{primaryCtaDescription}</Text>
-                    </View>
-                ) : null}
                 <Pressable
                     style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
                     onPress={handlePrimaryAction}
@@ -171,9 +158,8 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         fontSize: theme.fintSizes.md,
         color: theme.colors.textPrimary,
-        fontFamily: theme.typography.semiBold,
     },
-    phoneInputRow: {
+    otpInputRow: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
@@ -182,22 +168,15 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.surface,
         overflow: 'hidden',
     },
-    countryCode: {
-        paddingLeft: 14,
-        paddingRight: 10,
-        fontFamily: theme.typography.medium,
-        fontSize: theme.fintSizes.md,
-        color: theme.colors.textPrimary,
-    },
-    phoneInput: {
+    otpInput: {
         flex: 1,
-        paddingLeft: 10,
     },
     inputDefault: {
         fontFamily: theme.typography.regular,
     },
     inputFilled: {
-        
+        fontFamily: theme.typography.semiBold,
+        letterSpacing: 4,
     },
     primaryButton: {
         borderRadius: 24,
@@ -219,20 +198,6 @@ const styles = StyleSheet.create({
         marginBottom: 32,
         paddingTop: 16,
         paddingBottom: 12,
-    },
-    primaryCtaDescRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        columnGap: 6,
-        marginVertical: 8,
-    },
-    primaryCtaDesc: {
-        fontFamily: theme.typography.regular,
-        fontSize: theme.fintSizes.sm,
-        color: theme.colors.textMuted,
-        textAlign: 'center',
-        flexShrink: 1,
     },
     primaryButtonText: {
         fontFamily: theme.typography.medium,
