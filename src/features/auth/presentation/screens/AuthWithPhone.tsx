@@ -20,6 +20,14 @@ type AuthWithPhoneProps = {
 export function AuthWithPhone({ mode, onBack }: AuthWithPhoneProps) {
     const [phone, setPhone] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const handlePhoneChange = (value: string) => {
+        const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+        const formatted =
+            digitsOnly.length > 5
+                ? `${digitsOnly.slice(0, 5)} ${digitsOnly.slice(5)}`
+                : digitsOnly;
+        setPhone(formatted);
+    };
 
     const title = mode === 'login' ? 'Login with Phone' : 'Sign up with Phone';
     const subtitle =
@@ -67,7 +75,7 @@ export function AuthWithPhone({ mode, onBack }: AuthWithPhoneProps) {
                                 placeholder="99999 99999"
                                 keyboardType="phone-pad"
                                 value={phone}
-                                onChangeText={setPhone}
+                                onChangeText={handlePhoneChange}
                                 maxLength={11}
                             />
                         </View>
