@@ -3,9 +3,11 @@ import { SocialAuthButtons } from '../components/SocialAuthButtons';
 
 type LoginScreenProps = {
   onSwitchToSignUp: () => void;
+  onPressPhone: () => void;
+  onPressEmail: () => void;
 };
 
-export function LoginScreen({ onSwitchToSignUp }: LoginScreenProps) {
+export function LoginScreen({ onSwitchToSignUp, onPressPhone, onPressEmail }: LoginScreenProps) {
   return (
     <AuthLayout
       title="Welcome back"
@@ -14,6 +16,8 @@ export function LoginScreen({ onSwitchToSignUp }: LoginScreenProps) {
       <SocialAuthButtons
         switchCtaLabel="Create a new account"
         onSwitchMode={onSwitchToSignUp}
+        onPressPhone={onPressPhone}
+        onPressEmail={onPressEmail}
       />
     </AuthLayout>
   );

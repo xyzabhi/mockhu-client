@@ -7,6 +7,8 @@ import { theme } from '../../../../presentation/theme/theme';
 type SocialAuthButtonsProps = {
   switchCtaLabel: string;
   onSwitchMode: () => void;
+  onPressPhone: () => void;
+  onPressEmail: () => void;
 };
 
 function SocialButton({
@@ -35,7 +37,12 @@ function SocialButton({
   );
 }
 
-export function SocialAuthButtons({ switchCtaLabel, onSwitchMode }: SocialAuthButtonsProps) {
+export function SocialAuthButtons({
+  switchCtaLabel,
+  onSwitchMode,
+  onPressPhone,
+  onPressEmail,
+}: SocialAuthButtonsProps) {
   return (
     <ScrollView
       style={styles.sheetBodyScroll}
@@ -48,14 +55,14 @@ export function SocialAuthButtons({ switchCtaLabel, onSwitchMode }: SocialAuthBu
         <SocialButton
           leading={<MaterialCommunityIcons name="phone" size={22} color={theme.colors.iconPhone} />}
           label="Phone"
-          onPress={() => {}}
+          onPress={onPressPhone}
         />
         <SocialButton
           leading={
             <MaterialCommunityIcons name="email-outline" size={22} color={theme.colors.iconEmail} />
           }
           label="Email"
-          onPress={() => {}}
+          onPress={onPressEmail}
         />
         <SocialButton leading={<GoogleLogo size={22} />} label="Google" onPress={() => {}} />
         <SocialButton
