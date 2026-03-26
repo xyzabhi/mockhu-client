@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
+    ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     Pressable,
@@ -19,6 +20,7 @@ type AuthWithEmailProps = {
 export function AuthWithEmail({ mode, onBack }: AuthWithEmailProps) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const title = mode === 'login' ? 'Login with Email' : 'Sign up with Email';
     const subtitle =
@@ -27,6 +29,13 @@ export function AuthWithEmail({ mode, onBack }: AuthWithEmailProps) {
             : 'Create your account using your email and password\nWe use your email to create your account and for account recovery.';
     const primaryCta = mode === 'login' ? 'Login' : 'Continue';
     const primaryCtaDescription = mode === 'login' ? '' : 'We will send link to your email address to verify your account.';
+    const handlePrimaryAction = () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        setTimeout(() => {
+            setIsSubmitting(false);
+        }, 1200);
+    };
 
     return (
         <KeyboardAvoidingView
@@ -85,8 +94,16 @@ export function AuthWithEmail({ mode, onBack }: AuthWithEmailProps) {
                         <Text style={styles.primaryCtaDesc}>{primaryCtaDescription}</Text>
                     </View>
                 ) : null}
-                <Pressable style={styles.primaryButton}>
-                    <Text style={styles.primaryButtonText}>{primaryCta}</Text>
+                <Pressable
+                    style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+                    onPress={handlePrimaryAction}
+                    disabled={isSubmitting}
+                >
+                    <View style={styles.primaryButtonContent}>
+                        {isSubmitting ? (
+                            <ActivityIndicator size="small" color={theme.colors.textPrimary} />
+                        ) : null}<Text style={styles.primaryButtonText}>{ isSubmitting ? "" : primaryCta}</Text>
+                    </View>
                 </Pressable>
             </View>
         </KeyboardAvoidingView>
@@ -177,6 +194,14 @@ const styles = StyleSheet.create({
         borderColor: theme.colors.borderStrong,
         alignItems: 'center',
         paddingVertical: 12,
+    },
+    primaryButtonDisabled: {
+        opacity: 0.9,
+    },
+    primaryButtonContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        columnGap: 8,
     },
     primaryButtonContainer: {
         marginBottom: 32,
