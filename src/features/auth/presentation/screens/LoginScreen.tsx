@@ -1,0 +1,20 @@
+import { AuthLayout } from '../components/AuthLayout';
+import { SocialAuthButtons } from '../components/SocialAuthButtons';
+
+type LoginScreenProps = {
+  onSwitchToSignUp: () => void;
+};
+
+export function LoginScreen({ onSwitchToSignUp }: LoginScreenProps) {
+  return (
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Login to continue your exam preparation journey"
+    >
+      <SocialAuthButtons
+        switchCtaLabel="Create a new account"
+        onSwitchMode={onSwitchToSignUp}
+      />
+    </AuthLayout>
+  );
+}
