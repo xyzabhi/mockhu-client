@@ -144,8 +144,8 @@ function WelcomeScreen() {
 const ICON_SLOT = 48;
 
 /** Bigger `HERO_FLEX` vs `SHEET_FLEX` = shorter sheet (e.g. 2 and 1 ≈ 33% sheet). */
-const HERO_FLEX = 1;
-const SHEET_FLEX = 1;
+const HERO_FLEX = 3;
+const SHEET_FLEX = 7;
 
 const styles = StyleSheet.create({
   root: {
