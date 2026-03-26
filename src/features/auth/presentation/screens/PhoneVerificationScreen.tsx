@@ -20,7 +20,7 @@ type PhoneVerificationScreenProps = {
 export function PhoneVerificationScreen({ onBack }: PhoneVerificationScreenProps) {
     const [otp, setOtp] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-
+    const [isVerified, setIsVerified] = useState(false);
     const title = 'Verify your phone number';
     const subtitle = 'Enter the 6-digit code sent to your phone number';
     const primaryCta = 'Verify';
@@ -29,6 +29,7 @@ export function PhoneVerificationScreen({ onBack }: PhoneVerificationScreenProps
         setIsSubmitting(true);
         setTimeout(() => {
             setIsSubmitting(false);
+            setIsVerified(true);
         }, 1200);
     };
 
@@ -92,8 +93,10 @@ export function PhoneVerificationScreen({ onBack }: PhoneVerificationScreenProps
                             <ActivityIndicator size="small" color={theme.colors.textPrimary} />
                         ) : null}
                         <Text style={styles.primaryButtonText}>
-                            {isSubmitting ? "" : primaryCta}
+                            {isSubmitting ? "" : isVerified ? "" : primaryCta}
                         </Text>
+                        {isVerified ? <MaterialCommunityIcons name="check-circle" size={24} color={theme.colors.textPrimary} /> : null}
+                        {isVerified ? <Text style={styles.primaryButtonText}>Verified</Text> : null}
                     </View>
                 </Pressable>
             </View>
