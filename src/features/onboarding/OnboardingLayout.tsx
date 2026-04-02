@@ -139,7 +139,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f6f8fc',
+    backgroundColor: '#ffffff',
   },
   header: {
     paddingHorizontal: 20,

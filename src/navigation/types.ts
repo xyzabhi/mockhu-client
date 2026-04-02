@@ -7,11 +7,11 @@ export type AuthStackParamList = {
   AuthLogin: undefined;
   AuthPhone: { mode: 'signup' | 'login' };
   AuthEmail: { mode: 'signup' | 'login' };
-  AuthPhoneVerify: { mode: 'signup' | 'login' };
+  AuthPhoneVerify: { mode: 'signup' | 'login'; phoneE164: string };
 };
 
 export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
-  Main: undefined;
+  Home: undefined;
 };
