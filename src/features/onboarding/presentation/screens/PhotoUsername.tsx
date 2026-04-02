@@ -16,12 +16,11 @@ import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 16;
 const AVATAR = 144;
-const BRAND_TINT = 'rgba(0, 210, 106, 0.12)';
-const BRAND_TINT_STRONG = 'rgba(0, 210, 106, 0.2)';
 
 export function PhotoUsernameScreen({
   onStepValidityChange,
 }: OnboardingStepScreenProps) {
+  /** `null` = show default avatar; set when user picks a custom photo. */
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [username, setUsername] = useState('');
   const [usernameFocused, setUsernameFocused] = useState(false);
@@ -63,10 +62,7 @@ export function PhotoUsernameScreen({
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      <Text style={styles.sectionLabel}>Profile photo</Text>
-      <Text style={styles.sectionHint}>
-        Optional. You can add or change this anytime.
-      </Text>
+      <Text style={styles.sectionLabel}>Photo</Text>
 
       <View style={styles.avatarBlock}>
         <Pressable
@@ -76,12 +72,12 @@ export function PhotoUsernameScreen({
           ]}
           onPress={pickImage}
           accessibilityRole="button"
-          accessibilityLabel={photoUri ? 'Change profile photo' : 'Add profile photo'}
+          accessibilityLabel={photoUri ? 'Change profile photo' : 'Choose profile photo'}
         >
           <View
             style={[
               styles.avatarRing,
-              photoUri ? styles.avatarRingFilled : styles.avatarRingEmpty,
+              photoUri ? styles.avatarRingFilled : styles.avatarRingDefault,
             ]}
           >
             {photoUri ? (
@@ -96,47 +92,36 @@ export function PhotoUsernameScreen({
                 </View>
               </>
             ) : (
-              <View style={styles.avatarEmpty}>
-                <View style={styles.iconCircle}>
-                  <MaterialCommunityIcons
-                    name="image-plus-outline"
-                    size={36}
-                    color={theme.colors.brand}
-                  />
-                </View>
-                <Text style={styles.emptyTitle}>Add a photo</Text>
-                <Text style={styles.emptySubtitle}>JPG or PNG · tap to open library</Text>
-              </View>
+              <MaterialCommunityIcons
+                name="account"
+                size={Math.round(AVATAR * 0.45)}
+                color={theme.colors.textMuted}
+              />
             )}
           </View>
         </Pressable>
 
-        {photoUri ? (
-          <View style={styles.photoActions}>
-            <Pressable
-              onPress={pickImage}
-              style={({ pressed }) => [styles.textLink, pressed && styles.textLinkPressed]}
-              hitSlop={8}
-            >
-              <Text style={styles.textLinkLabel}>Choose different photo</Text>
-            </Pressable>
+        <View style={styles.photoActions}>
+          <Pressable
+            onPress={pickImage}
+            style={({ pressed }) => [styles.textLink, pressed && styles.textLinkPressed]}
+            hitSlop={8}
+          >
+            <Text style={styles.textLinkLabel}>{photoUri ? 'Change' : 'Upload'}</Text>
+          </Pressable>
+          {photoUri ? (
             <Pressable
               onPress={() => setPhotoUri(null)}
               style={({ pressed }) => [styles.textLinkMuted, pressed && styles.textLinkPressed]}
               hitSlop={8}
             >
-              <Text style={styles.textLinkMutedLabel}>Remove</Text>
+              <Text style={styles.textLinkMutedLabel}>Reset</Text>
             </Pressable>
-          </View>
-        ) : null}
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.divider} />
-
-      <Text style={styles.sectionLabel}>Username</Text>
-      <Text style={styles.sectionHint}>
-        Letters, numbers, and underscores only. This is how others find you.
-      </Text>
 
       <View
         style={[
@@ -152,42 +137,32 @@ export function PhotoUsernameScreen({
           onChangeText={handleUsernameChange}
           onFocus={() => setUsernameFocused(true)}
           onBlur={() => setUsernameFocused(false)}
-          placeholder="your_handle"
+          placeholder="username"
           placeholderTextColor={theme.colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={USERNAME_MAX}
           accessibilityLabel="Username"
+          accessibilityHint={`${USERNAME_MIN} to ${USERNAME_MAX} characters`}
         />
-      </View>
-
-      <View style={styles.validationRow}>
-        <MaterialCommunityIcons
-          name={usernameLengthOk ? 'check-circle' : 'alert-circle-outline'}
-          size={20}
-          color={usernameLengthOk ? theme.colors.brand : theme.colors.textMuted}
-        />
-        <View style={styles.validationTextBlock}>
-          <Text
-            style={[
-              styles.validationTitle,
-              usernameLengthOk ? styles.validationTitleOk : styles.validationTitleMuted,
-            ]}
-          >
-            {usernameLengthOk
-              ? 'Username looks good'
-              : normalizedUsername.length === 0
-                ? `Use ${USERNAME_MIN}–${USERNAME_MAX} characters`
-                : normalizedUsername.length < USERNAME_MIN
-                  ? `${USERNAME_MIN - normalizedUsername.length} more character${USERNAME_MIN - normalizedUsername.length === 1 ? '' : 's'} needed`
-                  : 'Too long — max 16 characters'}
-          </Text>
-          <Text style={styles.charMeta}>
-            <Text style={styles.charMetaStrong}>{normalizedUsername.length}</Text>
-            <Text style={styles.charMetaFaint}> / {USERNAME_MAX}</Text>
-          </Text>
+        <View style={styles.usernameInputTrail}>
+          {usernameLengthOk ? (
+            <MaterialCommunityIcons
+              name="check-circle"
+              size={22}
+              color={theme.colors.brand}
+              accessibilityLabel="Username valid"
+            />
+          ) : (
+            <Text style={styles.charMetaInline} accessibilityLabel="Character count">
+              {normalizedUsername.length}/{USERNAME_MAX}
+            </Text>
+          )}
         </View>
       </View>
+      {!usernameLengthOk && normalizedUsername.length > 0 ? (
+        <Text style={styles.usernameHint}>{USERNAME_MIN}–{USERNAME_MAX} characters</Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -198,23 +173,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingHorizontal: 24,
+    paddingTop: 4,
     paddingBottom: 32,
   },
   sectionLabel: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-  sectionHint: {
-    marginTop: 6,
-    fontFamily: theme.typography.regular,
+    fontFamily: theme.typography.medium,
     fontSize: theme.fintSizes.sm,
     color: theme.colors.textMuted,
-    lineHeight: 20,
-    marginBottom: 20,
+    marginBottom: 12,
+    letterSpacing: 0.2,
+    textTransform: 'uppercase',
   },
   avatarBlock: {
     alignItems: 'center',
@@ -235,11 +204,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarRingEmpty: {
-    backgroundColor: BRAND_TINT,
-    borderWidth: 2,
-    borderColor: BRAND_TINT_STRONG,
-    borderStyle: 'dashed',
+  avatarRingDefault: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
   },
   avatarRingFilled: {
     backgroundColor: '#F3F4F6',
@@ -254,37 +222,6 @@ const styles = StyleSheet.create({
   avatarImage: {
     width: '100%',
     height: '100%',
-  },
-  avatarEmpty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  emptyTitle: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-  },
-  emptySubtitle: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
   },
   editBadge: {
     position: 'absolute',
@@ -309,7 +246,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 20,
-    marginTop: 16,
+    marginTop: 14,
+    minHeight: 24,
   },
   textLink: {
     paddingVertical: 4,
@@ -333,7 +271,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: theme.colors.borderSubtle,
-    marginVertical: 28,
+    marginVertical: 24,
   },
   usernameShell: {
     flexDirection: 'row',
@@ -344,7 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: '#FAFAFA',
     paddingLeft: 4,
-    paddingRight: 14,
+    paddingRight: 10,
     overflow: 'hidden',
   },
   usernameShellFocused: {
@@ -371,38 +309,21 @@ const styles = StyleSheet.create({
     fontSize: theme.fintSizes.md,
     color: theme.colors.textPrimary,
     paddingVertical: 12,
+    paddingRight: 6,
   },
-  validationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    marginTop: 16,
-    paddingHorizontal: 2,
+  usernameInputTrail: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  validationTextBlock: {
-    flex: 1,
-  },
-  validationTitle: {
+  charMetaInline: {
     fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-    lineHeight: 20,
-  },
-  validationTitleOk: {
-    color: theme.colors.textPrimary,
-  },
-  validationTitleMuted: {
-    color: theme.colors.textMuted,
-  },
-  charMeta: {
-    marginTop: 4,
-  },
-  charMetaStrong: {
-    fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textPrimary,
+    color: theme.colors.textMuted,
     fontVariant: ['tabular-nums'],
   },
-  charMetaFaint: {
+  usernameHint: {
+    marginTop: 8,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
     color: theme.colors.textMuted,

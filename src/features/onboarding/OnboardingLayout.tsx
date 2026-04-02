@@ -22,7 +22,8 @@ import type { OnboardingStepScreenProps } from './onboardingStepTypes';
 type OnboardingStep = {
   component: ComponentType<OnboardingStepScreenProps>;
   title: string;
-  description: string;
+  /** Omit or leave empty for a minimal header (title only). */
+  description?: string;
 };
 
 /** Steps where Next is allowed before the user types (optional / placeholder). */
@@ -31,35 +32,11 @@ function initialCanContinueForStep(stepIndex: number): boolean {
 }
 
 const screens: OnboardingStep[] = [
-  {
-    component: NameGenderScreen,
-    title: 'Name and Gender',
-    description:
-      'Enter first, last name and gender to get started. It could be male, female, other, etc.',
-  },
-  {
-    component: DOBScreen,
-    title: 'Date of Birth',
-    description: 'Enter your date of birth, must be 13 years old or older',
-  },
-  {
-    component: BioScreen,
-    title: 'Enter Bio (Optional)',
-    description:
-      'Enter your bio to help others get to know you and we will use it to personalize your experience',
-  },
-  {
-    component: PhotoUsernameScreen,
-    title: 'Photo and Username',
-    description:
-      'Upload a photo and choose a username. Must be unique and 3-16 characters long',
-  },
-  {
-    component: InterestScreen,
-    title: 'Interest',
-    description:
-      'Select your interests to help us personalize your experience.It could be exam interest, career interest, subject interest, etc.',
-  },
+  { component: NameGenderScreen, title: 'Name' },
+  { component: DOBScreen, title: 'Birthday' },
+  { component: BioScreen, title: 'Bio' },
+  { component: PhotoUsernameScreen, title: 'Profile' },
+  { component: InterestScreen, title: 'Interests' },
 ];
 
 type OnboardingLayoutProps = {
@@ -118,7 +95,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         visible={showFinishCelebration}
         onComplete={handleCelebrationComplete}
       />
-      <View style={styles.root}>
+      <View style={styles.body}>
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           {step > 0 ? (
@@ -140,10 +117,15 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
             <View style={styles.backButtonPlaceholder} />
           )}
         </View>
-        <Text style={styles.title}>{current.title}</Text>
-        <View style={styles.infoContainer}>
-          <Text style={styles.description}>{current.description}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{current.title}</Text>
+          <Text style={styles.stepMeta} accessibilityLabel={`Step ${step + 1} of ${screens.length}`}>
+            {step + 1}/{screens.length}
+          </Text>
         </View>
+        {current.description ? (
+          <Text style={styles.description}>{current.description}</Text>
+        ) : null}
       </View>
 
       <View style={styles.stepSlot}>
@@ -173,11 +155,9 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
             ]}
           />
         </View>
-        <Text style={styles.primaryButtonText}>
-          {isLast ? 'Finish' : `Step ${step + 1} of ${screens.length}`}
-        </Text>
+        <Text style={styles.primaryButtonText}>{isLast ? 'Finish' : 'Continue'}</Text>
       </Pressable>
-    </View>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -187,10 +167,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  body: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -208,26 +192,31 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
-  title: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xl,
-    color: theme.colors.textPrimary,
-    marginBottom: 4,
-  },
-  infoContainer: {
+  titleRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-    gap: 4,
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  title: {
+    flex: 1,
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.xxl,
+    color: theme.colors.textPrimary,
+    letterSpacing: -0.3,
+  },
+  stepMeta: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textMuted,
+    fontVariant: ['tabular-nums'],
   },
   description: {
-    flex: 1,
-    flexShrink: 1,
+    marginTop: 8,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
     color: theme.colors.textMuted,
-    lineHeight: 18,
-    marginBottom: 4,
+    lineHeight: 20,
   },
   stepSlot: {
     flex: 1,
@@ -235,7 +224,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   primaryButton: {
-    marginHorizontal: 20,
+    marginHorizontal: 24,
     marginBottom: 24,
     borderRadius: 24,
     borderWidth: 1,

@@ -92,8 +92,8 @@ export function OnboardingFinishCelebration({
           pointerEvents="none"
         >
           <Text style={styles.emoji}>🎉</Text>
-          <Text style={styles.title}>Congratulations!</Text>
-          <Text style={styles.subtitle}>Welcome to Mockhu</Text>
+          <Text style={styles.title}>Welcome</Text>
+          <Text style={styles.subtitle}>Mockhu</Text>
         </Animated.View>
       </View>
     </Modal>
@@ -117,17 +117,17 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontFamily: theme.typography.bold,
+    fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xxxl,
     color: theme.colors.textPrimary,
     textAlign: 'center',
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
   },
   subtitle: {
-    marginTop: 10,
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xl,
-    color: theme.colors.brand,
+    marginTop: 6,
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.lg,
+    color: theme.colors.textMuted,
     textAlign: 'center',
   },
 });

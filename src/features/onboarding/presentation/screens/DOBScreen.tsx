@@ -93,19 +93,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 4,
-  },
-  sectionTitle: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xl,
-    color: theme.colors.textPrimary,
-  },
-  helper: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
   },
   row: {
     flexDirection: 'row',
@@ -123,12 +112,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: theme.fintSizes.sm,
     fontFamily: theme.typography.medium,
-    color: theme.colors.textPrimary,
-  },
-  selected: {
-    marginTop: 2,
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
     color: theme.colors.textPrimary,
   },
 });

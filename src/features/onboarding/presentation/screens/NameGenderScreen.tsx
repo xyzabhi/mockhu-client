@@ -36,7 +36,7 @@ export function NameGenderScreen({
   return (
     <View style={styles.container}>
       <View style={styles.field}>
-        <Text style={styles.label}>First name</Text>
+        <Text style={styles.label}>First</Text>
         <TextInput
           style={[
             styles.input,
@@ -55,7 +55,7 @@ export function NameGenderScreen({
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>Last name</Text>
+        <Text style={styles.label}>Last</Text>
         <TextInput
           style={[
             styles.input,
@@ -79,7 +79,7 @@ export function NameGenderScreen({
           options={[...GENDER_OPTIONS]}
           value={gender}
           onChange={setGender}
-          placeholder="Select gender"
+          placeholder="Choose"
           isOpen={openField === 'gender'}
           onOpenChange={(open) => setOpenField(open ? 'gender' : null)}
         />
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 4,
     gap: 20,
   },
