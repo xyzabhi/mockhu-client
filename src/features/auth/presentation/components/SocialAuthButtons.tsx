@@ -65,16 +65,17 @@ export function SocialAuthButtons({
           onPress={onPressEmail}
         />
         <SocialButton leading={<GoogleLogo size={22} />} label="Google" onPress={() => {}} />
-        <SocialButton
+        {/* This is not part of MVP */}
+        {/* <SocialButton
           leading={<MaterialCommunityIcons name="facebook" size={22} color={theme.colors.iconFacebook} />}
           label="Facebook"
           onPress={() => {}}
-        />
-        <SocialButton
+        /> */}
+        {/* <SocialButton
           leading={<MaterialCommunityIcons name="apple" size={22} color={theme.colors.iconApple} />}
           label="Apple"
           onPress={() => {}}
-        />
+        /> */}
         <Pressable
           onPress={onSwitchMode}
           android_ripple={{ color: 'rgba(0, 0, 0, 0.12)' }}

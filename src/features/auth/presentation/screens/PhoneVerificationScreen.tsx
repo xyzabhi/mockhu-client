@@ -15,9 +15,13 @@ import { theme } from '../../../../presentation/theme/theme';
 type PhoneVerificationScreenProps = {
     mode: 'signup' | 'login';
     onBack: () => void;
+    onVerified?: () => void;
 };
 
-export function PhoneVerificationScreen({ onBack }: PhoneVerificationScreenProps) {
+export function PhoneVerificationScreen({
+    onBack,
+    onVerified,
+}: PhoneVerificationScreenProps) {
     const [otp, setOtp] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
@@ -30,6 +34,7 @@ export function PhoneVerificationScreen({ onBack }: PhoneVerificationScreenProps
         setTimeout(() => {
             setIsSubmitting(false);
             setIsVerified(true);
+            onVerified?.();
         }, 1200);
     };
 
@@ -179,7 +184,6 @@ const styles = StyleSheet.create({
     },
     inputFilled: {
         fontFamily: theme.typography.semiBold,
-        letterSpacing: 4,
     },
     primaryButton: {
         borderRadius: 24,

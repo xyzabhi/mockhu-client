@@ -2,7 +2,7 @@ import { useFonts } from 'expo-font';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import WelcomeScreen from './src/features/auth/WelcomeScreen';
+import { RootNavigator } from './src/navigation';
 import { interFontMap } from './src/presentation/theme/interFontMap';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -26,7 +26,7 @@ export default function App() {
         style={{ flex: 1, backgroundColor: '#f6f8fc' }}
         edges={['top', 'left', 'right']}
       >
-        <WelcomeScreen />
+        <RootNavigator />
       </SafeAreaView>
     </SafeAreaProvider>
   );
