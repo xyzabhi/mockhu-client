@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { AppError, authApi } from '../../../../api';
+import type { TokenResponse } from '../../../../api/types';
 import { theme } from '../../../../presentation/theme/theme';
 import { OtpInput } from '../../../../shared/components/OtpInput';
 
@@ -19,7 +20,7 @@ type PhoneVerificationScreenProps = {
     /** Same E.164 value used for POST /auth/phone/request */
     phoneE164: string;
     onBack: () => void;
-    onVerified?: () => void;
+    onVerified?: (tokens: TokenResponse) => void;
 };
 
 export function PhoneVerificationScreen({
@@ -47,8 +48,8 @@ export function PhoneVerificationScreen({
         setVerifyError(null);
         setIsSubmitting(true);
         try {
-            await authApi.verifyPhoneOtp({ phone: phoneE164, otp });
-            onVerified?.();
+            const tokens = await authApi.verifyPhoneOtp({ phone: phoneE164, otp });
+            onVerified?.(tokens);
         } catch (e) {
             const message =
                 e instanceof AppError ? e.message : 'Invalid or expired code. Try again.';

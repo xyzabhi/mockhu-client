@@ -1,5 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -9,18 +10,32 @@ import {
   Text,
   View,
 } from 'react-native';
+import { OnboardingFinishCelebration } from './OnboardingFinishCelebration';
 import { BioScreen } from './presentation/screens/BioScreen';
 import { DOBScreen } from './presentation/screens/DOBScreen';
 import { InterestScreen } from './presentation/screens/InterestScreen';
-import { NameDobScreen } from './presentation/screens/NameGenderScreen';
+import { NameGenderScreen } from './presentation/screens/NameGenderScreen';
 import { PhotoUsernameScreen } from './presentation/screens/PhotoUsername';
 import { theme } from '../../presentation/theme/theme';
+import type { OnboardingStepScreenProps } from './onboardingStepTypes';
 
-const screens = [
+type OnboardingStep = {
+  component: ComponentType<OnboardingStepScreenProps>;
+  title: string;
+  description: string;
+};
+
+/** Steps where Next is allowed before the user types (optional / placeholder). */
+function initialCanContinueForStep(stepIndex: number): boolean {
+  return stepIndex === 2 || stepIndex === 4;
+}
+
+const screens: OnboardingStep[] = [
   {
-    component: NameDobScreen,
+    component: NameGenderScreen,
     title: 'Name and Gender',
-    description: 'Enter first, last name and gender to get started. It could be male, female, other, etc.',
+    description:
+      'Enter first, last name and gender to get started. It could be male, female, other, etc.',
   },
   {
     component: DOBScreen,
@@ -30,19 +45,22 @@ const screens = [
   {
     component: BioScreen,
     title: 'Enter Bio (Optional)',
-    description: 'Enter your bio to help others get to know you and we will use it to personalize your experience',
+    description:
+      'Enter your bio to help others get to know you and we will use it to personalize your experience',
   },
   {
     component: PhotoUsernameScreen,
     title: 'Photo and Username',
-    description: 'Upload a photo and choose a username. Must be unique and 3-16 characters long',
+    description:
+      'Upload a photo and choose a username. Must be unique and 3-16 characters long',
   },
   {
     component: InterestScreen,
     title: 'Interest',
-    description: 'Select your interests to help us personalize your experience.It could be exam interest, career interest, subject interest, etc.',
+    description:
+      'Select your interests to help us personalize your experience.It could be exam interest, career interest, subject interest, etc.',
   },
-] as const;
+];
 
 type OnboardingLayoutProps = {
   onFinish?: () => void;
@@ -50,10 +68,22 @@ type OnboardingLayoutProps = {
 
 export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
   const [step, setStep] = useState(0);
+  const [showFinishCelebration, setShowFinishCelebration] = useState(false);
+  const [stepCanContinue, setStepCanContinue] = useState(() =>
+    initialCanContinueForStep(0),
+  );
   const progressAnim = useRef(new Animated.Value((1 / screens.length) * 100)).current;
   const current = screens[step];
   const Step = current.component;
   const isLast = step === screens.length - 1;
+
+  const handleStepValidityChange = useCallback((canContinue: boolean) => {
+    setStepCanContinue(canContinue);
+  }, []);
+
+  useEffect(() => {
+    setStepCanContinue(initialCanContinueForStep(step));
+  }, [step]);
 
   useEffect(() => {
     const target = ((step + 1) / screens.length) * 100;
@@ -71,14 +101,23 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
 
   const handlePrimary = () => {
     if (isLast) {
-      onFinish?.();
+      setShowFinishCelebration(true);
       return;
     }
     setStep((s) => s + 1);
   };
 
+  const handleCelebrationComplete = useCallback(() => {
+    setShowFinishCelebration(false);
+    onFinish?.();
+  }, [onFinish]);
+
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.root}>
+      <OnboardingFinishCelebration
+        visible={showFinishCelebration}
+        onComplete={handleCelebrationComplete}
+      />
       <View style={styles.root}>
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
@@ -88,6 +127,8 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
               style={styles.backButton}
               hitSlop={8}
               android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
               <MaterialCommunityIcons
                 name="arrow-left"
@@ -106,13 +147,18 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
       </View>
 
       <View style={styles.stepSlot}>
-        <Step />
+        <Step onStepValidityChange={handleStepValidityChange} />
       </View>
 
       <Pressable
-        style={styles.primaryButton}
+        style={[
+          styles.primaryButton,
+          !stepCanContinue && styles.primaryButtonDisabled,
+        ]}
         onPress={handlePrimary}
+        disabled={!stepCanContinue}
         android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
+        accessibilityState={{ disabled: !stepCanContinue }}
       >
         <View style={styles.primaryButtonTrack} pointerEvents="none">
           <Animated.View
@@ -160,6 +206,7 @@ const styles = StyleSheet.create({
   },
   backButtonPlaceholder: {
     width: 40,
+    height: 40,
   },
   title: {
     fontFamily: theme.typography.semiBold,
@@ -185,6 +232,7 @@ const styles = StyleSheet.create({
   stepSlot: {
     flex: 1,
     minHeight: 0,
+    backgroundColor: '#ffffff',
   },
   primaryButton: {
     marginHorizontal: 20,
@@ -197,6 +245,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.42,
   },
   primaryButtonTrack: {
     ...StyleSheet.absoluteFillObject,

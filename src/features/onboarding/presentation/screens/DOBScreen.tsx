@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
+import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 import { DropDown } from '../../../../shared/components/DropDown';
 
-export function DOBScreen() {
+export function DOBScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
   const [year, setYear] = useState('');
@@ -43,13 +44,14 @@ export function DOBScreen() {
     });
   }, []);
 
-  const selectedDate = day && month && year ? `${day}/${month}/${year}` : '';
+  useEffect(() => {
+    onStepValidityChange?.(Boolean(day && month && year));
+  }, [day, month, year, onStepValidityChange]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.formCard}>
-        <View style={styles.row}>
-          <View style={styles.colSm}>
+      <View style={styles.row}>
+        <View style={styles.colSm}>
             <Text style={styles.label}>Day</Text>
             <DropDown
               value={day}
@@ -59,8 +61,8 @@ export function DOBScreen() {
               isOpen={openField === 'day'}
               onOpenChange={(isOpen) => setOpenField(isOpen ? 'day' : null)}
             />
-          </View>
-          <View style={styles.colLg}>
+        </View>
+        <View style={styles.colLg}>
             <Text style={styles.label}>Month</Text>
             <DropDown
               value={month}
@@ -70,8 +72,8 @@ export function DOBScreen() {
               isOpen={openField === 'month'}
               onOpenChange={(isOpen) => setOpenField(isOpen ? 'month' : null)}
             />
-          </View>
-          <View style={styles.colSm}>
+        </View>
+        <View style={styles.colSm}>
             <Text style={styles.label}>Year</Text>
             <DropDown
               value={year}
@@ -81,7 +83,6 @@ export function DOBScreen() {
               isOpen={openField === 'year'}
               onOpenChange={(isOpen) => setOpenField(isOpen ? 'year' : null)}
             />
-          </View>
         </View>
       </View>
     </View>
@@ -90,21 +91,10 @@ export function DOBScreen() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
     paddingHorizontal: 20,
     paddingTop: 4,
-  },
-  formCard: {
-    borderRadius: 8,
-    backgroundColor: theme.colors.surface,
-    padding: 24,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
   },
   sectionTitle: {
     fontFamily: theme.typography.semiBold,

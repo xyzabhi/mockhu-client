@@ -58,7 +58,7 @@ function AuthEmailNav({
     <AuthWithEmail
       mode={route.params.mode}
       onBack={() => navigation.goBack()}
-      onAuthSuccess={resetToRootAfterAuth}
+      onAuthSuccess={(tokens) => resetToRootAfterAuth(tokens)}
     />
   );
 }
@@ -73,7 +73,7 @@ function AuthPhoneVerifyNav({
       mode={mode}
       phoneE164={phoneE164}
       onBack={() => navigation.goBack()}
-      onVerified={resetToRootAfterAuth}
+      onVerified={(tokens) => resetToRootAfterAuth(tokens)}
     />
   );
 }

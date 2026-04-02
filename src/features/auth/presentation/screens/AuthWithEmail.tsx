@@ -12,13 +12,14 @@ import {
     View,
 } from 'react-native';
 import { AppError, authApi } from '../../../../api';
+import type { TokenResponse } from '../../../../api/types';
 import { theme } from '../../../../presentation/theme/theme';
 
 type AuthWithEmailProps = {
     mode: 'signup' | 'login';
     onBack: () => void;
     /** Called after tokens + user are persisted (navigate using `is_onboarded`). */
-    onAuthSuccess?: () => void;
+    onAuthSuccess?: (tokens: TokenResponse) => void;
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -66,12 +67,9 @@ export function AuthWithEmail({ mode, onBack, onAuthSuccess }: AuthWithEmailProp
         setIsSubmitting(true);
         try {
             const body = { email: email.trim(), password };
-            if (mode === 'login') {
-                await authApi.login(body);
-            } else {
-                await authApi.signup(body);
-            }
-            onAuthSuccess?.();
+            const tokens =
+                mode === 'login' ? await authApi.login(body) : await authApi.signup(body);
+            onAuthSuccess?.(tokens);
         } catch (e) {
             const message =
                 e instanceof AppError ? e.message : 'Something went wrong. Try again.';
