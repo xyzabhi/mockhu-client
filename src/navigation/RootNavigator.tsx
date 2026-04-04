@@ -19,6 +19,7 @@ import { ExamCategoriesScreen } from '../features/exams/presentation/screens/Exa
 import { ExamCategoryExamsScreen } from '../features/exams/presentation/screens/ExamCategoryExamsScreen';
 import { ExamDetailScreen } from '../features/exams/presentation/screens/ExamDetailScreen';
 import { MainTabNavigator } from './MainTabNavigator';
+import { SuggestedUsersScreen } from './screens/SuggestedUsersScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -109,6 +110,16 @@ export function RootNavigator() {
       >
         <Stack.Screen name="Auth" component={AuthNavigator} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen
+          name="SuggestedUsers"
+          component={SuggestedUsersScreen}
+          options={{
+            headerShown: true,
+            title: 'Suggested for you',
+            headerBackVisible: false,
+            gestureEnabled: false,
+          }}
+        />
         <Stack.Screen name="Home" component={MainTabNavigator} />
         <Stack.Screen
           name="ExamCategories"

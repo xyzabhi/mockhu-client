@@ -15,20 +15,6 @@ export function ExploreScreen() {
       <Text style={styles.body}>
         Browse exam categories, discover new mocks, and follow topics that match your goals.
       </Text>
-      <Pressable
-        style={({ pressed }) => [styles.cta, pressed && styles.ctaPressed]}
-        onPress={() => rootNav?.navigate('ExamCategories')}
-        accessibilityRole="button"
-        accessibilityLabel="Browse exams"
-        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-      >
-        <MaterialCommunityIcons
-          name="book-open-variant"
-          size={22}
-          color={theme.colors.onBrand}
-        />
-        <Text style={styles.ctaText}>Browse exams</Text>
-      </Pressable>
     </View>
   );
 }

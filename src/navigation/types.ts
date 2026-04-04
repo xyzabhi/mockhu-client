@@ -21,6 +21,7 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
+  SuggestedUsers: undefined;
   Home: undefined;
   ExamCategories: undefined;
   ExamCategory: { categoryId: number };
