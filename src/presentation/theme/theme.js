@@ -5,7 +5,7 @@
 export const theme = {
   colors: {
     /** Primary interactive — tabs, chips selected, FAB, CTA fill, avatar ring */
-    brand: '#7C3AED',
+    brand: '#4F46E5',
     brandLight: '#F5F3FF',
     brandBorder: '#DDD6FE',
     /** Streak, studied, completion, progress bars only — not mixed with brand on one element */
@@ -23,6 +23,8 @@ export const theme = {
     danger: '#EF4444',
     /** Text on brand-filled buttons */
     onBrand: '#ffffff',
+    /** Disabled primary CTA: white fill, brand outline + brand label */
+    ctaDisabledBackground: '#ffffff',
     /** Legacy aliases (icons) */
     iconPhone: '#111827',
     iconEmail: '#111827',

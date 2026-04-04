@@ -18,7 +18,7 @@ import { rootDestinationForSession } from './postAuthNavigation';
 import { ExamCategoriesScreen } from '../features/exams/presentation/screens/ExamCategoriesScreen';
 import { ExamCategoryExamsScreen } from '../features/exams/presentation/screens/ExamCategoryExamsScreen';
 import { ExamDetailScreen } from '../features/exams/presentation/screens/ExamDetailScreen';
-import { HomeScreen } from './screens/HomeScreen';
+import { MainTabNavigator } from './MainTabNavigator';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -109,7 +109,7 @@ export function RootNavigator() {
       >
         <Stack.Screen name="Auth" component={AuthNavigator} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Home" component={MainTabNavigator} />
         <Stack.Screen
           name="ExamCategories"
           component={ExamCategoriesScreen}

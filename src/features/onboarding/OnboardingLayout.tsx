@@ -159,9 +159,6 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         </View>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{current.title}</Text>
-          <Text style={styles.stepMeta} accessibilityLabel={`Step ${step + 1} of ${screens.length}`}>
-            {step + 1}/{screens.length}
-          </Text>
         </View>
         {current.description ? (
           <Text style={styles.description}>{current.description}</Text>
@@ -179,10 +176,21 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         ]}
         onPress={handlePrimary}
         disabled={!stepCanContinue}
-        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+        android_ripple={{
+          color: stepCanContinue ? 'rgba(255,255,255,0.2)' : 'rgba(79,70,229,0.12)',
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={isLast ? 'Finish onboarding' : 'Continue to next step'}
         accessibilityState={{ disabled: !stepCanContinue }}
       >
-        <Text style={styles.primaryButtonText}>{isLast ? 'Finish' : 'Continue'}</Text>
+        <Text
+          style={[
+            styles.primaryButtonText,
+            !stepCanContinue && styles.primaryButtonTextDisabled,
+          ]}
+        >
+          {isLast ? 'Finish' : 'Continue'}
+        </Text>
       </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -221,23 +229,14 @@ const styles = StyleSheet.create({
   },
   titleRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 12,
+    alignItems: 'flex-start',
   },
   title: {
-    flex: 1,
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fontSizes.screenTitle,
     lineHeight: 28,
     color: theme.colors.textPrimary,
     letterSpacing: -0.3,
-  },
-  stepMeta: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-    fontVariant: ['tabular-nums'],
   },
   description: {
     marginTop: 8,
@@ -263,12 +262,17 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
   primaryButtonDisabled: {
-    opacity: 0.42,
+    backgroundColor: theme.colors.ctaDisabledBackground,
+    borderWidth: 1,
+    borderColor: theme.colors.brand,
   },
   primaryButtonText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
     color: theme.colors.onBrand,
     textAlign: 'center',
+  },
+  primaryButtonTextDisabled: {
+    color: theme.colors.brand,
   },
 });

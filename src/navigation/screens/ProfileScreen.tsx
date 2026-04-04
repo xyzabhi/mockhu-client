@@ -7,17 +7,12 @@ import { theme } from '../../presentation/theme/theme';
 import { resetToRoute } from '../navigationRef';
 import type { RootStackParamList } from '../types';
 
-/**
- * Dummy home — replace with tabs / feed / drawer when ready.
- */
-type HomeNav = NativeStackNavigationProp<RootStackParamList>;
-
-export function HomeScreen() {
-  const navigation = useNavigation<HomeNav>();
+export function ProfileScreen() {
+  const navigation = useNavigation();
+  const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  /** Merge snake_case + camelCase (`firstName`, etc.) from API/cache. */
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const firstName = profile?.first_name?.trim() ?? '';
   const lastName = profile?.last_name?.trim() ?? '';
@@ -38,29 +33,26 @@ export function HomeScreen() {
   return (
     <View style={styles.root}>
       <Text style={styles.welcomeHeadline} accessibilityRole="header">
-        {fullName ? `Welcome, ${fullName}` : 'Welcome'}
+        {fullName ? fullName : 'Profile'}
       </Text>
       {username ? (
         <Text style={styles.usernameLine} accessibilityLabel={`Username ${username}`}>
           @{username}
         </Text>
-      ) : null}
-      {!fullName && !username ? (
-        <Text style={styles.subtitle}>You’re signed in.</Text>
       ) : (
-        <Text style={styles.subtitle}>
-          Build your real home UI here (tabs, lists, etc.).
-        </Text>
+        <Text style={styles.muted}>Add a username in settings when available.</Text>
       )}
+
       <Pressable
-        style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-        onPress={() => navigation.navigate('ExamCategories')}
+        style={({ pressed }) => [styles.primaryCta, pressed && styles.primaryCtaPressed]}
+        onPress={() => rootNav?.navigate('ExamCategories')}
         accessibilityRole="button"
         accessibilityLabel="Browse exams"
-        android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
       >
-        <Text style={styles.secondaryButtonText}>Browse exams</Text>
+        <Text style={styles.primaryCtaText}>Browse exams</Text>
       </Pressable>
+
       <Pressable
         style={({ pressed }) => [
           styles.logoutButton,
@@ -86,9 +78,9 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceSubtle,
     paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 48,
+    paddingTop: 24,
   },
   welcomeHeadline: {
     fontFamily: theme.typography.semiBold,
@@ -103,15 +95,14 @@ const styles = StyleSheet.create({
     fontSize: theme.fintSizes.lg,
     color: theme.colors.textMuted,
   },
-  subtitle: {
-    marginTop: 16,
+  muted: {
+    marginTop: 8,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
     color: theme.colors.textMuted,
-    lineHeight: 20,
   },
-  secondaryButton: {
-    marginTop: 24,
+  primaryCta: {
+    marginTop: 28,
     alignSelf: 'flex-start',
     minWidth: 160,
     paddingVertical: 12,
@@ -123,10 +114,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 48,
   },
-  secondaryButtonPressed: {
+  primaryCtaPressed: {
     opacity: 0.88,
   },
-  secondaryButtonText: {
+  primaryCtaText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
     color: theme.colors.onBrand,

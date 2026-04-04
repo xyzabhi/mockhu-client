@@ -10,6 +10,14 @@ export type AuthStackParamList = {
   AuthPhoneVerify: { mode: 'signup' | 'login'; phoneE164: string };
 };
 
+export type MainTabParamList = {
+  Home: undefined;
+  Explore: undefined;
+  Post: undefined;
+  Progress: undefined;
+  Profile: undefined;
+};
+
 export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;

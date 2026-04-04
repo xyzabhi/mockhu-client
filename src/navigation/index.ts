@@ -5,4 +5,4 @@ export {
   rootDestinationForSession,
 } from './postAuthNavigation';
 export { RootNavigator } from './RootNavigator';
-export type { AuthStackParamList, RootStackParamList } from './types';
+export type { AuthStackParamList, MainTabParamList, RootStackParamList } from './types';
