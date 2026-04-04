@@ -1,19 +1,31 @@
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { clearSession, normalizeTokenUserProfile, useSession } from '../../api';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import {
+  clearSession,
+  normalizeTokenUserProfile,
+  useFollowCounts,
+  useSession,
+} from '../../api';
 import { theme } from '../../presentation/theme/theme';
+import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
+import { UserAvatar } from '../../shared/components/UserAvatar';
 import { resetToRoute } from '../navigationRef';
-import type { RootStackParamList } from '../types';
 
 export function ProfileScreen() {
-  const navigation = useNavigation();
-  const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const profile = user ? normalizeTokenUserProfile(user) : null;
+  const userId = profile?.id?.trim();
+  const { followersCount, followingCount, loading: countsLoading } =
+    useFollowCounts(userId);
   const firstName = profile?.first_name?.trim() ?? '';
   const lastName = profile?.last_name?.trim() ?? '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ');
@@ -31,7 +43,18 @@ export function ProfileScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.avatarRow}>
+        <UserAvatar
+          seed={userId ?? (username || 'profile')}
+          avatarUrl={profile?.avatar_url}
+          size={88}
+        />
+      </View>
       <Text style={styles.welcomeHeadline} accessibilityRole="header">
         {fullName ? fullName : 'Profile'}
       </Text>
@@ -43,15 +66,25 @@ export function ProfileScreen() {
         <Text style={styles.muted}>Add a username in settings when available.</Text>
       )}
 
-      <Pressable
-        style={({ pressed }) => [styles.primaryCta, pressed && styles.primaryCtaPressed]}
-        onPress={() => rootNav?.navigate('ExamCategories')}
-        accessibilityRole="button"
-        accessibilityLabel="Browse exams"
-        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-      >
-        <Text style={styles.primaryCtaText}>Browse exams</Text>
-      </Pressable>
+      {userId ? (
+        <View style={styles.countsRow} accessibilityRole="summary">
+          <View style={styles.countBlock}>
+            <Text style={styles.countValue} accessibilityLabel={`Followers ${followersCount ?? 0}`}>
+              {countsLoading ? '—' : String(followersCount ?? 0)}
+            </Text>
+            <Text style={styles.countLabel}>Followers</Text>
+          </View>
+          <View style={styles.countDivider} />
+          <View style={styles.countBlock}>
+            <Text style={styles.countValue} accessibilityLabel={`Following ${followingCount ?? 0}`}>
+              {countsLoading ? '—' : String(followingCount ?? 0)}
+            </Text>
+            <Text style={styles.countLabel}>Following</Text>
+          </View>
+        </View>
+      ) : null}
+
+      <SuggestedForYouSection />
 
       <Pressable
         style={({ pressed }) => [
@@ -71,7 +104,7 @@ export function ProfileScreen() {
           <Text style={styles.logoutButtonText}>Log out</Text>
         )}
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -79,8 +112,15 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: theme.colors.surfaceSubtle,
+  },
+  scrollContent: {
     paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 24,
+    paddingBottom: 32,
+  },
+  avatarRow: {
+    alignItems: 'center',
+    marginBottom: 16,
   },
   welcomeHeadline: {
     fontFamily: theme.typography.semiBold,
@@ -100,6 +140,38 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
     color: theme.colors.textMuted,
+  },
+  countsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.card,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
+  },
+  countBlock: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  countValue: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.xl,
+    color: theme.colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  countLabel: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fontSizes.meta,
+    color: theme.colors.textMuted,
+  },
+  countDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: theme.colors.borderSubtle,
   },
   primaryCta: {
     marginTop: 28,
