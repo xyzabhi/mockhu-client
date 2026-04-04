@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
+import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 
 const MAX_CHARS = 500;
 
 export function BioScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
-  const [bio, setBio] = useState('');
+  const { draft, updateDraft } = useOnboardingDraft();
+  const [bio, setBio] = useState(draft.bio);
   const [isFocused, setIsFocused] = useState(false);
 
   const length = bio.length;
   const nearLimit = length > MAX_CHARS * 0.85;
   const atLimit = length >= MAX_CHARS;
+
+  useEffect(() => {
+    updateDraft({ bio });
+  }, [bio, updateDraft]);
 
   useEffect(() => {
     onStepValidityChange?.(true);

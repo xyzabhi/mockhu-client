@@ -6,6 +6,7 @@ import {
   View,
 } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
+import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 import { DropDown } from '../../../../shared/components/DropDown';
 
@@ -19,11 +20,20 @@ const GENDER_OPTIONS = [
 export function NameGenderScreen({
   onStepValidityChange,
 }: OnboardingStepScreenProps) {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [gender, setGender] = useState('');
+  const { draft, updateDraft } = useOnboardingDraft();
+  const [firstName, setFirstName] = useState(draft.first_name);
+  const [lastName, setLastName] = useState(draft.last_name);
+  const [gender, setGender] = useState(draft.gender);
   const [focusedField, setFocusedField] = useState<'firstName' | 'lastName' | null>(null);
   const [openField, setOpenField] = useState<'gender' | null>(null);
+
+  useEffect(() => {
+    updateDraft({
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      gender,
+    });
+  }, [firstName, lastName, gender, updateDraft]);
 
   useEffect(() => {
     const ok =

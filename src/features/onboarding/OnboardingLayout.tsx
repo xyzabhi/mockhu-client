@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ComponentType } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Easing,
   KeyboardAvoidingView,
@@ -10,9 +11,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import { AppError } from '../../api';
+import { useOnboardingDraft } from './OnboardingDraftContext';
 import { OnboardingFinishCelebration } from './OnboardingFinishCelebration';
 import { BioScreen } from './presentation/screens/BioScreen';
 import { DOBScreen } from './presentation/screens/DOBScreen';
+import { GradeScreen } from './presentation/screens/GradeScreen';
 import { OnboardingExamInterestsScreen } from './presentation/screens/OnboardingExamInterestsScreen';
 import { NameGenderScreen } from './presentation/screens/NameGenderScreen';
 import { PhotoUsernameScreen } from './presentation/screens/PhotoUsername';
@@ -26,17 +30,52 @@ type OnboardingStep = {
   description?: string;
 };
 
-/** Steps where Next is allowed before the user types (optional / placeholder). */
+/**
+ * Onboarding field map (6 steps):
+ * 1 Personal info → first_name, last_name, gender
+ * 2 Date of birth → dob
+ * 3 Class / Grade → grade
+ * 4 Bio → bio (optional)
+ * 5 Photo + username → avatar_url, username
+ * 6 Interests → exam_category_ids, exam_ids
+ */
+/** Steps where Continue is enabled before the user completes required input (optional steps). */
 function initialCanContinueForStep(stepIndex: number): boolean {
-  return stepIndex === 2 || stepIndex === 4;
+  const bioStep = 3;
+  return stepIndex === bioStep;
 }
 
 const screens: OnboardingStep[] = [
-  { component: NameGenderScreen, title: 'Name' },
-  { component: DOBScreen, title: 'Birthday' },
-  { component: BioScreen, title: 'Bio' },
-  { component: PhotoUsernameScreen, title: 'Profile' },
-  { component: OnboardingExamInterestsScreen, title: 'Exams' },
+  {
+    component: NameGenderScreen,
+    title: 'Personal info',
+    description: 'Your first name, last name, and gender.',
+  },
+  {
+    component: DOBScreen,
+    title: 'Date of birth',
+    description: 'We use this to personalize your experience.',
+  },
+  {
+    component: GradeScreen,
+    title: 'Class / Grade',
+    description: 'Helps us show age-appropriate content.',
+  },
+  {
+    component: BioScreen,
+    title: 'Bio',
+    description: 'A short intro about you — optional.',
+  },
+  {
+    component: PhotoUsernameScreen,
+    title: 'Photo & username',
+    description: 'Profile photo and a unique handle.',
+  },
+  {
+    component: OnboardingExamInterestsScreen,
+    title: 'Interests',
+    description: 'Pick exam categories and exams you care about.',
+  },
 ];
 
 type OnboardingLayoutProps = {
@@ -44,6 +83,7 @@ type OnboardingLayoutProps = {
 };
 
 export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
+  const { submitOnboarding } = useOnboardingDraft();
   const [step, setStep] = useState(0);
   const [showFinishCelebration, setShowFinishCelebration] = useState(false);
   const [stepCanContinue, setStepCanContinue] = useState(() =>
@@ -76,13 +116,26 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
     setStep((s) => Math.max(0, s - 1));
   };
 
-  const handlePrimary = () => {
+  const handlePrimary = useCallback(() => {
     if (isLast) {
-      setShowFinishCelebration(true);
+      void (async () => {
+        try {
+          await submitOnboarding();
+          setShowFinishCelebration(true);
+        } catch (e) {
+          const msg =
+            e instanceof AppError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : 'Something went wrong.';
+          Alert.alert('Could not finish', msg);
+        }
+      })();
       return;
     }
     setStep((s) => s + 1);
-  };
+  }, [isLast, submitOnboarding]);
 
   const handleCelebrationComplete = useCallback(() => {
     setShowFinishCelebration(false);

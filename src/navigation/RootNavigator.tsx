@@ -2,10 +2,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { loadPersistedSession, setReauthHandler } from '../api';
+import { hydrateSessionUserFromMe, loadPersistedSession, setReauthHandler } from '../api';
 import { refreshTokens } from '../api/refreshCoordinator';
 import * as sessionStore from '../api/sessionStore';
 import { theme } from '../presentation/theme/theme';
+import { OnboardingDraftProvider } from '../features/onboarding/OnboardingDraftContext';
 import { OnboardingLayout } from '../features/onboarding/OnboardingLayout';
 import { AuthNavigator } from './AuthNavigator';
 import {
@@ -24,12 +25,13 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function OnboardingScreen() {
   return (
-    <OnboardingLayout
-      onFinish={() => {
-        // Until an API marks onboarding complete + client refreshes tokens, finish sends user Home.
-        resetToRoute('Home');
-      }}
-    />
+    <OnboardingDraftProvider>
+      <OnboardingLayout
+        onFinish={() => {
+          resetToRoute('Home');
+        }}
+      />
+    </OnboardingDraftProvider>
   );
 }
 
@@ -43,9 +45,11 @@ async function resolveInitialRoute(): Promise<keyof RootStackParamList> {
     return 'Auth';
   }
 
+  let didRefresh = false;
   if (sessionStore.isAccessTokenExpired() && refreshToken) {
     try {
       await refreshTokens();
+      didRefresh = true;
     } catch {
       return 'Auth';
     }
@@ -55,6 +59,12 @@ async function resolveInitialRoute(): Promise<keyof RootStackParamList> {
   if (!snap.accessToken) {
     return 'Auth';
   }
+
+  /** `TokenResponse.user` is often minimal; `/me` fills names — skip if refresh already hydrated. */
+  if (!didRefresh) {
+    await hydrateSessionUserFromMe();
+  }
+
   return rootDestinationForSession();
 }
 

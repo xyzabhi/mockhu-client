@@ -20,6 +20,7 @@ import { useExamCategories, useExamsList } from '../../../../api';
 import type { Exam, ExamCategory } from '../../../../api';
 import { theme } from '../../../../presentation/theme/theme';
 import { formatCompactCount } from '../../../../shared/utils/formatCompactCount';
+import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 
 type PickedCategory = { id: number; name: string };
@@ -27,6 +28,7 @@ type PickedCategory = { id: number; name: string };
 type SelectedExamEntry = {
   id: number;
   name: string;
+  category_id: number;
   user_count?: number;
 };
 
@@ -89,7 +91,12 @@ function CategoryExamsModalBody({
   categoryName: string;
   onClose: () => void;
   selectedExamIds: Set<number>;
-  onToggleExam: (examId: number, examName: string, userCount?: number) => void;
+  onToggleExam: (
+    examId: number,
+    examName: string,
+    categoryId: number,
+    userCount?: number,
+  ) => void;
   bottomInset: number;
 }) {
   const [examSearch, setExamSearch] = useState('');
@@ -122,7 +129,7 @@ function CategoryExamsModalBody({
       return (
         <Pressable
           style={({ pressed }) => [styles.examChoiceChip, pressed && styles.examChoiceChipPressed]}
-          onPress={() => onToggleExam(item.id, item.name, item.user_count)}
+          onPress={() => onToggleExam(item.id, item.name, item.category_id, item.user_count)}
           android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
           accessibilityRole="button"
           accessibilityState={{ selected }}
@@ -368,10 +375,11 @@ function ModalChrome({ title, onClose }: { title: string; onClose: () => void })
  * Categories (search + chips) on the step; tapping a category opens a bottom modal with exam search + chips.
  */
 export function OnboardingExamInterestsScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+  const { draft, updateDraft } = useOnboardingDraft();
   const insets = useSafeAreaInsets();
   const [categorySearch, setCategorySearch] = useState('');
   const [picked, setPicked] = useState<PickedCategory | null>(null);
-  const [selectedExams, setSelectedExams] = useState<SelectedExamEntry[]>([]);
+  const [selectedExams, setSelectedExams] = useState<SelectedExamEntry[]>(draft.selected_exams);
 
   const selectedExamIds = useMemo(
     () => new Set(selectedExams.map((e) => e.id)),
@@ -393,18 +401,28 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
     });
   }, [categories, categorySearch]);
 
-  const toggleExam = useCallback((examId: number, examName: string, userCount?: number) => {
-    setSelectedExams((prev) => {
-      if (prev.some((e) => e.id === examId)) {
-        return prev.filter((e) => e.id !== examId);
-      }
-      return [...prev, { id: examId, name: examName, user_count: userCount }];
-    });
-  }, []);
+  const toggleExam = useCallback(
+    (examId: number, examName: string, categoryId: number, userCount?: number) => {
+      setSelectedExams((prev) => {
+        let next: SelectedExamEntry[];
+        if (prev.some((e) => e.id === examId)) {
+          next = prev.filter((e) => e.id !== examId);
+        } else {
+          next = [
+            ...prev,
+            { id: examId, name: examName, category_id: categoryId, user_count: userCount },
+          ];
+        }
+        updateDraft({ selected_exams: next });
+        return next;
+      });
+    },
+    [updateDraft],
+  );
 
   useEffect(() => {
-    onStepValidityChange?.(true);
-  }, [onStepValidityChange]);
+    onStepValidityChange?.(selectedExams.length > 0);
+  }, [selectedExams.length, onStepValidityChange]);
 
   const closeModal = useCallback(() => setPicked(null), []);
 
@@ -461,7 +479,9 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
                 <Pressable
                   key={exam.id}
                   style={({ pressed }) => [styles.examChoiceChip, pressed && styles.examChoiceChipPressed]}
-                  onPress={() => toggleExam(exam.id, exam.name, exam.user_count)}
+                  onPress={() =>
+                    toggleExam(exam.id, exam.name, exam.category_id, exam.user_count)
+                  }
                   android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
                   accessibilityRole="button"
                   accessibilityLabel={`Remove ${categoryDisplayHashtag(exam.name)} from selected`}

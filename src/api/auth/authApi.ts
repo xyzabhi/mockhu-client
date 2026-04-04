@@ -1,4 +1,5 @@
 import { apiPost } from '../apiClient';
+import { hydrateSessionUserFromMe } from '../hydrateSessionProfile';
 import * as sessionStore from '../sessionStore';
 import type { TokenResponse } from '../types';
 import type {
@@ -12,8 +13,15 @@ import type {
 
 const authOpts = { skipAuth: true } as const;
 
-async function persistTokens(data: TokenResponse): Promise<TokenResponse> {
+async function persistTokens(
+  data: TokenResponse,
+  opts?: { log?: boolean },
+): Promise<TokenResponse> {
   await sessionStore.saveTokenResponse(data);
+  await hydrateSessionUserFromMe();
+  if (opts?.log !== false) {
+    sessionStore.logSessionSnapshot('auth');
+  }
   return data;
 }
 
@@ -51,7 +59,7 @@ export async function refresh(refreshToken: string): Promise<TokenResponse> {
     { refresh_token: refreshToken },
     authOpts,
   );
-  return persistTokens(data);
+  return persistTokens(data, { log: false });
 }
 
 export const authApi = {

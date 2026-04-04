@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
+import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
+
+function splitDob(iso: string): { day: string; month: string; year: string } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return { day: '', month: '', year: '' };
+  return { year: m[1], month: m[2], day: m[3] };
+}
 import { DropDown } from '../../../../shared/components/DropDown';
 
 export function DOBScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
-  const [day, setDay] = useState('');
-  const [month, setMonth] = useState('');
-  const [year, setYear] = useState('');
+  const { draft, updateDraft } = useOnboardingDraft();
+  const initial = splitDob(draft.dob);
+  const [day, setDay] = useState(initial.day);
+  const [month, setMonth] = useState(initial.month);
+  const [year, setYear] = useState(initial.year);
   const [openField, setOpenField] = useState<'day' | 'month' | 'year' | null>(null);
 
   const dayOptions = useMemo(
@@ -43,6 +52,11 @@ export function DOBScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
       return { label: value, value };
     });
   }, []);
+
+  useEffect(() => {
+    const dob = day && month && year ? `${year}-${month}-${day}` : '';
+    updateDraft({ dob });
+  }, [day, month, year, updateDraft]);
 
   useEffect(() => {
     onStepValidityChange?.(Boolean(day && month && year));

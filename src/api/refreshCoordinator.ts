@@ -1,6 +1,7 @@
 import { getApiV1Url } from './config';
 import { devNetworkDelay } from './devNetworkDelay';
 import { notifyReauthRequired } from './reauth';
+import { hydrateSessionUserFromMe } from './hydrateSessionProfile';
 import { parseApiResponse } from './parseApiResponse';
 import * as sessionStore from './sessionStore';
 import type { TokenResponse } from './types';
@@ -36,6 +37,7 @@ export function refreshTokens(): Promise<void> {
     try {
       const data = await parseApiResponse<TokenResponse>(res);
       await sessionStore.saveTokenResponse(data);
+      await hydrateSessionUserFromMe();
     } catch {
       await sessionStore.clearSession();
       notifyReauthRequired();

@@ -11,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
+import { ONBOARDING_DEFAULT_AVATAR_URL } from '../../onboardingDraft';
+import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 
 const USERNAME_MIN = 3;
@@ -20,15 +22,27 @@ const AVATAR = 144;
 export function PhotoUsernameScreen({
   onStepValidityChange,
 }: OnboardingStepScreenProps) {
-  /** `null` = show default avatar; set when user picks a custom photo. */
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-  const [username, setUsername] = useState('');
+  const { draft, updateDraft } = useOnboardingDraft();
+  /** `null` = show default avatar; set when user picks a custom photo (file://, content://, https://, …). */
+  const [photoUri, setPhotoUri] = useState<string | null>(() => {
+    const u = draft.avatar_url?.trim();
+    if (!u || u === ONBOARDING_DEFAULT_AVATAR_URL) return null;
+    return u;
+  });
+  const [username, setUsername] = useState(draft.username);
   const [usernameFocused, setUsernameFocused] = useState(false);
 
   const normalizedUsername = username.toLowerCase().replace(/[^a-z0-9_]/g, '');
   const usernameLengthOk =
     normalizedUsername.length >= USERNAME_MIN &&
     normalizedUsername.length <= USERNAME_MAX;
+
+  /** Keep picker URIs (file://, content://, ph://, …) — not only https; those map to `avatar_url` in the draft. */
+  const avatarUrl = photoUri?.trim() ? photoUri.trim() : '';
+
+  useEffect(() => {
+    updateDraft({ username: normalizedUsername, avatar_url: avatarUrl });
+  }, [normalizedUsername, avatarUrl, updateDraft]);
 
   useEffect(() => {
     onStepValidityChange?.(usernameLengthOk);
