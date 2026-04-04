@@ -14,14 +14,14 @@ import { resetToRoute } from './navigationRef';
 export function resetToRootAfterAuth(tokens?: { user: TokenUser }): void {
   const user = tokens?.user ?? getSessionSnapshot().user;
   if (user?.is_onboarded === true) {
-    resetToRoute('Home');
+    resetToRoute('Main');
   } else {
     resetToRoute('Onboarding');
   }
 }
 
 /** Cold-start routing when we already have a valid access session in memory. */
-export function rootDestinationForSession(): 'Home' | 'Onboarding' {
+export function rootDestinationForSession(): 'Main' | 'Onboarding' {
   const { user } = getSessionSnapshot();
-  return user?.is_onboarded === true ? 'Home' : 'Onboarding';
+  return user?.is_onboarded === true ? 'Main' : 'Onboarding';
 }

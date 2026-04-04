@@ -1,13 +1,13 @@
 /**
- * Mockhu design system — brand violet + progress green (never on the same element).
+ * Mockhu design system — brand indigo + progress green (never on the same element).
  * Typography: Inter maps to 400/500/600; use semiBold max for UI (not 700+ except wordmark).
  */
 export const theme = {
   colors: {
     /** Primary interactive — tabs, chips selected, FAB, CTA fill, avatar ring */
     brand: '#4F46E5',
-    brandLight: '#F5F3FF',
-    brandBorder: '#DDD6FE',
+    brandLight: '#EEF2FF',
+    brandBorder: '#C7D2FE',
     /** Streak, studied, completion, progress bars only — not mixed with brand on one element */
     progress: '#00D26A',
     progressLight: '#F0FDF4',

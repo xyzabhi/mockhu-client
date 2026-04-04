@@ -6,6 +6,11 @@ function nullToUndef<T>(v: T | null | undefined): T | undefined {
   return v;
 }
 
+function numOrUndef(n: number | null | undefined): number | undefined {
+  if (n == null) return undefined;
+  return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
+}
+
 /** Maps `/me` JSON (with nulls) into `TokenUser` partials for `mergeSessionUser`. */
 export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
   return {
@@ -19,6 +24,7 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
     gender: nullToUndef(me.gender),
     grade: nullToUndef(me.grade),
     dob: nullToUndef(me.dob),
+    xp: numOrUndef(me.xp),
     created_at: me.created_at,
     updated_at: me.updated_at,
   };

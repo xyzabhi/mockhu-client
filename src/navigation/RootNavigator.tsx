@@ -29,7 +29,7 @@ function OnboardingScreen() {
     <OnboardingDraftProvider>
       <OnboardingLayout
         onFinish={() => {
-          resetToRoute('Home');
+          resetToRoute('Main');
         }}
       />
     </OnboardingDraftProvider>
@@ -120,7 +120,7 @@ export function RootNavigator() {
             gestureEnabled: false,
           }}
         />
-        <Stack.Screen name="Home" component={MainTabNavigator} />
+        <Stack.Screen name="Main" component={MainTabNavigator} />
         <Stack.Screen
           name="ExamCategories"
           component={ExamCategoriesScreen}

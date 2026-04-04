@@ -1,124 +1,58 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { normalizeTokenUserProfile, useHomeFeed, useSession } from '../../api';
+import { PostCard } from '../../features/posts/components/PostCard';
 import { theme } from '../../presentation/theme/theme';
-
-type FeedItem = {
-  id: string;
-  title: string;
-  author: string;
-  examTag: string;
-  excerpt: string;
-  likes: number;
-  comments: number;
-};
-
-const MOCK_FEED: FeedItem[] = [
-  {
-    id: '1',
-    title: '5 tricks for last-minute revision',
-    author: 'StudyWithSam',
-    examTag: 'JEE',
-    excerpt:
-      'Spaced repetition beats cramming — here is a 20-minute loop you can run the night before.',
-    likes: 128,
-    comments: 14,
-  },
-  {
-    id: '2',
-    title: 'How I fixed my mock test scores in two weeks',
-    author: 'Priya M.',
-    examTag: 'NEET',
-    excerpt:
-      'I tracked every wrong answer in a simple sheet and reviewed only those topics. Game changer.',
-    likes: 89,
-    comments: 7,
-  },
-  {
-    id: '3',
-    title: 'Diagram-heavy chapters: read in this order',
-    author: 'BioNotes Daily',
-    examTag: 'CBSE XII',
-    excerpt:
-      'Start with flowcharts, then labels, then paragraphs — saves time when the paper is visual.',
-    likes: 256,
-    comments: 31,
-  },
-  {
-    id: '4',
-    title: 'Morning routine before a mock exam',
-    author: 'FocusLab',
-    examTag: 'CAT',
-    excerpt:
-      'Light breakfast, 10 min walk, one page of formulas — nothing new on exam day.',
-    likes: 64,
-    comments: 5,
-  },
-];
+import type { PostResponse } from '../../api/post/types';
 
 export function HomeFeedScreen() {
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
+  const { user } = useSession();
+  const profile = user ? normalizeTokenUserProfile(user) : null;
+  const currentUserId = profile?.id?.trim();
+
+  const { posts, loading, refreshing, loadingMore, error, loadMore, refresh, hasMore, removePost } =
+    useHomeFeed();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return MOCK_FEED;
-    return MOCK_FEED.filter(
-      (item) =>
-        item.title.toLowerCase().includes(q) ||
-        item.author.toLowerCase().includes(q) ||
-        item.examTag.toLowerCase().includes(q) ||
-        item.excerpt.toLowerCase().includes(q),
+    if (!q) return posts;
+    return posts.filter(
+      (p) =>
+        p.content.toLowerCase().includes(q) ||
+        (p.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
+        p.post_type.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [posts, query]);
 
   const renderItem = useCallback(
-    ({ item }: { item: FeedItem }) => (
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
-        android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-      >
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTag}>{item.examTag}</Text>
-          <Text style={styles.cardMeta}>{item.author}</Text>
-        </View>
-        <Text style={styles.cardTitle} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={styles.cardExcerpt} numberOfLines={3}>
-          {item.excerpt}
-        </Text>
-        <View style={styles.cardFooter}>
-          <View style={styles.stat}>
-            <MaterialCommunityIcons
-              name="heart-outline"
-              size={18}
-              color={theme.colors.textMuted}
-            />
-            <Text style={styles.statText}>{item.likes}</Text>
-          </View>
-          <View style={styles.stat}>
-            <MaterialCommunityIcons
-              name="comment-outline"
-              size={18}
-              color={theme.colors.textMuted}
-            />
-            <Text style={styles.statText}>{item.comments}</Text>
-          </View>
-        </View>
-      </Pressable>
+    ({ item }: { item: PostResponse }) => (
+      <PostCard post={item} currentUserId={currentUserId} onDeleted={removePost} />
     ),
+    [currentUserId, removePost],
+  );
+
+  const listEmpty = !loading && filtered.length === 0;
+
+  const renderSeparator = useCallback(
+    () => <View style={styles.postSeparator} />,
     [],
   );
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.searchRow}>
         <MaterialCommunityIcons
           name="magnify"
@@ -137,17 +71,45 @@ export function HomeFeedScreen() {
           accessibilityLabel="Search feed"
         />
       </View>
-      <Text style={styles.sectionLabel}>For you</Text>
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No posts match your search.</Text>
-        }
-      />
+      {loading && posts.length === 0 ? (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color={theme.colors.brand} />
+        </View>
+      ) : error && posts.length === 0 ? (
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error.message}</Text>
+          <Pressable style={styles.retryBtn} onPress={refresh}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <FlatList
+          style={styles.list}
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          ItemSeparatorComponent={renderSeparator}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
+          onEndReached={() => {
+            if (hasMore) void loadMore();
+          }}
+          onEndReachedThreshold={0.35}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator style={styles.footerSpinner} color={theme.colors.brand} />
+            ) : null
+          }
+          ListEmptyComponent={
+            listEmpty ? (
+              <Text style={styles.empty}>
+                {query.trim() ? 'No posts match your search.' : 'No posts yet. Share one from Post.'}
+              </Text>
+            ) : null
+          }
+        />
+      )}
     </View>
   );
 }
@@ -189,70 +151,44 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
+  /** Horizontal inset for the whole feed (matches search / section title). */
+  list: {
+    flex: 1,
+    // marginHorizontal: 
+  },
   listContent: {
-    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingBottom: 24,
-    gap: 12,
   },
-  card: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.radius.card,
-    padding: theme.spacing.cardPaddingH,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
+  postSeparator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.colors.footerLinkUnderline,
   },
-  cardPressed: {
-    opacity: 0.96,
-  },
-  cardHeader: {
-    flexDirection: 'row',
+  centered: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    justifyContent: 'center',
+    padding: 24,
   },
-  cardTag: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
-    backgroundColor: theme.colors.brandLight,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: theme.radius.badge,
-    overflow: 'hidden',
-  },
-  cardMeta: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  cardTitle: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-    lineHeight: 22,
-    marginBottom: 6,
-  },
-  cardExcerpt: {
+  errorText: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 20,
+    color: theme.colors.danger,
+    textAlign: 'center',
     marginBottom: 12,
   },
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+  retryBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: theme.radius.button,
+    backgroundColor: theme.colors.brand,
   },
-  stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  retryBtnText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.onBrand,
   },
-  statText: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+  footerSpinner: {
+    marginVertical: 16,
   },
   empty: {
     textAlign: 'center',

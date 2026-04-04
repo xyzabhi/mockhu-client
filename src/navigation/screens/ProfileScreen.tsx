@@ -16,6 +16,7 @@ import {
 import { theme } from '../../presentation/theme/theme';
 import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
 import { UserAvatar } from '../../shared/components/UserAvatar';
+import { formatCompactCount } from '../../shared/utils/formatCompactCount';
 import { resetToRoute } from '../navigationRef';
 
 export function ProfileScreen() {
@@ -30,6 +31,8 @@ export function ProfileScreen() {
   const lastName = profile?.last_name?.trim() ?? '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ');
   const username = profile?.username?.trim() ?? '';
+  const xp =
+    typeof profile?.xp === 'number' && Number.isFinite(profile.xp) ? profile.xp : 0;
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -81,6 +84,16 @@ export function ProfileScreen() {
             </Text>
             <Text style={styles.countLabel}>Following</Text>
           </View>
+          <View style={styles.countDivider} />
+          <View style={styles.countBlock}>
+            <Text
+              style={styles.countValueXp}
+              accessibilityLabel={`Experience points ${xp}`}
+            >
+              {formatCompactCount(xp)}
+            </Text>
+            <Text style={styles.countLabel}>XP</Text>
+          </View>
         </View>
       ) : null}
 
@@ -115,11 +128,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 24,
     paddingBottom: 32,
   },
   avatarRow: {
     alignItems: 'center',
+    marginTop: 8,
     marginBottom: 16,
   },
   welcomeHeadline: {
@@ -161,6 +174,12 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xl,
     color: theme.colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+  },
+  countValueXp: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.xl,
+    color: theme.colors.progress,
     fontVariant: ['tabular-nums'],
   },
   countLabel: {

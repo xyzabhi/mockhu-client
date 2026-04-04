@@ -3,9 +3,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../presentation/theme/theme';
 import type { MainTabParamList } from './types';
-import { ExploreScreen } from './screens/ExploreScreen';
 import { HomeFeedScreen } from './screens/HomeFeedScreen';
-import { PostScreen } from './screens/PostScreen';
+import { InboxScreen } from './screens/InboxScreen';
+import { ComposePostScreen } from '../features/posts/ComposePostScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 
@@ -51,27 +51,7 @@ export function MainTabNavigator() {
           tabBarLabel: 'Home',
           headerShown: false,
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="home-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Explore"
-        component={ExploreScreen}
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="compass-outline" color={color} size={size} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Post"
-        component={PostScreen}
-        options={{
-          title: 'Post',
-          tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="plus-circle-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="home-variant-outline" color={color} size={size} />
           ),
         }}
       />
@@ -81,7 +61,28 @@ export function MainTabNavigator() {
         options={{
           title: 'Progress',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="chart-line" color={color} size={size} />
+            <MaterialCommunityIcons name="chart-timeline-variant" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Post"
+        component={ComposePostScreen}
+        options={{
+          title: 'Post',
+          headerShown: false,
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="square-edit-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Inbox"
+        component={InboxScreen}
+        options={{
+          title: 'Inbox',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="inbox-outline" color={color} size={size} />
           ),
         }}
       />
@@ -91,7 +92,7 @@ export function MainTabNavigator() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="account-outline" color={color} size={size} />
+            <MaterialCommunityIcons name="account-circle-outline" color={color} size={size} />
           ),
         }}
       />

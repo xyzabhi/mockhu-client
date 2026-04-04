@@ -12,9 +12,9 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  Explore: undefined;
-  Post: undefined;
   Progress: undefined;
+  Post: undefined;
+  Inbox: undefined;
   Profile: undefined;
 };
 
@@ -22,7 +22,8 @@ export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   SuggestedUsers: undefined;
-  Home: undefined;
+  /** Main tab shell (avoid naming this `Home` — tab stack also has a `Home` tab). */
+  Main: undefined;
   ExamCategories: undefined;
   ExamCategory: { categoryId: number };
   ExamDetail: { examId: number };
