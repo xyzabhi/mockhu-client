@@ -72,6 +72,14 @@ function buildSuggestionsQuery(params?: { limit?: number; offset?: number }): st
 }
 
 function normalizeSuggestionsPayload(data: unknown): UserSuggestionsResponse {
+  /** Some backends return a bare array as `data` after envelope unwrap. */
+  if (Array.isArray(data)) {
+    const items = (data as UserSummary[]).map((u) => ({
+      ...u,
+      id: typeof u.id === 'string' ? u.id : String(u.id),
+    }));
+    return { items, total: items.length };
+  }
   if (!data || typeof data !== 'object') {
     return { items: [], total: 0 };
   }
@@ -79,8 +87,14 @@ function normalizeSuggestionsPayload(data: unknown): UserSuggestionsResponse {
   const raw =
     (Array.isArray(r.items) ? r.items : null) ??
     (Array.isArray(r.users) ? r.users : null) ??
+    (Array.isArray(r.suggestions) ? r.suggestions : null) ??
+    (Array.isArray(r.results) ? r.results : null) ??
+    (Array.isArray(r.data) ? r.data : null) ??
     [];
-  const items = raw as UserSummary[];
+  const items = (raw as UserSummary[]).map((u) => ({
+    ...u,
+    id: typeof u.id === 'string' ? u.id : String(u.id),
+  }));
   const total =
     typeof r.total === 'number'
       ? r.total

@@ -1,7 +1,12 @@
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   clearSession,
   normalizeTokenUserProfile,
@@ -9,12 +14,11 @@ import {
   useSession,
 } from '../../api';
 import { theme } from '../../presentation/theme/theme';
+import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
+import { UserAvatar } from '../../shared/components/UserAvatar';
 import { resetToRoute } from '../navigationRef';
-import type { RootStackParamList } from '../types';
 
 export function ProfileScreen() {
-  const navigation = useNavigation();
-  const rootNav = navigation.getParent<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -39,7 +43,18 @@ export function ProfileScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={styles.avatarRow}>
+        <UserAvatar
+          seed={userId ?? (username || 'profile')}
+          avatarUrl={profile?.avatar_url}
+          size={88}
+        />
+      </View>
       <Text style={styles.welcomeHeadline} accessibilityRole="header">
         {fullName ? fullName : 'Profile'}
       </Text>
@@ -69,7 +84,7 @@ export function ProfileScreen() {
         </View>
       ) : null}
 
-
+      <SuggestedForYouSection />
 
       <Pressable
         style={({ pressed }) => [
@@ -89,7 +104,7 @@ export function ProfileScreen() {
           <Text style={styles.logoutButtonText}>Log out</Text>
         )}
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -97,8 +112,15 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: theme.colors.surfaceSubtle,
+  },
+  scrollContent: {
     paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 24,
+    paddingBottom: 32,
+  },
+  avatarRow: {
+    alignItems: 'center',
+    marginBottom: 16,
   },
   welcomeHeadline: {
     fontFamily: theme.typography.semiBold,
