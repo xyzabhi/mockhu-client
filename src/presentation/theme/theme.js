@@ -8,6 +8,8 @@ export const theme = {
     brand: '#4F46E5',
     brandLight: '#EEF2FF',
     brandBorder: '#C7D2FE',
+    /** Filled star / starred post */
+    starGold: '#E5A50A',
     /** Streak, studied, completion, progress bars only — not mixed with brand on one element */
     progress: '#00D26A',
     progressLight: '#F0FDF4',

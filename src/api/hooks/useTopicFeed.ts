@@ -75,6 +75,10 @@ export function useTopicFeed(topicId: number | undefined) {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
   }, []);
 
+  const updatePost = useCallback((updated: PostResponse) => {
+    setPosts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+  }, []);
+
   return {
     posts,
     loading,
@@ -84,5 +88,6 @@ export function useTopicFeed(topicId: number | undefined) {
     refresh,
     hasMore,
     removePost,
+    updatePost,
   };
 }

@@ -14,6 +14,8 @@ export type PostResponse = {
   topic_id: number;
   subject_id: number;
   exam_id: number;
+  /** Display title (1–255 chars on create). */
+  title: string;
   post_type: PostType;
   content: string;
   link_url?: string | null;
@@ -22,6 +24,10 @@ export type PostResponse = {
   link_img?: string | null;
   is_anonymous: boolean;
   upvote_count: number;
+  /** Star count (POST `/posts/:id/star`). */
+  star_count: number;
+  /** Whether the current user has starred (when provided by feed). */
+  starred?: boolean;
   comment_count: number;
   images: string[];
   tags: string[];
@@ -44,4 +50,11 @@ export type LinkPreviewData = {
 
 export type DeletePostResponse = {
   deleted: boolean;
+};
+
+/** `POST /posts/:id/star` — idempotent per user. */
+export type StarResponse = {
+  star_count: number;
+  /** `true` only when this call added a new star. */
+  starred: boolean;
 };

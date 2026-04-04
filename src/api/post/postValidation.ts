@@ -5,11 +5,25 @@ export const POST_TYPES: PostType[] = ['DOUBT', 'TIP', 'WIN', 'EXPERIENCE'];
 /** Each tag: alphanumeric + underscore, max 30 chars. */
 export const TAG_PART = /^[a-zA-Z0-9_]{1,30}$/;
 
-export function validatePostContent(content: string): string | null {
+/** Display title: 1–255 characters after trim. */
+export function validatePostTitle(title: string): string | null {
+  const t = title.trim();
+  if (t.length < 1) return 'Title is required.';
+  if (t.length > 255) return 'Title must be at most 255 characters.';
+  return null;
+}
+
+/** Body text: 10–2000 characters after trim. */
+export function validatePostBody(content: string): string | null {
   const t = content.trim();
   if (t.length < 10) return 'Content must be at least 10 characters.';
   if (t.length > 2000) return 'Content must be at most 2000 characters.';
   return null;
+}
+
+/** @deprecated Prefer `validatePostBody` — same rules. */
+export function validatePostContent(content: string): string | null {
+  return validatePostBody(content);
 }
 
 /** Parse comma/space-separated tags → 1–3 lowercase tags. */

@@ -19,6 +19,7 @@ import { ExamCategoriesScreen } from '../features/exams/presentation/screens/Exa
 import { ExamCategoryExamsScreen } from '../features/exams/presentation/screens/ExamCategoryExamsScreen';
 import { ExamDetailScreen } from '../features/exams/presentation/screens/ExamDetailScreen';
 import { MainTabNavigator } from './MainTabNavigator';
+import { PostCommentsScreen } from './screens/PostCommentsScreen';
 import { SuggestedUsersScreen } from './screens/SuggestedUsersScreen';
 import type { RootStackParamList } from './types';
 
@@ -121,6 +122,16 @@ export function RootNavigator() {
           }}
         />
         <Stack.Screen name="Main" component={MainTabNavigator} />
+        <Stack.Screen
+          name="PostComments"
+          component={PostCommentsScreen}
+          options={{
+            headerShown: false,
+            presentation: 'transparentModal',
+            animation: 'slide_from_bottom',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
         <Stack.Screen
           name="ExamCategories"
           component={ExamCategoriesScreen}

@@ -1,11 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -13,7 +11,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -21,47 +18,52 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Exam } from '../../api/exam/types';
 import { postApi, useExamsList, useLinkPreview, useSession } from '../../api';
-import type { CreatePostImageInput } from '../../api/post/postApi';
 import type { PostType } from '../../api/post/types';
 import {
-  POST_TYPES,
   TAG_PART,
-  validateMediaRule,
-  validatePostContent,
+  validatePostBody,
+  validatePostTitle,
   validateTags,
 } from '../../api/post/postValidation';
-import {
-  composeBreadcrumbSegments,
-  TOPIC_OPTIONS,
-  type TopicOption,
-} from '../../api/post/topicCatalog';
+import { composeBreadcrumbSegments, TOPIC_OPTIONS, type TopicOption } from '../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../api/post/mediaUrl';
 import type { TokenUser } from '../../api/types';
+import { BrandToggle } from '../../presentation/components/BrandToggle';
 import { theme } from '../../presentation/theme/theme';
 
 const CONTENT_MAX = 2000;
+const TITLE_MAX = 255;
 
-const PLACEHOLDERS: Record<PostType, string> = {
-  DOUBT: 'What are you stuck on? Be specific and clear.',
-  TIP: 'Share a tip that worked for you…',
-  WIN: 'Celebrate a win — what happened?',
+const TITLE_PLACEHOLDERS: Record<PostType, string> = {
+  DOUBT: 'What’s your question?',
+  TIP: 'What’s the tip?',
+  WIN: 'What did you achieve?',
+  EXPERIENCE: 'What’s this about?',
+};
+
+const BODY_PLACEHOLDERS: Record<PostType, string> = {
+  DOUBT: 'Add context — where you’re stuck, what you tried…',
+  TIP: 'Explain how it helps…',
+  WIN: 'Share the story (optional)',
   EXPERIENCE: 'Describe your experience…',
 };
 
-const SUGGESTED_TAG_POOL = [
-  'eigenvalues',
-  'linearalgebra',
-  'visualintuition',
-  'matrices',
-  'jee2026',
-  'shortcut',
-];
+function composeTitleBody(title: string, body: string): string {
+  const t = title.trim();
+  const b = body.trim();
+  if (t && b) return `${t}\n\n${b}`;
+  return t || b;
+}
 
 function userDisplayName(u: TokenUser | undefined | null): string {
   if (!u) return 'Member';
   const parts = [u.first_name?.trim(), u.last_name?.trim()].filter(Boolean);
   if (parts.length) return parts.join(' ');
   return u.username ?? 'Member';
+}
+
+function normalizeTagInput(raw: string): string {
+  return raw.trim().replace(/^#+/u, '').toLowerCase();
 }
 
 function userInitials(u: TokenUser | undefined | null): string {
@@ -74,41 +76,37 @@ function userInitials(u: TokenUser | undefined | null): string {
   return (un?.[0] ?? '?').toUpperCase();
 }
 
-function normalizeTagInput(raw: string): string {
-  return raw.trim().replace(/^#+/u, '').toLowerCase();
-}
-
 export function ComposePostScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const scrollRef = useRef<ScrollView>(null);
   const linkInputRef = useRef<TextInput>(null);
   const { accessToken, user } = useSession();
 
-  const [postType, setPostType] = useState<PostType>('DOUBT');
-  const [topic, setTopic] = useState<TopicOption>(
-    () => TOPIC_OPTIONS.find((t) => t.topic_id === 2) ?? TOPIC_OPTIONS[0]!,
-  );
+  const postType: PostType = 'DOUBT';
+  const topic: TopicOption =
+    TOPIC_OPTIONS.find((t) => t.topic_id === 2) ?? TOPIC_OPTIONS[0]!;
   const [exam, setExam] = useState<Exam | null>(null);
-  const [topicExamModal, setTopicExamModal] = useState(false);
-  const [content, setContent] = useState('');
-  const [tagList, setTagList] = useState<string[]>([]);
-  const [tagDraft, setTagDraft] = useState('');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
   const [linkUrl, setLinkUrl] = useState('');
   const [linkRowVisible, setLinkRowVisible] = useState(false);
-  const [images, setImages] = useState<CreatePostImageInput[]>([]);
   const [anonymous, setAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [tagList, setTagList] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState('');
+  const tagInputRef = useRef<TextInput>(null);
 
   const { preview, loading: previewLoading, error: previewError, schedulePreview, clearPreview } =
     useLinkPreview();
 
-  const {
-    items: exams,
-    loading: examsLoading,
-    loadMore: loadMoreExams,
-    hasMore: examsHasMore,
-  } = useExamsList({ pageSize: 40 });
+  const { items: exams } = useExamsList({ pageSize: 40 });
+
+  useEffect(() => {
+    if (exam !== null) return;
+    if (exams.length > 0) setExam(exams[0]!);
+  }, [exams, exam]);
 
   const onLinkChange = useCallback(
     (text: string) => {
@@ -119,37 +117,19 @@ export function ComposePostScreen() {
     [schedulePreview, clearPreview],
   );
 
-  const addPhotos = useCallback(async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Photos', 'Allow photo access to attach images.');
-      return;
+  const toggleLinkRow = useCallback(() => {
+    setLinkRowVisible((v) => !v);
+    if (!linkRowVisible) {
+      setTimeout(() => linkInputRef.current?.focus(), 100);
     }
-    const remaining = 4 - images.length;
-    if (remaining <= 0) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: Platform.OS === 'ios',
-      selectionLimit: remaining,
-    });
-    if (result.canceled) return;
-    const next = [...images];
-    for (const a of result.assets ?? []) {
-      if (next.length >= 4) break;
-      next.push({
-        uri: a.uri,
-        name: a.fileName ?? 'photo.jpg',
-        type: a.mimeType ?? 'image/jpeg',
-      });
-    }
-    setImages(next);
-    setLinkUrl('');
-    clearPreview();
-    setLinkRowVisible(false);
-  }, [images, clearPreview]);
+  }, [linkRowVisible]);
 
-  const removeImage = useCallback((uri: string) => {
-    setImages((prev) => prev.filter((i) => i.uri !== uri));
+  const insertBullet = useCallback(() => {
+    setBody((b) => {
+      const next = b.length === 0 ? '• ' : `${b}\n• `;
+      if (next.length > CONTENT_MAX) return b;
+      return next;
+    });
   }, []);
 
   const removeTag = useCallback((t: string) => {
@@ -175,42 +155,39 @@ export function ComposePostScreen() {
     setTagDraft('');
   }, [tagDraft, tagList]);
 
-  const addSuggestedTag = useCallback((t: string) => {
-    if (tagList.length >= 3 || tagList.includes(t)) return;
-    if (!TAG_PART.test(t)) return;
-    setTagList((prev) => [...prev, t]);
-  }, [tagList]);
-
-  const toggleLinkRow = useCallback(() => {
-    if (images.length > 0) {
-      Alert.alert('Photos', 'Remove photos to add a link.');
-      return;
-    }
-    setLinkRowVisible((v) => !v);
-    if (!linkRowVisible) {
-      setTimeout(() => linkInputRef.current?.focus(), 100);
-    }
-  }, [images.length, linkRowVisible]);
-
-  const insertBullet = useCallback(() => {
-    setContent((c) => (c.length === 0 ? '• ' : `${c}\n• `));
+  const openTagModal = useCallback(() => {
+    setTagModalOpen(true);
+    setTimeout(() => tagInputRef.current?.focus(), 250);
   }, []);
 
-  const breadcrumbParts = useMemo(() => composeBreadcrumbSegments(topic, exam), [topic, exam]);
+  const composedContent = useMemo(() => composeTitleBody(title, body), [title, body]);
+
+  const previewBreadcrumbParts = useMemo(
+    () => composeBreadcrumbSegments(topic, exam),
+    [topic, exam],
+  );
+
+  const previewDisplayName = anonymous ? 'Anonymous' : userDisplayName(user);
+  const previewInitials = anonymous ? '?' : userInitials(user);
 
   const canSubmit = useMemo(() => {
     if (!exam) return false;
-    if (validatePostContent(content)) return false;
+    if (validatePostTitle(title)) return false;
+    if (validatePostBody(body)) return false;
     if (validateTags(tagList)) return false;
-    if (validateMediaRule(images.length, linkUrl.trim())) return false;
     return true;
-  }, [content, tagList, exam, images.length, linkUrl]);
+  }, [body, exam, tagList, title]);
 
   const submit = useCallback(async () => {
     if (!exam || !canSubmit) return;
-    const cErr = validatePostContent(content);
-    if (cErr) {
-      Alert.alert('Content', cErr);
+    const titleErr = validatePostTitle(title);
+    if (titleErr) {
+      Alert.alert('Title', titleErr);
+      return;
+    }
+    const bodyErr = validatePostBody(body);
+    if (bodyErr) {
+      Alert.alert('Content', bodyErr);
       return;
     }
     const tagErr = validateTags(tagList);
@@ -218,12 +195,6 @@ export function ComposePostScreen() {
       Alert.alert('Tags', tagErr);
       return;
     }
-    const mErr = validateMediaRule(images.length, linkUrl.trim());
-    if (mErr) {
-      Alert.alert('Photos or link', mErr);
-      return;
-    }
-
     const trimmedLink = linkUrl.trim();
     const hasLink = trimmedLink.length > 0;
 
@@ -234,9 +205,9 @@ export function ComposePostScreen() {
         topic_id: topic.topic_id,
         subject_id: topic.subject_id,
         exam_id: exam.id,
-        content: content.trim(),
+        title: title.trim(),
+        content: body.trim(),
         tags: tagList,
-        images: images.length > 0 ? images : undefined,
         link_url: hasLink ? trimmedLink : undefined,
         link_title: hasLink ? preview?.title : undefined,
         link_desc: hasLink ? preview?.description : undefined,
@@ -247,11 +218,11 @@ export function ComposePostScreen() {
         {
           text: 'OK',
           onPress: () => {
-            setContent('');
+            setTitle('');
+            setBody('');
+            setLinkUrl('');
             setTagList([]);
             setTagDraft('');
-            setLinkUrl('');
-            setImages([]);
             clearPreview();
             setAnonymous(false);
             setLinkRowVisible(false);
@@ -267,11 +238,10 @@ export function ComposePostScreen() {
     }
   }, [
     anonymous,
+    body,
     canSubmit,
     clearPreview,
-    content,
     exam,
-    images,
     linkUrl,
     navigation,
     postType,
@@ -279,14 +249,10 @@ export function ComposePostScreen() {
     preview?.image,
     preview?.title,
     tagList,
+    title,
     topic.subject_id,
     topic.topic_id,
   ]);
-
-  const suggestedFiltered = useMemo(
-    () => SUGGESTED_TAG_POOL.filter((t) => !tagList.includes(t)),
-    [tagList],
-  );
 
   return (
     <KeyboardAvoidingView
@@ -295,40 +261,68 @@ export function ComposePostScreen() {
       keyboardVerticalOffset={0}
     >
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Pressable
-          onPress={() => navigation.navigate('Home' as never)}
-          hitSlop={12}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel"
-        >
-          <Text style={styles.headerCancel}>Cancel</Text>
-        </Pressable>
-        <Text style={styles.headerTitle} accessibilityRole="header">
-          New post
-        </Text>
-        <Pressable
-          onPress={() => void submit()}
-          disabled={!canSubmit || submitting}
-          style={({ pressed }) => [
-            styles.headerPostBtn,
-            (!canSubmit || submitting) && styles.headerPostBtnDisabled,
-            pressed && canSubmit && !submitting && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Post"
-        >
-          {submitting ? (
-            <ActivityIndicator size="small" color={theme.colors.brand} />
-          ) : (
-            <Text style={[styles.headerPostText, (!canSubmit || submitting) && styles.headerPostTextDisabled]}>
-              Post
+        <View style={styles.headerLeft}>
+          <Pressable
+            onPress={() => navigation.navigate('Home' as never)}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
+          >
+            <MaterialCommunityIcons name="close" size={24} color={theme.colors.textPrimary} />
+          </Pressable>
+        </View>
+        <View style={styles.headerCenter} pointerEvents="none">
+          <Text style={styles.headerTitle} accessibilityRole="header" numberOfLines={1}>
+            New post
+          </Text>
+        </View>
+        <View style={styles.headerRight}>
+          <Pressable
+            onPress={() => setPreviewModalOpen(true)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Preview post"
+            style={({ pressed }) => [styles.headerPreviewBtn, pressed && styles.pressed]}
+          >
+            <MaterialCommunityIcons name="eye-outline" size={20} color={theme.colors.brand} />
+            <Text style={styles.headerPreviewText} numberOfLines={1}>
+              Preview
             </Text>
-          )}
-        </Pressable>
+          </Pressable>
+          <Pressable
+            onPress={() => void submit()}
+            disabled={!canSubmit || submitting}
+            style={({ pressed }) => [
+              styles.headerPostBtn,
+              canSubmit && styles.headerPostBtnPrimary,
+              !canSubmit && styles.headerPostBtnDisabled,
+              pressed && canSubmit && !submitting && styles.pressed,
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Post"
+          >
+            {submitting ? (
+              <ActivityIndicator
+                size="small"
+                color={canSubmit ? theme.colors.onBrand : theme.colors.textHint}
+              />
+            ) : (
+              <Text
+                style={[
+                  styles.headerPostText,
+                  canSubmit && styles.headerPostTextPrimary,
+                  (!canSubmit || submitting) && styles.headerPostTextDisabled,
+                ]}
+              >
+                Post
+              </Text>
+            )}
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView
-        ref={scrollRef}
         style={styles.scroll}
         contentContainerStyle={[
           styles.scrollContent,
@@ -337,43 +331,6 @@ export function ComposePostScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionLabel}>What are you sharing?</Text>
-        <View style={styles.typeRow}>
-          {POST_TYPES.map((t) => (
-            <Pressable
-              key={t}
-              onPress={() => setPostType(t)}
-              style={({ pressed }) => [
-                styles.typeChip,
-                postType === t && styles.typeChipOn,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={[styles.typeChipText, postType === t && styles.typeChipTextOn]}>{t}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.breadcrumbBar}>
-          <MaterialCommunityIcons name="format-list-bulleted" size={20} color={theme.colors.textMuted} />
-          <View style={styles.breadcrumbTextWrap}>
-            {breadcrumbParts.map((segment, i, arr) => (
-              <Fragment key={`${segment}-${i}`}>
-                {i > 0 ? <Text style={styles.breadcrumbSep}> › </Text> : null}
-                <Text
-                  style={i === arr.length - 1 ? styles.breadcrumbLast : styles.breadcrumbPart}
-                  numberOfLines={1}
-                >
-                  {segment}
-                </Text>
-              </Fragment>
-            ))}
-          </View>
-          <Pressable onPress={() => setTopicExamModal(true)} hitSlop={8} accessibilityRole="button">
-            <Text style={styles.changeLink}>Change</Text>
-          </Pressable>
-        </View>
-
         <View style={styles.authorBlock}>
           <View style={styles.avatarCircle}>
             <Text style={styles.avatarInitials}>{userInitials(user)}</Text>
@@ -383,54 +340,41 @@ export function ComposePostScreen() {
               {userDisplayName(user)}
             </Text>
             <View style={styles.anonRow}>
-              <Switch value={anonymous} onValueChange={setAnonymous} />
+              <BrandToggle
+                value={anonymous}
+                onValueChange={setAnonymous}
+                accessibilityLabel="Post anonymously"
+              />
               <Text style={styles.anonLabel}>Post anonymously</Text>
             </View>
           </View>
         </View>
 
+        <TextInput
+          style={styles.titleInput}
+          placeholder={TITLE_PLACEHOLDERS[postType]}
+          placeholderTextColor={theme.colors.textHint}
+          value={title}
+          onChangeText={(txt) => {
+            if (txt.length <= TITLE_MAX) setTitle(txt);
+          }}
+          maxFontSizeMultiplier={1.3}
+        />
         <View style={styles.bodyWrap}>
           <TextInput
             style={styles.bodyInput}
             multiline
-            placeholder={PLACEHOLDERS[postType]}
+            placeholder={BODY_PLACEHOLDERS[postType]}
             placeholderTextColor={theme.colors.textHint}
-            value={content}
+            value={body}
             onChangeText={(txt) => {
-              if (txt.length <= CONTENT_MAX) setContent(txt);
+              if (txt.length <= CONTENT_MAX) setBody(txt);
             }}
             textAlignVertical="top"
           />
-          <Text style={styles.charCountInBody}>
-            {content.length} / {CONTENT_MAX}
-          </Text>
         </View>
 
-        <View style={styles.mediaRow}>
-          {images.map((img) => (
-            <View key={img.uri} style={styles.photoWrap}>
-              <Image source={{ uri: img.uri }} style={styles.photoThumb} />
-              <Pressable style={styles.photoRemove} onPress={() => removeImage(img.uri)} hitSlop={6}>
-                <MaterialCommunityIcons name="close-circle" size={22} color={theme.colors.danger} />
-              </Pressable>
-            </View>
-          ))}
-          {images.length < 4 ? (
-            <Pressable
-              style={({ pressed }) => [styles.addPhoto, pressed && styles.pressed]}
-              onPress={() => void addPhotos()}
-              disabled={linkUrl.trim().length > 0}
-            >
-              <MaterialCommunityIcons name="plus" size={24} color={theme.colors.brand} />
-              <Text style={styles.addPhotoLabel}>Add — {images.length}/4</Text>
-            </Pressable>
-          ) : null}
-        </View>
-        {linkUrl.trim().length > 0 ? (
-          <Text style={styles.hint}>Clear the link to add photos.</Text>
-        ) : null}
-
-        {linkRowVisible && images.length === 0 ? (
+        {linkRowVisible ? (
           <>
             <Text style={styles.sectionLabelSmall}>Link (optional)</Text>
             <TextInput
@@ -474,148 +418,187 @@ export function ComposePostScreen() {
           </>
         ) : null}
 
-        <View style={styles.tagsHeaderRow}>
-          <Text style={styles.sectionLabel}>Tags</Text>
-          <Text style={styles.tagsCounter}>
-            {tagList.length} / 3
-          </Text>
-        </View>
-        <View style={styles.tagChipsRow}>
-          {tagList.map((t) => (
-            <View key={t} style={styles.tagChipOn}>
-              <Text style={styles.tagChipOnText}>#{t}</Text>
-              <Pressable onPress={() => removeTag(t)} hitSlop={6} accessibilityLabel={`Remove ${t}`}>
-                <MaterialCommunityIcons name="close" size={16} color={theme.colors.onBrand} />
-              </Pressable>
-            </View>
-          ))}
-        </View>
-        <View style={styles.tagInputRow}>
-          <TextInput
-            style={styles.tagInput}
-            placeholder="Type a tag…"
-            placeholderTextColor={theme.colors.textHint}
-            value={tagDraft}
-            onChangeText={setTagDraft}
-            onSubmitEditing={() => addTagFromDraft()}
-            autoCapitalize="none"
-            editable={tagList.length < 3}
-          />
-          <Pressable
-            style={({ pressed }) => [styles.addTagBtn, pressed && styles.pressed]}
-            onPress={addTagFromDraft}
-            disabled={tagList.length >= 3}
-          >
-            <Text style={styles.addTagBtnText}>Add</Text>
-          </Pressable>
-        </View>
-        <Text style={styles.suggestedLabel}>Suggested</Text>
-        <View style={styles.suggestedRow}>
-          {suggestedFiltered.map((t) => (
-            <Pressable
-              key={t}
-              style={({ pressed }) => [styles.suggestedChip, pressed && styles.pressed]}
-              onPress={() => addSuggestedTag(t)}
-            >
-              <Text style={styles.suggestedChipText}>#{t}</Text>
-            </Pressable>
-          ))}
-        </View>
-
         {!accessToken ? <Text style={styles.warn}>Sign in to publish posts.</Text> : null}
       </ScrollView>
 
       <View style={[styles.bottomToolbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+        <Pressable style={styles.toolbarBtn} onPress={toggleLinkRow} accessibilityLabel="Add link">
+          <MaterialCommunityIcons name="link-variant" size={24} color={theme.colors.textPrimary} />
+        </Pressable>
         <Pressable
           style={styles.toolbarBtn}
-          onPress={() => void addPhotos()}
-          disabled={linkUrl.trim().length > 0}
-          accessibilityLabel="Add image"
+          onPress={() => Alert.alert('Video', 'Video posts are not supported yet.')}
+          accessibilityLabel="Add video"
         >
-          <MaterialCommunityIcons
-            name="image-outline"
-            size={22}
-            color={linkUrl.trim().length > 0 ? theme.colors.textHint : theme.colors.brand}
-          />
-          <Text style={styles.toolbarCount}>{images.length}/4</Text>
-        </Pressable>
-        <Pressable style={styles.toolbarBtn} onPress={toggleLinkRow} accessibilityLabel="Add link">
-          <MaterialCommunityIcons
-            name="link-variant"
-            size={22}
-            color={images.length > 0 ? theme.colors.textHint : theme.colors.brand}
-          />
+          <MaterialCommunityIcons name="play-box-outline" size={24} color={theme.colors.textMuted} />
         </Pressable>
         <Pressable style={styles.toolbarBtn} onPress={insertBullet} accessibilityLabel="Bullet list">
-          <MaterialCommunityIcons name="format-list-bulleted" size={22} color={theme.colors.brand} />
+          <MaterialCommunityIcons name="format-list-bulleted" size={24} color={theme.colors.textPrimary} />
         </Pressable>
-        <View style={styles.toolbarSpacer} />
+        <Pressable style={styles.toolbarBtn} onPress={openTagModal} accessibilityLabel="Add tags">
+          <Text style={styles.toolbarHash}>#</Text>
+        </Pressable>
+        <View style={styles.toolbarDivider} />
         <Pressable
           style={styles.toolbarBtn}
-          onPress={() => Alert.alert('Save draft', 'Draft saving will be available in a future update.')}
-          accessibilityLabel="Save draft"
+          onPress={() =>
+            Alert.alert('Formatting', 'Bold and italics will be available in a future update.')
+          }
+          accessibilityLabel="Text formatting"
         >
-          <MaterialCommunityIcons name="bookmark-outline" size={22} color={theme.colors.textMuted} />
+          <MaterialCommunityIcons name="format-font" size={24} color={theme.colors.textPrimary} />
         </Pressable>
+        <View style={styles.toolbarSpacer} />
         <Text style={styles.toolbarCharCount} maxFontSizeMultiplier={1.2}>
-          {content.length} / {CONTENT_MAX}
+          {body.length} / {CONTENT_MAX}
         </Text>
       </View>
 
-      <Modal visible={topicExamModal} animationType="slide" presentationStyle="pageSheet">
-        <View style={[styles.modalRoot, { paddingTop: insets.top + 12 }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Topic & exam</Text>
-            <Pressable onPress={() => setTopicExamModal(false)} hitSlop={12}>
-              <Text style={styles.modalDone}>Done</Text>
+      <Modal
+        visible={tagModalOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setTagModalOpen(false)}
+      >
+        <View style={[styles.tagModalRoot, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 8 }]}>
+          <View style={styles.tagModalHeader}>
+            <Text style={styles.tagModalTitle}>Tags</Text>
+            <Pressable onPress={() => setTagModalOpen(false)} hitSlop={12} accessibilityLabel="Done tags">
+              <Text style={styles.tagModalDone}>Done</Text>
             </Pressable>
           </View>
-          <Text style={styles.modalSectionLabel}>Topic</Text>
-          <View style={styles.typeRow}>
-            {TOPIC_OPTIONS.map((opt) => (
-              <Pressable
-                key={opt.topic_id}
-                onPress={() => setTopic(opt)}
-                style={({ pressed }) => [
-                  styles.typeChip,
-                  topic.topic_id === opt.topic_id && styles.typeChipOn,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text
-                  style={[styles.typeChipText, topic.topic_id === opt.topic_id && styles.typeChipTextOn]}
-                  numberOfLines={1}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
+          <Text style={styles.tagModalHint}>Add 1–3 tags so others can find your post.</Text>
+          <Text style={styles.tagModalCounter}>
+            {tagList.length} / 3
+          </Text>
+          <View style={styles.tagChipRow}>
+            {tagList.map((t) => (
+              <View key={t} style={styles.tagChipOn}>
+                <Text style={styles.tagChipOnText}>#{t}</Text>
+                <Pressable onPress={() => removeTag(t)} hitSlop={6} accessibilityLabel={`Remove ${t}`}>
+                  <MaterialCommunityIcons name="close" size={16} color={theme.colors.onBrand} />
+                </Pressable>
+              </View>
             ))}
           </View>
-          <Text style={[styles.modalSectionLabel, { marginTop: 16 }]}>Exam</Text>
-          {examsLoading && exams.length === 0 ? (
-            <ActivityIndicator size="large" color={theme.colors.brand} style={{ marginTop: 24 }} />
-          ) : (
-            <FlatList
-              data={exams}
-              keyExtractor={(item) => String(item.id)}
-              style={styles.examList}
-              onEndReached={() => {
-                if (examsHasMore) void loadMoreExams();
-              }}
-              onEndReachedThreshold={0.4}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={({ pressed }) => [styles.examRow, pressed && styles.pressed]}
-                  onPress={() => setExam(item)}
-                >
-                  <Text style={styles.examRowText}>{item.name}</Text>
-                  {exam?.id === item.id ? (
-                    <MaterialCommunityIcons name="check" size={20} color={theme.colors.brand} />
-                  ) : null}
-                </Pressable>
-              )}
+          <View style={styles.tagInputRow}>
+            <TextInput
+              ref={tagInputRef}
+              style={styles.tagModalInput}
+              placeholder="e.g. calculus"
+              placeholderTextColor={theme.colors.textHint}
+              value={tagDraft}
+              onChangeText={setTagDraft}
+              onSubmitEditing={() => addTagFromDraft()}
+              autoCapitalize="none"
+              editable={tagList.length < 3}
             />
-          )}
+            <Pressable
+              style={({ pressed }) => [styles.tagModalAddBtn, pressed && styles.pressed]}
+              onPress={addTagFromDraft}
+              disabled={tagList.length >= 3}
+            >
+              <Text style={styles.tagModalAddBtnText}>Add</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={previewModalOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setPreviewModalOpen(false)}
+      >
+        <View style={[styles.previewModalRoot, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 8 }]}>
+          <View style={styles.previewModalHeader}>
+            <Text style={styles.previewModalTitle}>Preview</Text>
+            <Pressable onPress={() => setPreviewModalOpen(false)} hitSlop={12} accessibilityLabel="Close preview">
+              <Text style={styles.previewModalDone}>Done</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            style={styles.previewModalScroll}
+            contentContainerStyle={[styles.previewModalScrollContent, { paddingBottom: insets.bottom + 16 }]}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.previewFeedCard}>
+              <View style={styles.previewTopRow}>
+                <View style={styles.previewAvatar}>
+                  <Text style={styles.previewAvatarText}>{previewInitials}</Text>
+                </View>
+                <View style={styles.previewHeaderMain}>
+                  <View style={styles.previewNameRow}>
+                    <Text style={styles.previewDisplayName} numberOfLines={1}>
+                      {previewDisplayName}
+                    </Text>
+                    <Text style={styles.previewTimeMeta}> · Preview</Text>
+                    <View style={styles.previewHeaderSpacer} />
+                    <View style={[styles.previewTypePill, { backgroundColor: theme.colors.brandLight }]}>
+                      <Text style={[styles.previewTypePillText, { color: theme.colors.brand }]}>
+                        {postType}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.previewTopicRow}>
+                    {previewBreadcrumbParts.map((segment, i, arr) => (
+                      <Fragment key={`${segment}-${i}`}>
+                        {i > 0 ? <Text style={styles.previewTopicSep}> › </Text> : null}
+                        <Text style={i === arr.length - 1 ? styles.previewTopicLast : styles.previewTopicPart}>
+                          {segment}
+                        </Text>
+                      </Fragment>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              <Text style={styles.previewContentText}>
+                {composedContent.trim().length > 0
+                  ? composedContent.trim()
+                  : 'Your post text will appear here.'}
+              </Text>
+
+              {tagList.length > 0 ? (
+                <View style={styles.previewTagsRow}>
+                  {tagList.map((t) => (
+                    <Text key={t} style={styles.previewTagText}>
+                      #{t}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+
+              {linkUrl.trim().length > 0 ? (
+                <View style={styles.previewLinkCard}>
+                  {preview?.image ? (
+                    <Image
+                      source={{ uri: resolvePostMediaUrl(preview.image) }}
+                      style={styles.previewLinkThumb}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.previewLinkPlaceholder}>
+                      <MaterialCommunityIcons name="link-variant" size={28} color={theme.colors.textMuted} />
+                    </View>
+                  )}
+                  <View style={styles.previewLinkTextCol}>
+                    <Text style={styles.previewLinkTitle} numberOfLines={2}>
+                      {preview?.title?.trim() || linkUrl.trim()}
+                    </Text>
+                    {preview?.description ? (
+                      <Text style={styles.previewLinkDesc} numberOfLines={2}>
+                        {preview.description}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.previewLinkUrl} numberOfLines={1}>
+                      {linkUrl.trim()}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </ScrollView>
         </View>
       </Modal>
     </KeyboardAvoidingView>
@@ -630,41 +613,82 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: theme.spacing.screenPaddingH,
     paddingBottom: 12,
+    minHeight: 48,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderSubtle,
     backgroundColor: theme.colors.surface,
   },
-  headerCancel: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
+  headerLeft: {
+    width: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  headerIconBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    minWidth: 0,
   },
   headerTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fontSizes.screenTitle,
     color: theme.colors.textPrimary,
+    textAlign: 'center',
+  },
+  headerRight: {
+    flexShrink: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    maxWidth: '52%',
+  },
+  headerPreviewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    maxWidth: '48%',
+  },
+  headerPreviewText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.brand,
+    flexShrink: 1,
   },
   headerPostBtn: {
     minWidth: 72,
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.badge,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.button,
     borderWidth: theme.borderWidth.cta,
     borderColor: theme.colors.brand,
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  headerPostBtnPrimary: {
+    backgroundColor: theme.colors.brand,
+    borderColor: theme.colors.brand,
+  },
   headerPostBtnDisabled: {
     borderColor: theme.colors.borderSubtle,
+    backgroundColor: theme.colors.surfaceSubtle,
   },
   headerPostText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
     color: theme.colors.brand,
+  },
+  headerPostTextPrimary: {
+    color: theme.colors.onBrand,
   },
   headerPostTextDisabled: {
     color: theme.colors.textHint,
@@ -676,13 +700,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 16,
   },
-  sectionLabel: {
+  titleInput: {
     marginBottom: 10,
+    paddingVertical: 4,
+    paddingHorizontal: 0,
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fontSizes.sectionLabel,
-    color: theme.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    fontSize: theme.fintSizes.xl,
+    color: theme.colors.textPrimary,
   },
   sectionLabelSmall: {
     marginTop: 8,
@@ -691,74 +715,8 @@ const styles = StyleSheet.create({
     fontSize: theme.fintSizes.xs,
     color: theme.colors.textMuted,
   },
-  typeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 18,
-  },
-  typeChip: {
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
-  },
-  typeChipOn: {
-    borderColor: theme.colors.brand,
-    backgroundColor: theme.colors.brand,
-  },
-  typeChipText: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  typeChipTextOn: {
-    color: theme.colors.onBrand,
-  },
   pressed: {
     opacity: 0.88,
-  },
-  breadcrumbBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.card,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surfaceSubtle,
-    marginBottom: 16,
-  },
-  breadcrumbTextWrap: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    minWidth: 0,
-  },
-  breadcrumbSep: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  breadcrumbPart: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  breadcrumbLast: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
-    flexShrink: 1,
-  },
-  changeLink: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
   },
   authorBlock: {
     flexDirection: 'row',
@@ -804,9 +762,9 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   bodyInput: {
-    minHeight: 160,
+    minHeight: 140,
     padding: 14,
-    paddingBottom: 32,
+    paddingBottom: 14,
     borderRadius: theme.radius.input,
     borderWidth: 1,
     borderColor: theme.colors.borderSubtle,
@@ -815,60 +773,6 @@ const styles = StyleSheet.create({
     fontSize: theme.fintSizes.sm,
     color: theme.colors.textPrimary,
     lineHeight: 22,
-  },
-  charCountInBody: {
-    position: 'absolute',
-    right: 12,
-    bottom: 10,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textHint,
-  },
-  mediaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  photoWrap: {
-    position: 'relative',
-  },
-  photoThumb: {
-    width: 88,
-    height: 88,
-    borderRadius: theme.radius.badge,
-    backgroundColor: theme.colors.borderSubtle,
-  },
-  photoRemove: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-  },
-  addPhoto: {
-    width: 88,
-    minHeight: 88,
-    borderRadius: theme.radius.badge,
-    borderWidth: 1,
-    borderColor: theme.colors.brandBorder,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: theme.colors.surface,
-    paddingVertical: 8,
-    gap: 4,
-  },
-  addPhotoLabel: {
-    fontFamily: theme.typography.medium,
-    fontSize: 10,
-    color: theme.colors.brand,
-    textAlign: 'center',
-  },
-  hint: {
-    marginBottom: 8,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
   },
   singleLine: {
     paddingVertical: 12,
@@ -928,94 +832,6 @@ const styles = StyleSheet.create({
     fontSize: theme.fintSizes.xs,
     color: theme.colors.brand,
   },
-  tagsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 10,
-  },
-  tagsCounter: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  tagChipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
-  },
-  tagChipOn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.brand,
-  },
-  tagChipOnText: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.onBrand,
-  },
-  tagInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  tagInput: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.input,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
-  },
-  addTagBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: theme.radius.badge,
-    backgroundColor: theme.colors.brandLight,
-    borderWidth: 1,
-    borderColor: theme.colors.brandBorder,
-  },
-  addTagBtnText: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
-  },
-  suggestedLabel: {
-    marginBottom: 8,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  suggestedRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-  suggestedChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
-  },
-  suggestedChipText: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
   warn: {
     textAlign: 'center',
     fontFamily: theme.typography.regular,
@@ -1035,13 +851,15 @@ const styles = StyleSheet.create({
   toolbarBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
     padding: 8,
   },
-  toolbarCount: {
-    fontFamily: theme.typography.medium,
-    fontSize: 11,
-    color: theme.colors.brand,
+  toolbarDivider: {
+    width: 1,
+    height: 24,
+    marginHorizontal: 4,
+    backgroundColor: theme.colors.borderSubtle,
   },
   toolbarSpacer: {
     flex: 1,
@@ -1053,50 +871,265 @@ const styles = StyleSheet.create({
     minWidth: 36,
     textAlign: 'right',
   },
-  modalRoot: {
+  toolbarHash: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: 22,
+    lineHeight: 24,
+    color: theme.colors.brand,
+  },
+  tagModalRoot: {
     flex: 1,
     backgroundColor: theme.colors.surfaceSubtle,
     paddingHorizontal: theme.spacing.screenPaddingH,
   },
-  modalHeader: {
+  tagModalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  modalTitle: {
+  tagModalTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fontSizes.screenTitle,
     color: theme.colors.textPrimary,
   },
-  modalDone: {
+  tagModalDone: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
     color: theme.colors.brand,
   },
-  modalSectionLabel: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fontSizes.sectionHead,
+  tagModalHint: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.sm,
     color: theme.colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  examList: {
-    flex: 1,
+  tagModalCounter: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.textMuted,
+    marginBottom: 12,
   },
-  examRow: {
+  tagChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  tagChipOn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.borderSubtle,
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.pill,
+    backgroundColor: theme.colors.brand,
   },
-  examRowText: {
+  tagChipOnText: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.onBrand,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  tagModalInput: {
     flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: theme.radius.input,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
+    backgroundColor: theme.colors.surface,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
     color: theme.colors.textPrimary,
+  },
+  tagModalAddBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: theme.radius.badge,
+    backgroundColor: theme.colors.brandLight,
+    borderWidth: 1,
+    borderColor: theme.colors.brandBorder,
+  },
+  tagModalAddBtnText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.brand,
+  },
+  previewModalRoot: {
+    flex: 1,
+    backgroundColor: theme.colors.surfaceSubtle,
+    paddingHorizontal: theme.spacing.screenPaddingH,
+  },
+  previewModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  previewModalTitle: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fontSizes.screenTitle,
+    color: theme.colors.textPrimary,
+  },
+  previewModalDone: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.md,
+    color: theme.colors.brand,
+  },
+  previewModalScroll: {
+    flex: 1,
+  },
+  previewModalScrollContent: {
+    paddingBottom: 24,
+  },
+  previewFeedCard: {
+    backgroundColor: theme.colors.surface,
+    paddingVertical: theme.spacing.cardPaddingV,
+    paddingHorizontal: theme.spacing.cardPaddingH,
+    borderRadius: theme.radius.card,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
+  },
+  previewTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    marginBottom: 10,
+  },
+  previewAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.brandLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewAvatarText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.brand,
+  },
+  previewHeaderMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  previewNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  previewDisplayName: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textPrimary,
+  },
+  previewTimeMeta: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.textMuted,
+  },
+  previewHeaderSpacer: {
+    flex: 1,
+    minWidth: 4,
+  },
+  previewTypePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: theme.radius.badge,
+  },
+  previewTypePillText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: 10,
+    letterSpacing: 0.3,
+  },
+  previewTopicRow: {
+    marginTop: 4,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  previewTopicSep: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.textMuted,
+  },
+  previewTopicPart: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.textMuted,
+  },
+  previewTopicLast: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.brand,
+  },
+  previewContentText: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textPrimary,
+    lineHeight: 22,
+  },
+  previewTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  previewTagText: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.brand,
+  },
+  previewLinkCard: {
+    flexDirection: 'row',
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.borderSubtle,
+    borderRadius: theme.radius.card,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.surfaceSubtle,
+  },
+  previewLinkThumb: {
+    width: 96,
+    height: 96,
+    backgroundColor: theme.colors.surfaceSubtle,
+  },
+  previewLinkPlaceholder: {
+    width: 96,
+    height: 96,
+    backgroundColor: theme.colors.surfaceSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewLinkTextCol: {
+    flex: 1,
+    padding: 10,
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  previewLinkTitle: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textPrimary,
+  },
+  previewLinkDesc: {
+    marginTop: 4,
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.textMuted,
+  },
+  previewLinkUrl: {
+    marginTop: 6,
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.xs,
+    color: theme.colors.brand,
   },
 });

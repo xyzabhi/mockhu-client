@@ -68,7 +68,7 @@ export type { Exam, ExamCategory, ExamListData, ListExamsParams } from './exam/t
 export { postOnboarding } from './onboarding/onboardingApi';
 export type { OnboardingPayload, OnboardingResponseData } from './onboarding/types';
 
-export { postApi, normalizePost } from './post/postApi';
+export { postApi, normalizePost, mergeStarResponse } from './post/postApi';
 export type { CreatePostImageInput, CreatePostParams } from './post/postApi';
 export type {
   DeletePostResponse,
@@ -77,6 +77,7 @@ export type {
   PostFeedResponse,
   PostResponse,
   PostType,
+  StarResponse,
 } from './post/types';
 export { resolvePostMediaUrl } from './post/mediaUrl';
 export {
@@ -91,7 +92,9 @@ export {
   parseTagsInput,
   POST_TYPES,
   validateMediaRule,
+  validatePostBody,
   validatePostContent,
+  validatePostTitle,
 } from './post/postValidation';
 
 export { useSession, type UseSessionResult } from './hooks/useSession';

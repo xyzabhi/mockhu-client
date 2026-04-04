@@ -23,8 +23,18 @@ export function HomeFeedScreen() {
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const currentUserId = profile?.id?.trim();
 
-  const { posts, loading, refreshing, loadingMore, error, loadMore, refresh, hasMore, removePost } =
-    useHomeFeed();
+  const {
+    posts,
+    loading,
+    refreshing,
+    loadingMore,
+    error,
+    loadMore,
+    refresh,
+    hasMore,
+    removePost,
+    updatePost,
+  } = useHomeFeed();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -39,9 +49,14 @@ export function HomeFeedScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: PostResponse }) => (
-      <PostCard post={item} currentUserId={currentUserId} onDeleted={removePost} />
+      <PostCard
+        post={item}
+        currentUserId={currentUserId}
+        onDeleted={removePost}
+        onPostUpdated={updatePost}
+      />
     ),
-    [currentUserId, removePost],
+    [currentUserId, removePost, updatePost],
   );
 
   const listEmpty = !loading && filtered.length === 0;

@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Fragment, useCallback, useState } from 'react';
+import { Fragment, useCallback, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   Linking,
   Platform,
@@ -14,7 +15,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { postApi } from '../../../api';
+import { mergeStarResponse, postApi, useSession } from '../../../api';
+import { navigationRef } from '../../../navigation/navigationRef';
 import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../../api/post/mediaUrl';
@@ -61,10 +63,39 @@ type PostCardProps = {
   post: PostResponse;
   currentUserId?: string;
   onDeleted?: (postId: string) => void;
+  /** Merge server post after vote (and other updates). */
+  onPostUpdated?: (post: PostResponse) => void;
 };
 
-export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
+export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: PostCardProps) {
+  const { accessToken } = useSession();
   const [deleting, setDeleting] = useState(false);
+  const authorStarPulse = useRef(new Animated.Value(0)).current;
+
+  const authorNameScale = authorStarPulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 1.09, 1],
+  });
+  const authorNameColor = authorStarPulse.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [theme.colors.textPrimary, theme.colors.starGold, theme.colors.textPrimary],
+  });
+
+  const playAuthorStarredAnimation = useCallback(() => {
+    authorStarPulse.setValue(0);
+    Animated.sequence([
+      Animated.timing(authorStarPulse, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: false,
+      }),
+      Animated.timing(authorStarPulse, {
+        toValue: 0,
+        duration: 380,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [authorStarPulse]);
   const isOwner = currentUserId != null && post.user_id === currentUserId;
   const badge = typeBadgeColors(post.post_type);
   const images = post.images ?? [];
@@ -102,7 +133,7 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
 
   const sharePost = useCallback(async () => {
     try {
-      const parts = [post.content.trim()];
+      const parts = [post.title?.trim(), post.content.trim()].filter(Boolean) as string[];
       if (post.link_url?.trim()) {
         parts.push(post.link_url.trim());
       }
@@ -113,15 +144,38 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
     } catch {
       /* dismissed */
     }
-  }, [post.content, post.link_url]);
-
-  const repost = useCallback(() => {
-    Alert.alert('Repost', 'Reposting will be available in a future update.');
-  }, []);
+  }, [post.content, post.link_url, post.title]);
 
   const reportPost = useCallback(() => {
     Alert.alert('Report', 'Thanks — we will review reports in a future update.');
   }, []);
+
+  const starred = post.starred === true;
+  const starCount = post.star_count ?? 0;
+
+  const openComments = useCallback(() => {
+    if (navigationRef.isReady()) {
+      navigationRef.navigate('PostComments', { postId: post.id });
+    }
+  }, [post.id]);
+
+  const submitStar = useCallback(async () => {
+    if (!accessToken) {
+      Alert.alert('Sign in', 'Sign in to star posts.');
+      return;
+    }
+    try {
+      const star = await postApi.starPost(post.id);
+      const prevCount = post.star_count ?? 0;
+      onPostUpdated?.(mergeStarResponse(post, star));
+      if (star.starred || star.star_count > prevCount) {
+        playAuthorStarredAnimation();
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not star.';
+      Alert.alert('Star failed', msg);
+    }
+  }, [accessToken, onPostUpdated, playAuthorStarredAnimation, post]);
 
   const openPostMenu = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -167,9 +221,18 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
         </View>
         <View style={styles.headerMain}>
           <View style={styles.nameRow}>
-            <Text style={styles.displayName} numberOfLines={1}>
+            <Animated.Text
+              style={[
+                styles.displayName,
+                {
+                  transform: [{ scale: authorNameScale }],
+                  color: authorNameColor,
+                },
+              ]}
+              numberOfLines={1}
+            >
               {displayName(post)}
-            </Text>
+            </Animated.Text>
             {timeLabel ? <Text style={styles.timeMeta}> · {timeLabel}</Text> : null}
             <View style={styles.headerSpacer} />
             <View style={[styles.typePill, { backgroundColor: badge.bg }]}>
@@ -184,9 +247,9 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
               style={styles.overflowBtn}
             >
               {deleting ? (
-                <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                <ActivityIndicator size="small" color={theme.colors.textPrimary} />
               ) : (
-                <MaterialCommunityIcons name="dots-vertical" size={22} color={theme.colors.textMuted} />
+                <MaterialCommunityIcons name="dots-vertical" size={22} color={theme.colors.textPrimary} />
               )}
             </Pressable>
           </View>
@@ -209,6 +272,11 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
         </View>
       </View>
 
+      {post.title?.trim() ? (
+        <Text style={styles.postTitle} numberOfLines={4}>
+          {post.title.trim()}
+        </Text>
+      ) : null}
       <Text style={styles.content}>{post.content}</Text>
 
       {images.length === 1 ? (
@@ -243,7 +311,7 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
             />
           ) : (
             <View style={styles.linkImgPlaceholder}>
-              <MaterialCommunityIcons name="link-variant" size={28} color={theme.colors.textMuted} />
+              <MaterialCommunityIcons name="link-variant" size={28} color={theme.colors.textPrimary} />
             </View>
           )}
           <View style={styles.linkText}>
@@ -263,48 +331,46 @@ export function PostCard({ post, currentUserId, onDeleted }: PostCardProps) {
       ) : null}
 
       <View style={styles.cardFooter}>
-        <Pressable
-          style={[styles.footerSlot, styles.footerStat]}
-          onPress={() => undefined}
-          accessibilityRole="button"
-          accessibilityLabel={`Upvotes, ${post.upvote_count}`}
-        >
-          <MaterialCommunityIcons name="star-outline" size={20} color={theme.colors.textMuted} />
-          <Text style={styles.statText}>{post.upvote_count}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.footerSlot, styles.footerStat]}
-          onPress={() => undefined}
-          accessibilityRole="button"
-          accessibilityLabel={`Comments, ${post.comment_count}`}
-        >
-          <MaterialCommunityIcons name="comment-outline" size={20} color={theme.colors.textMuted} />
-          <Text style={styles.statText}>{post.comment_count}</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.footerSlot, styles.footerIconBtn]}
-          onPress={repost}
-          accessibilityRole="button"
-          accessibilityLabel="Repost"
-        >
-          <MaterialCommunityIcons name="repeat-variant" size={22} color={theme.colors.textMuted} />
-        </Pressable>
-        <Pressable
-          style={[styles.footerSlot, styles.footerIconBtn]}
-          onPress={() => void sharePost()}
-          accessibilityRole="button"
-          accessibilityLabel="Share"
-        >
-          <MaterialCommunityIcons name="share-variant-outline" size={22} color={theme.colors.textMuted} />
-        </Pressable>
-        <Pressable
-          style={[styles.footerSlot, styles.footerIconBtn]}
-          onPress={() => undefined}
-          accessibilityRole="button"
-          accessibilityLabel="Save"
-        >
-          <MaterialCommunityIcons name="bookmark-outline" size={22} color={theme.colors.textMuted} />
-        </Pressable>
+        <View style={styles.footerLeft}>
+          <Pressable
+            style={({ pressed }) => [styles.votePill, pressed && styles.pillPressed]}
+            onPress={() => void submitStar()}
+            accessibilityRole="button"
+            accessibilityLabel={starred ? 'Starred' : 'Star post'}
+            accessibilityHint={`${starCount} stars`}
+            accessibilityState={{ selected: starred }}
+          >
+            <MaterialCommunityIcons
+              name={starred ? 'star' : 'star-outline'}
+              size={20}
+              color={starred ? theme.colors.starGold : theme.colors.textPrimary}
+            />
+            <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
+              {starCount}
+            </Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.replyPill, pressed && styles.pillPressed]}
+            onPress={openComments}
+            accessibilityRole="button"
+            accessibilityLabel={`Comments, ${post.comment_count}`}
+          >
+            <MaterialCommunityIcons name="message-outline" size={20} color={theme.colors.textPrimary} />
+            <Text style={styles.replyCountText} maxFontSizeMultiplier={1.4}>
+              {post.comment_count}
+            </Text>
+          </Pressable>
+        </View>
+        <View style={styles.footerRight}>
+          <Pressable
+            style={({ pressed }) => [styles.bookmarkBox, pressed && styles.pillPressed]}
+            onPress={() => undefined}
+            accessibilityRole="button"
+            accessibilityLabel="Save"
+          >
+            <MaterialCommunityIcons name="bookmark-outline" size={22} color={theme.colors.textPrimary} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -316,6 +382,8 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.cardPaddingV,
     paddingHorizontal: theme.spacing.cardPaddingH,
     borderRadius: theme.radius.card,
+    borderWidth: theme.borderWidth.default,
+    borderColor: theme.colors.borderSubtle,
   },
   topRow: {
     flexDirection: 'row',
@@ -401,6 +469,13 @@ const styles = StyleSheet.create({
     fontSize: theme.fintSizes.xs,
     color: theme.colors.brand,
   },
+  postTitle: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.md,
+    color: theme.colors.textPrimary,
+    lineHeight: 24,
+    marginBottom: 6,
+  },
   content: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
@@ -475,29 +550,78 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    alignSelf: 'stretch',
-    marginTop: 8,
-  },
-  /** Equal-width columns so actions are evenly spaced across the row. */
-  footerSlot: {
-    flex: 1,
-    minWidth: 0,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
+    alignSelf: 'stretch',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    gap: 8,
   },
-  footerStat: {
+  /** Star vote + comment pills — grouped on the left. */
+  footerLeft: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'flex-start',
+    gap: 8,
+    minWidth: 0,
+    flexWrap: 'wrap',
   },
-  footerIconBtn: {
-    padding: 4,
+  footerRight: {
+    flexShrink: 0,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
-  statText: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+  votePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.pill,
+    borderWidth: theme.borderWidth.default,
+    borderColor: theme.colors.borderSubtle,
+    backgroundColor: theme.colors.surface,
+    minHeight: 38,
+  },
+  pillPressed: {
+    opacity: 0.82,
+  },
+  voteScore: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textPrimary,
+    minWidth: 28,
+    textAlign: 'center',
+  },
+  replyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: theme.radius.pill,
+    borderWidth: theme.borderWidth.default,
+    borderColor: theme.colors.borderSubtle,
+    backgroundColor: theme.colors.surface,
+    maxWidth: '100%',
+    minHeight: 38,
+  },
+  replyCountText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textPrimary,
+    minWidth: 20,
+    textAlign: 'center',
+  },
+  bookmarkBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 38,
+    height: 38,
+    borderRadius: theme.radius.badge,
+    borderWidth: theme.borderWidth.default,
+    borderColor: theme.colors.borderSubtle,
+    backgroundColor: theme.colors.surface,
   },
 });
