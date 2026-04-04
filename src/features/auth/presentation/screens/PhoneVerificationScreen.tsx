@@ -1,49 +1,83 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     Pressable,
+    ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     View,
 } from 'react-native';
+import { AppError, authApi } from '../../../../api';
+import type { TokenResponse } from '../../../../api/types';
 import { theme } from '../../../../presentation/theme/theme';
+import { OtpInput } from '../../../../shared/components/OtpInput';
 
 type PhoneVerificationScreenProps = {
     mode: 'signup' | 'login';
+    /** Same E.164 value used for POST /auth/phone/request */
+    phoneE164: string;
     onBack: () => void;
-    onVerified?: () => void;
+    onVerified?: (tokens: TokenResponse) => void;
 };
 
 export function PhoneVerificationScreen({
+    phoneE164,
     onBack,
     onVerified,
 }: PhoneVerificationScreenProps) {
     const [otp, setOtp] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isVerified, setIsVerified] = useState(false);
+    const [verifyError, setVerifyError] = useState<string | null>(null);
+    const submittedForOtp = useRef<string | null>(null);
+    /** Stops auto-submit from looping after a wrong code until the user edits digits. */
+    const autoSubmitBlockedForOtp = useRef<string | null>(null);
+
     const title = 'Verify your phone number';
     const subtitle = 'Enter the 6-digit code sent to your phone number';
     const primaryCta = 'Verify';
-    const handlePrimaryAction = () => {
-        if (isSubmitting) return;
-        setIsSubmitting(true);
-        setTimeout(() => {
-            setIsSubmitting(false);
-            setIsVerified(true);
-            onVerified?.();
-        }, 1200);
-    };
 
+    const handlePrimaryAction = useCallback(async (fromManual = false) => {
+        if (isSubmitting || otp.length !== 6) return;
+        if (fromManual) {
+            autoSubmitBlockedForOtp.current = null;
+            submittedForOtp.current = null;
+        }
+        setVerifyError(null);
+        setIsSubmitting(true);
+        try {
+            const tokens = await authApi.verifyPhoneOtp({ phone: phoneE164, otp });
+            onVerified?.(tokens);
+        } catch (e) {
+            const message =
+                e instanceof AppError ? e.message : 'Invalid or expired code. Try again.';
+            setVerifyError(message);
+            autoSubmitBlockedForOtp.current = otp;
+            submittedForOtp.current = null;
+        } finally {
+            setIsSubmitting(false);
+        }
+    }, [isSubmitting, otp, phoneE164, onVerified]);
 
     useEffect(() => {
-        if (otp.length === 6) {
-            handlePrimaryAction();
+        if (otp.length < 6) {
+            submittedForOtp.current = null;
+            autoSubmitBlockedForOtp.current = null;
+            setVerifyError(null);
         }
     }, [otp]);
+
+    useEffect(() => {
+        if (otp.length !== 6 || isSubmitting) return;
+        if (autoSubmitBlockedForOtp.current === otp) return;
+        if (submittedForOtp.current === otp) return;
+        submittedForOtp.current = otp;
+        void handlePrimaryAction(false);
+    }, [otp, isSubmitting, handlePrimaryAction]);
+
+    const inputDisabled = isSubmitting;
 
     return (
         <KeyboardAvoidingView
@@ -51,9 +85,22 @@ export function PhoneVerificationScreen({
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
         >
-            <View>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
                 <View style={styles.header}>
-                    <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
+                    <Pressable
+                        onPress={onBack}
+                        style={({ pressed }) => [
+                            styles.backButton,
+                            pressed && styles.backButtonPressed,
+                        ]}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Go back"
+                    >
                         <MaterialCommunityIcons
                             name="arrow-left"
                             size={28}
@@ -66,42 +113,38 @@ export function PhoneVerificationScreen({
                     </View>
                 </View>
 
-                <View style={styles.formCard}>
-                    <View style={styles.form}>
-                        <Text style={styles.label}>Enter OTP</Text>
-                        <View style={styles.otpInputRow}>
-                            <TextInput
-                                style={[
-                                    styles.input,
-                                    styles.otpInput,
-                                    otp.length > 0 ? styles.inputFilled : styles.inputDefault,
-                                ]}
-                                placeholder="Enter your OTP"
-                                placeholderTextColor={theme.colors.surface}
-                                keyboardType="numeric"
-                                value={otp}
-                                onChangeText={setOtp}
-                                maxLength={6}
-                            />
-                        </View>
-                    </View>
+                <View style={styles.fieldBlock}>
+                    <Text style={styles.label}>Enter OTP</Text>
+                    <OtpInput
+                        value={otp}
+                        onChange={setOtp}
+                        disabled={inputDisabled}
+                    />
+                    {verifyError ? (
+                        <Text style={styles.errorText}>{verifyError}</Text>
+                    ) : null}
                 </View>
-            </View>
+            </ScrollView>
+
             <View style={styles.primaryButtonContainer}>
                 <Pressable
-                    style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
-                    onPress={handlePrimaryAction}
-                    disabled={isSubmitting}
+                    style={({ pressed }) => [
+                        styles.primaryButton,
+                        (isSubmitting || otp.length !== 6) && styles.primaryButtonDisabled,
+                        pressed && !(isSubmitting || otp.length !== 6) && styles.primaryButtonPressed,
+                    ]}
+                    onPress={() => void handlePrimaryAction(true)}
+                    disabled={isSubmitting || otp.length !== 6}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: isSubmitting || otp.length !== 6 }}
                 >
                     <View style={styles.primaryButtonContent}>
                         {isSubmitting ? (
                             <ActivityIndicator size="small" color={theme.colors.textPrimary} />
                         ) : null}
-                        <Text style={styles.primaryButtonText}>
-                            {isSubmitting ? "" : isVerified ? "" : primaryCta}
-                        </Text>
-                        {isVerified ? <MaterialCommunityIcons name="check-circle" size={24} color={theme.colors.textPrimary} /> : null}
-                        {isVerified ? <Text style={styles.primaryButtonText}>Verified</Text> : null}
+                        {!isSubmitting ? (
+                            <Text style={styles.primaryButtonText}>{primaryCta}</Text>
+                        ) : null}
                     </View>
                 </Pressable>
             </View>
@@ -112,13 +155,16 @@ export function PhoneVerificationScreen({
 const styles = StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: '#f6f8fc',
+        backgroundColor: '#ffffff',
+    },
+    scrollContent: {
+        flexGrow: 1,
         paddingHorizontal: 20,
         paddingTop: 24,
-        justifyContent: 'space-between',
+        paddingBottom: 24,
     },
     header: {
-        marginBottom: 16,
+        marginBottom: 8,
         alignItems: 'flex-start',
     },
     headerContent: {
@@ -131,6 +177,10 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         justifyContent: 'center',
         paddingVertical: 6,
+        borderRadius: 8,
+    },
+    backButtonPressed: {
+        opacity: 0.7,
     },
     title: {
         fontFamily: theme.typography.bold,
@@ -147,12 +197,7 @@ const styles = StyleSheet.create({
         marginTop: 6,
         lineHeight: 18,
     },
-    formCard: {
-        borderRadius: 16,
-        backgroundColor: theme.colors.surface,
-        padding: 16,
-    },
-    form: {
+    fieldBlock: {
         width: '100%',
         gap: 12,
     },
@@ -161,29 +206,10 @@ const styles = StyleSheet.create({
         fontSize: theme.fintSizes.sm,
         color: theme.colors.textPrimary,
     },
-    input: {
-        paddingHorizontal: 14,
-        paddingVertical: 12,
-        fontSize: theme.fintSizes.md,
-        color: theme.colors.textPrimary,
-    },
-    otpInputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: theme.colors.borderStrong,
-        borderRadius: 12,
-        backgroundColor: theme.colors.surface,
-        overflow: 'hidden',
-    },
-    otpInput: {
-        flex: 1,
-    },
-    inputDefault: {
+    errorText: {
         fontFamily: theme.typography.regular,
-    },
-    inputFilled: {
-        fontFamily: theme.typography.semiBold,
+        fontSize: theme.fintSizes.sm,
+        color: '#B91C1C',
     },
     primaryButton: {
         borderRadius: 24,
@@ -194,14 +220,20 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     primaryButtonDisabled: {
-        opacity: 0.9,
+        opacity: 0.5,
+    },
+    primaryButtonPressed: {
+        opacity: 0.92,
     },
     primaryButtonContent: {
         flexDirection: 'row',
         alignItems: 'center',
         columnGap: 8,
+        minHeight: 24,
+        justifyContent: 'center',
     },
     primaryButtonContainer: {
+        paddingHorizontal: 20,
         marginBottom: 32,
         paddingTop: 16,
         paddingBottom: 12,

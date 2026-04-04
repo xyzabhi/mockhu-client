@@ -1,12 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
+import { useOnboardingDraft } from '../../OnboardingDraftContext';
+import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
+
+function splitDob(iso: string): { day: string; month: string; year: string } {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso.trim());
+  if (!m) return { day: '', month: '', year: '' };
+  return { year: m[1], month: m[2], day: m[3] };
+}
 import { DropDown } from '../../../../shared/components/DropDown';
 
-export function DOBScreen() {
-  const [day, setDay] = useState('');
-  const [month, setMonth] = useState('');
-  const [year, setYear] = useState('');
+export function DOBScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+  const { draft, updateDraft } = useOnboardingDraft();
+  const initial = splitDob(draft.dob);
+  const [day, setDay] = useState(initial.day);
+  const [month, setMonth] = useState(initial.month);
+  const [year, setYear] = useState(initial.year);
   const [openField, setOpenField] = useState<'day' | 'month' | 'year' | null>(null);
 
   const dayOptions = useMemo(
@@ -43,13 +53,19 @@ export function DOBScreen() {
     });
   }, []);
 
-  const selectedDate = day && month && year ? `${day}/${month}/${year}` : '';
+  useEffect(() => {
+    const dob = day && month && year ? `${year}-${month}-${day}` : '';
+    updateDraft({ dob });
+  }, [day, month, year, updateDraft]);
+
+  useEffect(() => {
+    onStepValidityChange?.(Boolean(day && month && year));
+  }, [day, month, year, onStepValidityChange]);
 
   return (
     <View style={styles.container}>
-      <View style={styles.formCard}>
-        <View style={styles.row}>
-          <View style={styles.colSm}>
+      <View style={styles.row}>
+        <View style={styles.colSm}>
             <Text style={styles.label}>Day</Text>
             <DropDown
               value={day}
@@ -59,8 +75,8 @@ export function DOBScreen() {
               isOpen={openField === 'day'}
               onOpenChange={(isOpen) => setOpenField(isOpen ? 'day' : null)}
             />
-          </View>
-          <View style={styles.colLg}>
+        </View>
+        <View style={styles.colLg}>
             <Text style={styles.label}>Month</Text>
             <DropDown
               value={month}
@@ -70,8 +86,8 @@ export function DOBScreen() {
               isOpen={openField === 'month'}
               onOpenChange={(isOpen) => setOpenField(isOpen ? 'month' : null)}
             />
-          </View>
-          <View style={styles.colSm}>
+        </View>
+        <View style={styles.colSm}>
             <Text style={styles.label}>Year</Text>
             <DropDown
               value={year}
@@ -81,7 +97,6 @@ export function DOBScreen() {
               isOpen={openField === 'year'}
               onOpenChange={(isOpen) => setOpenField(isOpen ? 'year' : null)}
             />
-          </View>
         </View>
       </View>
     </View>
@@ -90,32 +105,10 @@ export function DOBScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 20,
+    flex: 1,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 24,
     paddingTop: 4,
-  },
-  formCard: {
-    borderRadius: 8,
-    backgroundColor: theme.colors.surface,
-    padding: 24,
-    gap: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xl,
-    color: theme.colors.textPrimary,
-  },
-  helper: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
   },
   row: {
     flexDirection: 'row',
@@ -133,12 +126,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: theme.fintSizes.sm,
     fontFamily: theme.typography.medium,
-    color: theme.colors.textPrimary,
-  },
-  selected: {
-    marginTop: 2,
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
     color: theme.colors.textPrimary,
   },
 });

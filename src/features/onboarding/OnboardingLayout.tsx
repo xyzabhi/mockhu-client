@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Easing,
   KeyboardAvoidingView,
@@ -9,51 +11,96 @@ import {
   Text,
   View,
 } from 'react-native';
+import { AppError } from '../../api';
+import { useOnboardingDraft } from './OnboardingDraftContext';
+import { OnboardingFinishCelebration } from './OnboardingFinishCelebration';
 import { BioScreen } from './presentation/screens/BioScreen';
 import { DOBScreen } from './presentation/screens/DOBScreen';
-import { InterestScreen } from './presentation/screens/InterestScreen';
-import { NameDobScreen } from './presentation/screens/NameGenderScreen';
+import { GradeScreen } from './presentation/screens/GradeScreen';
+import { OnboardingExamInterestsScreen } from './presentation/screens/OnboardingExamInterestsScreen';
+import { NameGenderScreen } from './presentation/screens/NameGenderScreen';
 import { PhotoUsernameScreen } from './presentation/screens/PhotoUsername';
 import { theme } from '../../presentation/theme/theme';
+import type { OnboardingStepScreenProps } from './onboardingStepTypes';
 
-const screens = [
+type OnboardingStep = {
+  component: ComponentType<OnboardingStepScreenProps>;
+  title: string;
+  /** Omit or leave empty for a minimal header (title only). */
+  description?: string;
+};
+
+/**
+ * Onboarding field map (6 steps):
+ * 1 Personal info → first_name, last_name, gender
+ * 2 Date of birth → dob
+ * 3 Class / Grade → grade
+ * 4 Bio → bio (optional)
+ * 5 Photo + username → avatar_url, username
+ * 6 Interests → exam_category_ids, exam_ids
+ */
+/** Steps where Continue is enabled before the user completes required input (optional steps). */
+function initialCanContinueForStep(stepIndex: number): boolean {
+  const bioStep = 3;
+  return stepIndex === bioStep;
+}
+
+const screens: OnboardingStep[] = [
   {
-    component: NameDobScreen,
-    title: 'Name and Gender',
-    description: 'Enter first, last name and gender to get started. It could be male, female, other, etc.',
+    component: NameGenderScreen,
+    title: 'Personal info',
+    description: 'Your first name, last name, and gender.',
   },
   {
     component: DOBScreen,
-    title: 'Date of Birth',
-    description: 'Enter your date of birth, must be 13 years old or older',
+    title: 'Date of birth',
+    description: 'We use this to personalize your experience.',
+  },
+  {
+    component: GradeScreen,
+    title: 'Class / Grade',
+    description: 'Helps us show age-appropriate content.',
   },
   {
     component: BioScreen,
-    title: 'Enter Bio (Optional)',
-    description: 'Enter your bio to help others get to know you and we will use it to personalize your experience',
+    title: 'Bio',
+    description: 'A short intro about you — optional.',
   },
   {
     component: PhotoUsernameScreen,
-    title: 'Photo and Username',
-    description: 'Upload a photo and choose a username. Must be unique and 3-16 characters long',
+    title: 'Photo & username',
+    description: 'Profile photo and a unique handle.',
   },
   {
-    component: InterestScreen,
-    title: 'Interest',
-    description: 'Select your interests to help us personalize your experience.It could be exam interest, career interest, subject interest, etc.',
+    component: OnboardingExamInterestsScreen,
+    title: 'Interests',
+    description: 'Pick exam categories and exams you care about.',
   },
-] as const;
+];
 
 type OnboardingLayoutProps = {
   onFinish?: () => void;
 };
 
 export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
+  const { submitOnboarding } = useOnboardingDraft();
   const [step, setStep] = useState(0);
+  const [showFinishCelebration, setShowFinishCelebration] = useState(false);
+  const [stepCanContinue, setStepCanContinue] = useState(() =>
+    initialCanContinueForStep(0),
+  );
   const progressAnim = useRef(new Animated.Value((1 / screens.length) * 100)).current;
   const current = screens[step];
   const Step = current.component;
   const isLast = step === screens.length - 1;
+
+  const handleStepValidityChange = useCallback((canContinue: boolean) => {
+    setStepCanContinue(canContinue);
+  }, []);
+
+  useEffect(() => {
+    setStepCanContinue(initialCanContinueForStep(step));
+  }, [step]);
 
   useEffect(() => {
     const target = ((step + 1) / screens.length) * 100;
@@ -69,17 +116,39 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
     setStep((s) => Math.max(0, s - 1));
   };
 
-  const handlePrimary = () => {
+  const handlePrimary = useCallback(() => {
     if (isLast) {
-      onFinish?.();
+      void (async () => {
+        try {
+          await submitOnboarding();
+          setShowFinishCelebration(true);
+        } catch (e) {
+          const msg =
+            e instanceof AppError
+              ? e.message
+              : e instanceof Error
+                ? e.message
+                : 'Something went wrong.';
+          Alert.alert('Could not finish', msg);
+        }
+      })();
       return;
     }
     setStep((s) => s + 1);
-  };
+  }, [isLast, submitOnboarding]);
+
+  const handleCelebrationComplete = useCallback(() => {
+    setShowFinishCelebration(false);
+    onFinish?.();
+  }, [onFinish]);
 
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.root}>
-      <View style={styles.root}>
+      <OnboardingFinishCelebration
+        visible={showFinishCelebration}
+        onComplete={handleCelebrationComplete}
+      />
+      <View style={styles.body}>
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
           {step > 0 ? (
@@ -88,6 +157,8 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
               style={styles.backButton}
               hitSlop={8}
               android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
             >
               <MaterialCommunityIcons
                 name="arrow-left"
@@ -99,20 +170,30 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
             <View style={styles.backButtonPlaceholder} />
           )}
         </View>
-        <Text style={styles.title}>{current.title}</Text>
-        <View style={styles.infoContainer}>
-          <Text style={styles.description}>{current.description}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{current.title}</Text>
+          <Text style={styles.stepMeta} accessibilityLabel={`Step ${step + 1} of ${screens.length}`}>
+            {step + 1}/{screens.length}
+          </Text>
         </View>
+        {current.description ? (
+          <Text style={styles.description}>{current.description}</Text>
+        ) : null}
       </View>
 
       <View style={styles.stepSlot}>
-        <Step />
+        <Step onStepValidityChange={handleStepValidityChange} />
       </View>
 
       <Pressable
-        style={styles.primaryButton}
+        style={[
+          styles.primaryButton,
+          !stepCanContinue && styles.primaryButtonDisabled,
+        ]}
         onPress={handlePrimary}
+        disabled={!stepCanContinue}
         android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
+        accessibilityState={{ disabled: !stepCanContinue }}
       >
         <View style={styles.primaryButtonTrack} pointerEvents="none">
           <Animated.View
@@ -127,11 +208,9 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
             ]}
           />
         </View>
-        <Text style={styles.primaryButtonText}>
-          {isLast ? 'Finish' : `Step ${step + 1} of ${screens.length}`}
-        </Text>
+        <Text style={styles.primaryButtonText}>{isLast ? 'Finish' : 'Continue'}</Text>
       </Pressable>
-    </View>
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -139,12 +218,16 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f6f8fc',
+    backgroundColor: '#ffffff',
+  },
+  body: {
+    flex: 1,
+    backgroundColor: '#ffffff',
   },
   header: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 16,
   },
   headerTopRow: {
     flexDirection: 'row',
@@ -160,34 +243,41 @@ const styles = StyleSheet.create({
   },
   backButtonPlaceholder: {
     width: 40,
+    height: 40,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
   },
   title: {
+    flex: 1,
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xl,
+    fontSize: theme.fintSizes.xxl,
     color: theme.colors.textPrimary,
-    marginBottom: 4,
+    letterSpacing: -0.3,
   },
-  infoContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-    gap: 4,
+  stepMeta: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textMuted,
+    fontVariant: ['tabular-nums'],
   },
   description: {
-    flex: 1,
-    flexShrink: 1,
+    marginTop: 8,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
     color: theme.colors.textMuted,
-    lineHeight: 18,
-    marginBottom: 4,
+    lineHeight: 20,
   },
   stepSlot: {
     flex: 1,
     minHeight: 0,
+    backgroundColor: '#ffffff',
   },
   primaryButton: {
-    marginHorizontal: 20,
+    marginHorizontal: 24,
     marginBottom: 24,
     borderRadius: 24,
     borderWidth: 1,
@@ -197,6 +287,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.42,
   },
   primaryButtonTrack: {
     ...StyleSheet.absoluteFillObject,

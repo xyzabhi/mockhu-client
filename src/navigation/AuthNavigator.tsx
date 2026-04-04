@@ -5,7 +5,7 @@ import { AuthWithPhone } from '../features/auth/presentation/screens/AuthWithPho
 import { LoginScreen } from '../features/auth/presentation/screens/LoginScreen';
 import { PhoneVerificationScreen } from '../features/auth/presentation/screens/PhoneVerificationScreen';
 import { SignUpScreen } from '../features/auth/presentation/screens/SignUpScreen';
-import { resetToRoute } from './navigationRef';
+import { resetToRootAfterAuth } from './postAuthNavigation';
 import type { AuthStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -43,8 +43,8 @@ function AuthPhoneNav({
     <AuthWithPhone
       mode={mode}
       onBack={() => navigation.goBack()}
-      onVerify={() =>
-        navigation.navigate('AuthPhoneVerify', { mode })
+      onVerify={(phoneE164) =>
+        navigation.navigate('AuthPhoneVerify', { mode, phoneE164 })
       }
     />
   );
@@ -58,6 +58,7 @@ function AuthEmailNav({
     <AuthWithEmail
       mode={route.params.mode}
       onBack={() => navigation.goBack()}
+      onAuthSuccess={(tokens) => resetToRootAfterAuth(tokens)}
     />
   );
 }
@@ -66,11 +67,13 @@ function AuthPhoneVerifyNav({
   navigation,
   route,
 }: NativeStackScreenProps<AuthStackParamList, 'AuthPhoneVerify'>) {
+  const { mode, phoneE164 } = route.params;
   return (
     <PhoneVerificationScreen
-      mode={route.params.mode}
+      mode={mode}
+      phoneE164={phoneE164}
       onBack={() => navigation.goBack()}
-      onVerified={() => resetToRoute('Onboarding')}
+      onVerified={(tokens) => resetToRootAfterAuth(tokens)}
     />
   );
 }

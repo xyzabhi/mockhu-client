@@ -1,48 +1,73 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
     Pressable,
+    ScrollView,
     StyleSheet,
     Text,
     TextInput,
     View,
 } from 'react-native';
+import { AppError, authApi } from '../../../../api';
 import { theme } from '../../../../presentation/theme/theme';
 
 type AuthWithPhoneProps = {
     mode: 'signup' | 'login';
     onBack: () => void;
-    onVerify: () => void;
+    /** E.164 phone used for OTP request; passed through to verify screen. */
+    onVerify: (phoneE164: string) => void;
 };
 
 export function AuthWithPhone({ mode, onBack, onVerify }: AuthWithPhoneProps) {
     const [phone, setPhone] = useState('');
+    const [isPhoneFocused, setIsPhoneFocused] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
+
+    const digitsOnly = useMemo(() => phone.replace(/\D/g, ''), [phone]);
+    const isPhoneValid = digitsOnly.length === 10;
+
     const handlePhoneChange = (value: string) => {
-        const digitsOnly = value.replace(/\D/g, '').slice(0, 10);
+        const digits = value.replace(/\D/g, '').slice(0, 10);
         const formatted =
-            digitsOnly.length > 5
-                ? `${digitsOnly.slice(0, 5)} ${digitsOnly.slice(5)}`
-                : digitsOnly;
+            digits.length > 5
+                ? `${digits.slice(0, 5)} ${digits.slice(5)}`
+                : digits;
         setPhone(formatted);
     };
 
     const title = mode === 'login' ? 'Login with Phone' : 'Sign up with Phone';
     const subtitle =
         mode === 'login'
-            ? 'Enter your mobile number to login'
-            : 'Your phone number will be used to login to your account.We will also using this for account recovery purposes.';
+            ? 'Enter your mobile number to sign in.'
+            : 'We use your phone number to sign you in and for account recovery.';
     const primaryCta = mode === 'login' ? 'Login' : 'Continue';
-    const primaryCtaDescription = mode === 'login' ? '' : 'We will send OTP to your phone number for verification.';
-    const handlePrimaryAction = () => {
-        if (isSubmitting) return;
+    const primaryCtaDescription =
+        mode === 'login' ? '' : 'We will send an OTP to your number for verification.';
+
+    const handlePrimaryAction = async () => {
+        if (!isPhoneValid || isSubmitting) return;
+        const e164 = `+91${digitsOnly}`;
+        setSubmitError(null);
         setIsSubmitting(true);
-        onVerify();
-        // If navigation doesn't happen for some reason, re-enable the button.
-        setIsSubmitting(false);
+        try {
+            const res = await authApi.requestPhoneOtp({ phone: e164 });
+            if (__DEV__ && res.otp != null && res.otp !== '') {
+                console.log('[Mockhu dev] Phone OTP (from API):', res.otp);
+            }
+            onVerify(e164);
+        } catch (e) {
+            const message =
+                e instanceof AppError ? e.message : 'Could not send OTP. Try again.';
+            setSubmitError(message);
+            if (__DEV__) {
+                console.warn('[Mockhu] requestPhoneOtp failed:', message, e);
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -51,9 +76,21 @@ export function AuthWithPhone({ mode, onBack, onVerify }: AuthWithPhoneProps) {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
         >
-            <View>
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
                 <View style={styles.header}>
-                    <Pressable onPress={onBack} style={styles.backButton} hitSlop={8}>
+                    <Pressable
+                        onPress={onBack}
+                        style={styles.backButton}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Go back"
+                        android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+                    >
                         <MaterialCommunityIcons
                             name="arrow-left"
                             size={28}
@@ -66,24 +103,39 @@ export function AuthWithPhone({ mode, onBack, onVerify }: AuthWithPhoneProps) {
                     </View>
                 </View>
 
-                <View style={styles.formCard}>
-                    <View style={styles.form}>
-                        <Text style={styles.label}>Phone number</Text>
-                        <View style={styles.phoneInputRow}>
+                <View style={styles.form}>
+                    <View
+                        style={[
+                            styles.phoneInputRow,
+                            isPhoneFocused && styles.phoneInputRowFocused,
+                        ]}
+                    >
+                        <View style={styles.countryCodeBlock}>
                             <Text style={styles.countryCode}>+91</Text>
-                            <TextInput
-                                style={[styles.input, styles.phoneInput, phone.length > 0 ? styles.inputFilled : styles.inputDefault]}
-                                placeholder="99999 99999"
-                                placeholderTextColor={theme.colors.textMuted}
-                                keyboardType="phone-pad"
-                                value={phone}
-                                onChangeText={handlePhoneChange}
-                                maxLength={11}
-                            />
                         </View>
+                        <View style={styles.codeDivider} />
+                        <TextInput
+                            style={[
+                                styles.input,
+                                styles.phoneInput,
+                                phone.length > 0 ? styles.inputFilled : styles.inputDefault,
+                            ]}
+                            placeholder="99999 99999"
+                            placeholderTextColor={theme.colors.textMuted}
+                            keyboardType="phone-pad"
+                            value={phone}
+                            onChangeText={handlePhoneChange}
+                            maxLength={11}
+                            onFocus={() => setIsPhoneFocused(true)}
+                            onBlur={() => setIsPhoneFocused(false)}
+                            accessibilityLabel="Mobile number"
+                            textContentType="telephoneNumber"
+                            autoComplete="tel-national"
+                        />
                     </View>
                 </View>
-            </View>
+            </ScrollView>
+
             <View style={styles.primaryButtonContainer}>
                 {primaryCtaDescription ? (
                     <View style={styles.primaryCtaDescRow}>
@@ -95,19 +147,22 @@ export function AuthWithPhone({ mode, onBack, onVerify }: AuthWithPhoneProps) {
                         <Text style={styles.primaryCtaDesc}>{primaryCtaDescription}</Text>
                     </View>
                 ) : null}
+                {submitError ? (
+                    <Text style={styles.errorText}>{submitError}</Text>
+                ) : null}
                 <Pressable
-                    style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
-                    onPress={handlePrimaryAction}
-                    disabled={isSubmitting}
+                    style={[
+                        styles.primaryButton,
+                        (!isPhoneValid || isSubmitting) && styles.primaryButtonDisabled,
+                    ]}
+                    onPress={() => void handlePrimaryAction()}
+                    disabled={!isPhoneValid || isSubmitting}
+                    android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !isPhoneValid || isSubmitting }}
+                    accessibilityLabel={primaryCta}
                 >
-                    <View style={styles.primaryButtonContent}>
-                        {isSubmitting ? (
-                            <ActivityIndicator size="small" color={theme.colors.textPrimary} />
-                        ) : null}
-                        <Text style={styles.primaryButtonText}>
-                            {isSubmitting ? "" : primaryCta}
-                        </Text>
-                    </View>
+                    <Text style={styles.primaryButtonText}>{primaryCta}</Text>
                 </Pressable>
             </View>
         </KeyboardAvoidingView>
@@ -117,18 +172,24 @@ export function AuthWithPhone({ mode, onBack, onVerify }: AuthWithPhoneProps) {
 const styles = StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: '#f6f8fc',
+        backgroundColor: '#fff',
         paddingHorizontal: 20,
         paddingTop: 24,
-        justifyContent: 'space-between',
+    },
+    scroll: {
+        flex: 1,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingBottom: 16,
     },
     header: {
-        marginBottom: 16,
+        marginBottom: 20,
         alignItems: 'flex-start',
     },
     headerContent: {
-        marginTop: 24,
-        marginBottom: 16,
+        width: '100%',
+        marginTop: 12,
     },
     backButton: {
         alignSelf: 'flex-start',
@@ -142,62 +203,72 @@ const styles = StyleSheet.create({
         fontSize: theme.fintSizes.xxl,
         color: theme.colors.textPrimary,
         textAlign: 'left',
-        marginTop: 4,
     },
     subtitle: {
         fontFamily: theme.typography.regular,
-        fontSize: theme.fintSizes.xs,
+        fontSize: theme.fintSizes.sm,
         color: theme.colors.textMuted,
         textAlign: 'left',
-        marginTop: 6,
-        lineHeight: 18,
-    },
-    formCard: {
-        borderRadius: 16,
-        backgroundColor: theme.colors.surface,
-        padding: 16,
+        marginTop: 8,
+        lineHeight: 20,
     },
     form: {
         width: '100%',
-        gap: 12,
     },
-    label: {
-        fontFamily: theme.typography.medium,
-        fontSize: theme.fintSizes.sm,
-        color: theme.colors.textPrimary,
+    fieldHint: {
+        marginTop: 8,
+        fontFamily: theme.typography.regular,
+        fontSize: theme.fintSizes.xs,
+        color: theme.colors.textMuted,
     },
     input: {
-        paddingHorizontal: 14,
+        minHeight: 48,
         paddingVertical: 12,
+        paddingRight: 14,
         fontSize: theme.fintSizes.md,
         color: theme.colors.textPrimary,
-        fontFamily: theme.typography.semiBold,
     },
     phoneInputRow: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: theme.colors.borderStrong,
+        borderColor: theme.colors.borderSubtle,
         borderRadius: 12,
-        backgroundColor: theme.colors.surface,
+        backgroundColor: '#fff',
         overflow: 'hidden',
     },
-    countryCode: {
+    phoneInputRowFocused: {
+        borderColor: theme.colors.borderStrong,
+        borderWidth: 2,
+        backgroundColor: '#fff',
+    },
+    countryCodeBlock: {
         paddingLeft: 14,
-        paddingRight: 10,
-        fontFamily: theme.typography.medium,
+        paddingRight: 8,
+        justifyContent: 'center',
+        minHeight: 48,
+    },
+    countryCode: {
+        fontFamily: theme.typography.semiBold,
         fontSize: theme.fintSizes.md,
         color: theme.colors.textPrimary,
+        letterSpacing: 0.3,
+    },
+    codeDivider: {
+        width: 1,
+        alignSelf: 'stretch',
+        marginVertical: 10,
+        backgroundColor: theme.colors.borderSubtle,
     },
     phoneInput: {
         flex: 1,
-        paddingLeft: 10,
+        paddingLeft: 12,
     },
     inputDefault: {
         fontFamily: theme.typography.regular,
     },
     inputFilled: {
-        
+        fontFamily: theme.typography.semiBold,
     },
     primaryButton: {
         borderRadius: 24,
@@ -205,34 +276,36 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: theme.colors.borderStrong,
         alignItems: 'center',
-        paddingVertical: 12,
+        justifyContent: 'center',
+        paddingVertical: 14,
+        minHeight: 48,
     },
     primaryButtonDisabled: {
-        opacity: 0.9,
-    },
-    primaryButtonContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        columnGap: 8,
+        opacity: 0.45,
     },
     primaryButtonContainer: {
-        marginBottom: 32,
-        paddingTop: 16,
-        paddingBottom: 12,
+        paddingTop: 12,
+        paddingBottom: 32,
+        backgroundColor: '#fff',
     },
     primaryCtaDescRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'flex-start',
         columnGap: 6,
-        marginVertical: 8,
+        marginBottom: 12,
     },
     primaryCtaDesc: {
+        flex: 1,
         fontFamily: theme.typography.regular,
         fontSize: theme.fintSizes.sm,
         color: theme.colors.textMuted,
-        textAlign: 'center',
-        flexShrink: 1,
+        lineHeight: 18,
+    },
+    errorText: {
+        fontFamily: theme.typography.regular,
+        fontSize: theme.fintSizes.sm,
+        color: '#B91C1C',
+        marginBottom: 10,
     },
     primaryButtonText: {
         fontFamily: theme.typography.medium,

@@ -9,13 +9,13 @@ App.tsx
   └── SafeAreaProvider / SafeAreaView
         └── RootNavigator (NavigationContainer)
               ├── Auth          → AuthNavigator (nested stack)
-              ├── Onboarding    → OnboardingLayout (+ onFinish → Main)
-              └── Main          → MainPlaceholderScreen (replace with tabs/home later)
+              ├── Onboarding    → OnboardingLayout (+ onFinish → Home)
+              └── Home          → HomeScreen (dummy; replace with tabs later)
 ```
 
 - **Auth**: sign up / login entry, phone & email flows, phone verification.
-- **Onboarding**: multi-step wizard (name, DOB, bio, photo, interests, etc.).
-- **Main**: placeholder for the signed-in app (tabs, drawer, etc.).
+- **Onboarding**: multi-step wizard (optional; not the default after login today).
+- **Home**: placeholder for the signed-in app (tabs, feed, etc.).
 
 The **first screen** users see is **`Auth`** (stack starts at **Sign up**).
 
@@ -25,19 +25,19 @@ The **first screen** users see is **`Auth`** (stack starts at **Sign up**).
 |---------------|---------|
 | `types.ts` | `RootStackParamList`, `AuthStackParamList` — **add new route names and params here first** |
 | `navigationRef.ts` | Root `navigationRef` + `resetToRoute()` for jumping between root flows without prop drilling |
-| `RootNavigator.tsx` | `NavigationContainer`, root stack: Auth / Onboarding / Main |
+| `RootNavigator.tsx` | `NavigationContainer`, root stack: Auth / Onboarding / Home |
 | `AuthNavigator.tsx` | Nested stack + thin wrappers that connect your feature screens to navigation |
-| `screens/MainPlaceholderScreen.tsx` | Temporary home until you build real main navigation |
+| `screens/HomeScreen.tsx` | Dummy home until you build real signed-in navigation |
 | `index.ts` | Re-exports for clean imports (e.g. `import { RootNavigator } from './src/navigation'`) |
 
 ## How users move between flows
 
-1. **After phone verification succeeds**  
-   `PhoneVerificationScreen` calls `onVerified` → **`resetToRoute('Onboarding')`**.  
+1. **After any auth that returns tokens** (email login/signup, phone verify, etc.)  
+   Tokens and `user` (including `is_onboarded`) are persisted, then **`resetToRootAfterAuth()`** runs: **`Home`** if `user.is_onboarded === true`, else **`Onboarding`**.  
    That **replaces** the navigation state so the user isn’t stuck “under” the auth stack.
 
 2. **After onboarding “Finish”**  
-   `OnboardingLayout` calls **`onFinish`** → **`resetToRoute('Main')`**.
+   `OnboardingLayout` calls **`onFinish`** → **`resetToRoute('Home')`**.
 
 3. **Inside auth only**  
    Sign up ↔ Login, Phone, Email, Verify use normal **`navigate`** / **`goBack`** on the **auth** stack (see `AuthNavigator.tsx`).
@@ -53,8 +53,8 @@ The **first screen** users see is **`Auth`** (stack starts at **Sign up**).
    - Add to `RootStackParamList` and `RootNavigator.tsx`.  
    - Use `resetToRoute` or `navigationRef.navigate` when switching major phases.
 
-3. **Real main app**  
-   - Replace `MainPlaceholderScreen` with a **tab** or **drawer** navigator (new file under `navigation/`), then set `RootNavigator`’s `Main` screen to that component.
+3. **Real home app**  
+   - Replace `HomeScreen` with a **tab** or **drawer** navigator (new file under `navigation/`), then set `RootNavigator`’s `Home` screen to that component.
 
 ## Imports from the app
 
@@ -63,7 +63,7 @@ import { RootNavigator, resetToRoute, navigationRef } from './src/navigation';
 ```
 
 - **`RootNavigator`**: mount once under `App` (already wired in `App.tsx`).
-- **`resetToRoute('Onboarding' | 'Main' | 'Auth')`**: use when a flow completes and you want a clean stack (auth finished, onboarding finished, sign-out, etc.).
+- **`resetToRoute('Home' | 'Onboarding' | 'Auth')`**: use when a flow completes and you want a clean stack (auth finished, onboarding finished, sign-out, etc.).
 - **`navigationRef`**: advanced use (dispatch from outside React components, tests); prefer typed navigators in UI when possible.
 
 ## Relation to feature folders

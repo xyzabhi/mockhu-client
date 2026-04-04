@@ -1,97 +1,115 @@
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 import { theme } from '../../../../presentation/theme/theme';
+import { useOnboardingDraft } from '../../OnboardingDraftContext';
+import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 
-const MIN_WORDS = 50;
+const MAX_CHARS = 500;
 
-export function BioScreen() {
-  const [bio, setBio] = useState('');
+export function BioScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+  const { draft, updateDraft } = useOnboardingDraft();
+  const [bio, setBio] = useState(draft.bio);
   const [isFocused, setIsFocused] = useState(false);
 
-  const words = useMemo(() => {
-    const trimmed = bio.trim();
-    return trimmed.length > 0 ? trimmed.split(/\s+/).length : 0;
-  }, [bio]);
+  const length = bio.length;
+  const nearLimit = length > MAX_CHARS * 0.85;
+  const atLimit = length >= MAX_CHARS;
 
-  const remaining = Math.max(0, MIN_WORDS - words);
-  const isValid = words >= MIN_WORDS;
+  useEffect(() => {
+    updateDraft({ bio });
+  }, [bio, updateDraft]);
+
+  useEffect(() => {
+    onStepValidityChange?.(true);
+  }, [onStepValidityChange]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.formCard}>
-        <TextInput
-          style={[styles.input, isFocused && styles.inputFocused]}
-          value={bio}
-          onChangeText={setBio}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          multiline
-          textAlignVertical="top"
-          placeholder="I am a class 11 student preparing for IIT JEE. I enjoy Physics and Mathematics, especially solving challenging numericals and improving my concepts every week. I follow a daily study plan, revise short notes, and take mock tests on weekends. I am working on time management, accuracy, and consistency to build confidence and achieve my target rank."
-          placeholderTextColor={theme.colors.textMuted}
-        />
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <TextInput
+        style={[
+          styles.input,
+          length > 0 ? styles.inputHasText : null,
+          isFocused && styles.inputFocused,
+          atLimit && styles.inputAtLimit,
+        ]}
+        value={bio}
+        onChangeText={(t) => setBio(t.slice(0, MAX_CHARS))}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        multiline
+        textAlignVertical="top"
+        placeholder="Optional"
+        placeholderTextColor={theme.colors.textMuted}
+        accessibilityLabel="Bio"
+        maxLength={MAX_CHARS}
+      />
 
-        <Text style={[styles.counter, isValid ? styles.counterValid : styles.counterMuted]}>
-          {isValid ? `Great! ${words} words` : `${words}/50 words (${remaining} more to go)`}
-        </Text>
-      </View>
-    </View>
+      <Text
+        style={[
+          styles.charCount,
+          nearLimit && styles.charCountWarn,
+          atLimit && styles.charCountLimit,
+        ]}
+      >
+        {length}/{MAX_CHARS}
+      </Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: 20,
+  scroll: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  scrollContent: {
+    paddingHorizontal: 24,
     paddingTop: 4,
-  },
-  formCard: {
-    borderRadius: 8,
-    backgroundColor: theme.colors.surface,
-    padding: 24,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  },
-  title: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xl,
-    color: theme.colors.textPrimary,
-  },
-  helper: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-    lineHeight: 18,
+    paddingBottom: 24,
+    flexGrow: 1,
   },
   input: {
-    minHeight: 170,
+    minHeight: 160,
     borderWidth: 1,
     borderColor: theme.colors.borderSubtle,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fintSizes.md,
+    lineHeight: 24,
     color: theme.colors.textPrimary,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: '#ffffff',
+  },
+  inputHasText: {
+    backgroundColor: '#ffffff',
+    fontFamily: theme.typography.regular,
   },
   inputFocused: {
     borderColor: theme.colors.borderStrong,
     borderWidth: 2,
+    backgroundColor: '#ffffff',
   },
-  counter: {
+  inputAtLimit: {
+    borderColor: theme.colors.brand,
+  },
+  charCount: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
     fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-  },
-  counterMuted: {
+    fontSize: theme.fintSizes.xs,
     color: theme.colors.textMuted,
+    fontVariant: ['tabular-nums'],
   },
-  counterValid: {
+  charCountWarn: {
     color: theme.colors.textPrimary,
+  },
+  charCountLimit: {
+    color: theme.colors.brand,
   },
 });

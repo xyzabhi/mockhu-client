@@ -23,7 +23,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: '#f6f8fc' }}
+        style={{ flex: 1, backgroundColor: '#ffffff' }}
         edges={['top', 'left', 'right']}
       >
         <RootNavigator />
