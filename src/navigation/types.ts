@@ -14,4 +14,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   Home: undefined;
+  ExamCategories: undefined;
+  ExamCategory: { categoryId: number };
+  ExamDetail: { examId: number };
 };

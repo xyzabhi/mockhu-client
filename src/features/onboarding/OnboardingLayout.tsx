@@ -13,7 +13,7 @@ import {
 import { OnboardingFinishCelebration } from './OnboardingFinishCelebration';
 import { BioScreen } from './presentation/screens/BioScreen';
 import { DOBScreen } from './presentation/screens/DOBScreen';
-import { InterestScreen } from './presentation/screens/InterestScreen';
+import { OnboardingExamInterestsScreen } from './presentation/screens/OnboardingExamInterestsScreen';
 import { NameGenderScreen } from './presentation/screens/NameGenderScreen';
 import { PhotoUsernameScreen } from './presentation/screens/PhotoUsername';
 import { theme } from '../../presentation/theme/theme';
@@ -36,7 +36,7 @@ const screens: OnboardingStep[] = [
   { component: DOBScreen, title: 'Birthday' },
   { component: BioScreen, title: 'Bio' },
   { component: PhotoUsernameScreen, title: 'Profile' },
-  { component: InterestScreen, title: 'Interests' },
+  { component: OnboardingExamInterestsScreen, title: 'Exams' },
 ];
 
 type OnboardingLayoutProps = {

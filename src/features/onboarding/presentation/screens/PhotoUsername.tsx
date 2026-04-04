@@ -130,7 +130,7 @@ export function PhotoUsernameScreen({
           !usernameFocused && usernameLengthOk && styles.usernameShellValid,
         ]}
       >
-        <Text style={styles.atPrefix}>@</Text>
+        <Text style={styles.usernamePrefix}>#</Text>
         <TextInput
           style={styles.usernameInput}
           value={username}
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: '#ffffff',
   },
-  atPrefix: {
+  usernamePrefix: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.lg,
     color: theme.colors.textMuted,

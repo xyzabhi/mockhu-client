@@ -44,4 +44,11 @@ export type * from './auth/types';
 
 export { userApi } from './user/userApi';
 
+export { examCatalogApi } from './exam/examCatalogApi';
+export type { Exam, ExamCategory, ExamListData, ListExamsParams } from './exam/types';
+
 export { useSession, type UseSessionResult } from './hooks/useSession';
+export { useExamCategories, type UseExamCategoriesOptions } from './hooks/useExamCategories';
+export { useExamCategoryById } from './hooks/useExamCategoryById';
+export { useExamById } from './hooks/useExamById';
+export { useExamsList, type UseExamsListOptions } from './hooks/useExamsList';

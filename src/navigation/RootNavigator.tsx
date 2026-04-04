@@ -14,6 +14,9 @@ import {
   resetToRoute,
 } from './navigationRef';
 import { rootDestinationForSession } from './postAuthNavigation';
+import { ExamCategoriesScreen } from '../features/exams/presentation/screens/ExamCategoriesScreen';
+import { ExamCategoryExamsScreen } from '../features/exams/presentation/screens/ExamCategoryExamsScreen';
+import { ExamDetailScreen } from '../features/exams/presentation/screens/ExamDetailScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import type { RootStackParamList } from './types';
 
@@ -97,6 +100,21 @@ export function RootNavigator() {
         <Stack.Screen name="Auth" component={AuthNavigator} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen
+          name="ExamCategories"
+          component={ExamCategoriesScreen}
+          options={{ headerShown: true, title: 'Exams' }}
+        />
+        <Stack.Screen
+          name="ExamCategory"
+          component={ExamCategoryExamsScreen}
+          options={{ headerShown: true, title: 'Category' }}
+        />
+        <Stack.Screen
+          name="ExamDetail"
+          component={ExamDetailScreen}
+          options={{ headerShown: true, title: 'Exam' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

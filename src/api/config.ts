@@ -26,10 +26,13 @@ export function getDevNetworkDelayMs(): number {
 }
 
 /**
- * API base URL per environment. Set EXPO_PUBLIC_MOCKHU_API_BASE_URL in .env (no trailing slash).
+ * API base URL per environment. Set in `.env` (no trailing slash).
+ * Prefer `EXPO_PUBLIC_MOCKHU_API_BASE_URL`; `EXPO_PUBLIC_API_URL` is supported as an alias.
  */
 export function getApiBaseUrl(): string {
-  const fromEnv = process.env.EXPO_PUBLIC_MOCKHU_API_BASE_URL?.trim();
+  const fromEnv =
+    process.env.EXPO_PUBLIC_MOCKHU_API_BASE_URL?.trim() ||
+    process.env.EXPO_PUBLIC_API_URL?.trim();
   if (fromEnv) {
     return fromEnv.replace(/\/$/, '');
   }

@@ -21,8 +21,8 @@ export const theme={
         extraBold:'Inter_800ExtraBold',
         black:'Inter_900Black',
         thin:'Inter_100Thin',
-        light:'Inter_200ExtraLight',
-        extraLight:'Inter_300Light',
+        light:'Inter_300Light',
+        extraLight:'Inter_200ExtraLight',
     },
     fintSizes:{
         xs:12,
