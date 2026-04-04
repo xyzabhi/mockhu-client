@@ -109,7 +109,7 @@ export function PhotoUsernameScreen({
               <MaterialCommunityIcons
                 name="account"
                 size={Math.round(AVATAR * 0.45)}
-                color={theme.colors.textMuted}
+                color={theme.colors.brand}
               />
             )}
           </View>
@@ -144,7 +144,7 @@ export function PhotoUsernameScreen({
           !usernameFocused && usernameLengthOk && styles.usernameShellValid,
         ]}
       >
-        <Text style={styles.usernamePrefix}>#</Text>
+        <Text style={styles.usernamePrefix}>@</Text>
         <TextInput
           style={styles.usernameInput}
           value={username}
@@ -219,9 +219,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarRingDefault: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 2,
+    borderColor: theme.colors.brand,
   },
   avatarRingFilled: {
     backgroundColor: '#F3F4F6',
