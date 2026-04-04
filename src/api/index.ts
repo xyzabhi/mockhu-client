@@ -50,7 +50,15 @@ export { authApi } from './auth/authApi';
 export type * from './auth/types';
 
 export { userApi } from './user/userApi';
-export type { MeResponse, UserInterestsResponse } from './user/types';
+export type {
+  FollowListQuery,
+  FollowListResponse,
+  FollowResponse,
+  MeResponse,
+  UserInterestsResponse,
+  UserSuggestionsResponse,
+  UserSummary,
+} from './user/types';
 export { meResponseToTokenUserPatch } from './user/meResponseMap';
 
 export { examCatalogApi } from './exam/examCatalogApi';
@@ -64,3 +72,7 @@ export { useExamCategories, type UseExamCategoriesOptions } from './hooks/useExa
 export { useExamCategoryById } from './hooks/useExamCategoryById';
 export { useExamById } from './hooks/useExamById';
 export { useExamsList, type UseExamsListOptions } from './hooks/useExamsList';
+export { useFollow } from './hooks/useFollow';
+export { useUserSuggestions } from './hooks/useUserSuggestions';
+export { useFollowList, type FollowListKind, type UseFollowListOptions } from './hooks/useFollowList';
+export { useFollowCounts } from './hooks/useFollowCounts';

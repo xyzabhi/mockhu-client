@@ -4,10 +4,22 @@ import type { OnboardingPayload, OnboardingResponseData, TokenUser } from '../..
 export const ONBOARDING_DEFAULT_BIO = 'No bio yet.';
 
 /**
- * API requires non-empty `avatar_url`; use when the user has no https photo yet.
+ * API requires non-empty `avatar_url`; use when the user has no photo URI yet.
  * Replace with your CDN default when available.
  */
 export const ONBOARDING_DEFAULT_AVATAR_URL = 'https://example.com/avatar-placeholder';
+
+/**
+ * True when `avatar_url` should be treated as a real value (not empty, not the placeholder).
+ * Accepts Expo/RN picker URIs (`file://`, `content://`, `ph://`, …) and `http(s)://` — never https-only.
+ */
+export function isUsableAvatarDraftUri(value: string | undefined | null): boolean {
+  if (value == null) return false;
+  const t = value.trim();
+  if (!t) return false;
+  if (t === ONBOARDING_DEFAULT_AVATAR_URL) return false;
+  return true;
+}
 
 export type SelectedExamDraft = {
   id: number;
@@ -58,8 +70,10 @@ export function buildOnboardingPayload(draft: OnboardingDraft): OnboardingPayloa
     dob: draft.dob,
     grade: draft.grade,
     bio: bioTrim || ONBOARDING_DEFAULT_BIO,
-    /** Non-empty includes local device URIs (file://, content://, …); only default when empty. */
-    avatar_url: avatarTrim ? avatarTrim : ONBOARDING_DEFAULT_AVATAR_URL,
+    /** Local picker URIs (file://, content://, …) are forwarded as-is until you upload + replace with a public URL. */
+    avatar_url: isUsableAvatarDraftUri(avatarTrim)
+      ? avatarTrim
+      : ONBOARDING_DEFAULT_AVATAR_URL,
     username: draft.username.trim(),
     exam_category_ids,
     exam_ids,
