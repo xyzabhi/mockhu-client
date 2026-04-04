@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#f6f8fc',
+    backgroundColor: '#ffffff',
   },
   hero: {
     flex: HERO_FLEX,
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 22,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -82,14 +82,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontFamily: theme.typography.bold,
-    fontSize: theme.fintSizes.xxl,
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fontSizes.screenTitle,
+    lineHeight: 28,
     color: theme.colors.textPrimary,
     textAlign: 'center',
   },
   description: {
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fontSizes.body,
     color: theme.colors.textMuted,
     textAlign: 'center',
     marginTop: 8,

@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
     },
     phoneInputRowFocused: {
-        borderColor: theme.colors.borderStrong,
+        borderColor: theme.colors.brand,
         borderWidth: 2,
         backgroundColor: '#fff',
     },
@@ -271,10 +271,9 @@ const styles = StyleSheet.create({
         fontFamily: theme.typography.semiBold,
     },
     primaryButton: {
-        borderRadius: 24,
+        borderRadius: theme.radius.button,
         backgroundColor: theme.colors.brand,
-        borderWidth: 1,
-        borderColor: theme.colors.borderStrong,
+        borderWidth: 0,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
@@ -304,12 +303,12 @@ const styles = StyleSheet.create({
     errorText: {
         fontFamily: theme.typography.regular,
         fontSize: theme.fintSizes.sm,
-        color: '#B91C1C',
+        color: theme.colors.danger,
         marginBottom: 10,
     },
     primaryButtonText: {
-        fontFamily: theme.typography.medium,
+        fontFamily: theme.typography.semiBold,
         fontSize: theme.fintSizes.md,
-        color: theme.colors.textPrimary,
+        color: theme.colors.onBrand,
     },
 });

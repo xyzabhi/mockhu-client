@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   triggerFocused: {
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.brand,
     borderWidth: 2,
   },
   triggerPressed: {
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.borderSubtle,
     borderRadius: 12,
     backgroundColor: theme.colors.surface,
     overflow: 'hidden',

@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 4,
     paddingBottom: 24,
     flexGrow: 1,
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.regular,
   },
   inputFocused: {
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.brand,
     borderWidth: 2,
     backgroundColor: '#ffffff',
   },

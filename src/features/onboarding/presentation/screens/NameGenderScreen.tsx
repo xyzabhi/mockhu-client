@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 4,
     gap: 20,
   },
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.semiBold,
   },
   inputFocused: {
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.brand,
     borderWidth: 2,
   },
 });

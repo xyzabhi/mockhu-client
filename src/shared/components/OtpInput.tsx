@@ -115,11 +115,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cellActive: {
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.brand,
     borderWidth: 2,
   },
   cellFilled: {
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.brand,
   },
   char: {
     fontSize: theme.fintSizes.xl,

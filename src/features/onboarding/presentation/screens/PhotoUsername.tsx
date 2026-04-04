@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   scrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 4,
     paddingBottom: 32,
   },
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   usernameShellFocused: {
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.brand,
     borderWidth: 2,
     backgroundColor: '#ffffff',
   },

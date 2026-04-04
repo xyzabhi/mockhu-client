@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation';
 import { interFontMap } from './src/presentation/theme/interFontMap';
+import { theme } from './src/presentation/theme/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -23,7 +24,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: '#ffffff' }}
+        style={{ flex: 1, backgroundColor: theme.colors.surface }}
         edges={['top', 'left', 'right']}
       >
         <RootNavigator />

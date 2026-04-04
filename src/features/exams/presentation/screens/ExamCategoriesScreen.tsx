@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.borderSubtle,
   },
   retryText: {
     fontFamily: theme.typography.semiBold,

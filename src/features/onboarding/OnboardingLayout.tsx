@@ -1,10 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ComponentType } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  Animated,
-  Easing,
   KeyboardAvoidingView,
   Pressable,
   StyleSheet,
@@ -89,7 +87,6 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
   const [stepCanContinue, setStepCanContinue] = useState(() =>
     initialCanContinueForStep(0),
   );
-  const progressAnim = useRef(new Animated.Value((1 / screens.length) * 100)).current;
   const current = screens[step];
   const Step = current.component;
   const isLast = step === screens.length - 1;
@@ -101,16 +98,6 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
   useEffect(() => {
     setStepCanContinue(initialCanContinueForStep(step));
   }, [step]);
-
-  useEffect(() => {
-    const target = ((step + 1) / screens.length) * 100;
-    Animated.timing(progressAnim, {
-      toValue: target,
-      duration: 360,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: false,
-    }).start();
-  }, [step, progressAnim]);
 
   const handleBack = () => {
     setStep((s) => Math.max(0, s - 1));
@@ -192,22 +179,9 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         ]}
         onPress={handlePrimary}
         disabled={!stepCanContinue}
-        android_ripple={{ color: 'rgba(0,0,0,0.12)' }}
+        android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
         accessibilityState={{ disabled: !stepCanContinue }}
       >
-        <View style={styles.primaryButtonTrack} pointerEvents="none">
-          <Animated.View
-            style={[
-              styles.primaryButtonFill,
-              {
-                width: progressAnim.interpolate({
-                  inputRange: [0, 100],
-                  outputRange: ['0%', '100%'],
-                }),
-              },
-            ]}
-          />
-        </View>
         <Text style={styles.primaryButtonText}>{isLast ? 'Finish' : 'Continue'}</Text>
       </Pressable>
       </View>
@@ -218,14 +192,14 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.surface,
   },
   body: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.surface,
   },
   header: {
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 8,
     paddingBottom: 16,
   },
@@ -254,7 +228,8 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xxl,
+    fontSize: theme.fontSizes.screenTitle,
+    lineHeight: 28,
     color: theme.colors.textPrimary,
     letterSpacing: -0.3,
   },
@@ -267,22 +242,21 @@ const styles = StyleSheet.create({
   description: {
     marginTop: 8,
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fontSizes.body,
     color: theme.colors.textMuted,
-    lineHeight: 20,
+    lineHeight: theme.lineHeight.body,
   },
   stepSlot: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.colors.surface,
   },
   primaryButton: {
-    marginHorizontal: 24,
+    marginHorizontal: theme.spacing.screenPaddingH,
     marginBottom: 24,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    overflow: 'hidden',
+    borderRadius: theme.radius.button,
+    borderWidth: 0,
+    backgroundColor: theme.colors.brand,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -291,22 +265,10 @@ const styles = StyleSheet.create({
   primaryButtonDisabled: {
     opacity: 0.42,
   },
-  primaryButtonTrack: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.borderSubtle,
-  },
-  primaryButtonFill: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    backgroundColor: theme.colors.brand,
-  },
   primaryButtonText: {
-    zIndex: 1,
-    fontFamily: theme.typography.bold,
+    fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
+    color: theme.colors.onBrand,
     textAlign: 'center',
   },
 });

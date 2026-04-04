@@ -209,13 +209,12 @@ const styles = StyleSheet.create({
     errorText: {
         fontFamily: theme.typography.regular,
         fontSize: theme.fintSizes.sm,
-        color: '#B91C1C',
+        color: theme.colors.danger,
     },
     primaryButton: {
-        borderRadius: 24,
+        borderRadius: theme.radius.button,
         backgroundColor: theme.colors.brand,
-        borderWidth: 1,
-        borderColor: theme.colors.borderStrong,
+        borderWidth: 0,
         alignItems: 'center',
         paddingVertical: 12,
     },
@@ -239,8 +238,8 @@ const styles = StyleSheet.create({
         paddingBottom: 12,
     },
     primaryButtonText: {
-        fontFamily: theme.typography.medium,
+        fontFamily: theme.typography.semiBold,
         fontSize: theme.fintSizes.md,
-        color: theme.colors.textPrimary,
+        color: theme.colors.onBrand,
     },
 });

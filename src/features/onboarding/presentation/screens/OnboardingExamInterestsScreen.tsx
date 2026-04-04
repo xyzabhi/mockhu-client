@@ -327,7 +327,7 @@ function CategoryExamsModalBody({
             onPress={handlePrimaryPress}
             disabled={!primaryEnabled}
             android_ripple={
-              primaryEnabled ? { color: 'rgba(0,0,0,0.12)' } : { color: 'transparent' }
+              primaryEnabled ? { color: 'rgba(255,255,255,0.2)' } : { color: 'transparent' }
             }
             accessibilityRole="button"
             accessibilityState={{ disabled: !primaryEnabled }}
@@ -341,7 +341,14 @@ function CategoryExamsModalBody({
           >
             <View style={styles.modalRequestTrack} pointerEvents="none" />
             {primaryEnabled ? <View style={styles.modalRequestFill} pointerEvents="none" /> : null}
-            <Text style={styles.modalRequestText}>{primaryLabel}</Text>
+            <Text
+              style={[
+                styles.modalRequestText,
+                primaryEnabled && styles.modalRequestTextOnBrand,
+              ]}
+            >
+              {primaryLabel}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -597,7 +604,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   categoriesScrollContent: {
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingBottom: 16,
     flexGrow: 1,
   },
@@ -633,12 +640,12 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     fontVariant: ['tabular-nums'],
   },
-  /** Same shell as onboarding Continue: borderStrong + track + brand fill when selected (no check icon). */
+  /** Chip: subtle border; brand fill when selected (no check icon). */
   examChoiceChip: {
     alignSelf: 'flex-start',
-    borderRadius: 24,
+    borderRadius: theme.radius.pill,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.borderSubtle,
     overflow: 'hidden',
     minHeight: 42,
     justifyContent: 'center',
@@ -651,7 +658,7 @@ const styles = StyleSheet.create({
   },
   examChoiceChipTrack: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.borderSubtle,
+    backgroundColor: theme.colors.surface,
   },
   examChoiceChipFill: {
     ...StyleSheet.absoluteFillObject,
@@ -690,9 +697,9 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderWidth: 1,
     borderColor: theme.colors.borderSubtle,
-    borderRadius: 14,
+    borderRadius: theme.radius.input,
     paddingHorizontal: 12,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: theme.colors.surfaceSubtle,
   },
   searchInput: {
     flex: 1,
@@ -724,11 +731,11 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   sheet: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: theme.colors.surface,
+    borderTopLeftRadius: theme.radius.pill,
+    borderTopRightRadius: theme.radius.pill,
     paddingTop: 8,
-    paddingHorizontal: 20,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     overflow: 'hidden',
   },
   sheetFlex: {
@@ -776,8 +783,7 @@ const styles = StyleSheet.create({
   },
   modalRequestButton: {
     borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderWidth: 0,
     overflow: 'hidden',
     minHeight: 48,
     paddingVertical: 14,
@@ -786,7 +792,6 @@ const styles = StyleSheet.create({
   },
   modalRequestButtonDisabled: {
     opacity: 0.42,
-    borderColor: theme.colors.borderSubtle,
   },
   modalRequestButtonPressed: {
     opacity: 0.92,
@@ -804,6 +809,9 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.bold,
     fontSize: theme.fintSizes.md,
     color: theme.colors.textPrimary,
+  },
+  modalRequestTextOnBrand: {
+    color: theme.colors.onBrand,
   },
   modalBodyFill: {
     minHeight: 200,
@@ -824,7 +832,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.borderSubtle,
   },
   loadMoreText: {
     fontFamily: theme.typography.semiBold,
@@ -862,10 +870,10 @@ const styles = StyleSheet.create({
   retry: {
     marginTop: 16,
     paddingVertical: 12,
-    paddingHorizontal: 24,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.borderSubtle,
   },
   retryText: {
     fontFamily: theme.typography.semiBold,
@@ -889,7 +897,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.borderSubtle,
     backgroundColor: '#ffffff',
     minWidth: 200,
     alignItems: 'center',

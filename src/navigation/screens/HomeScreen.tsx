@@ -86,16 +86,16 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 24,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 48,
   },
   welcomeHeadline: {
-    fontFamily: theme.typography.bold,
-    fontSize: theme.fintSizes.xxl,
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fontSizes.screenTitle,
     color: theme.colors.textPrimary,
     letterSpacing: -0.3,
-    lineHeight: 32,
+    lineHeight: 28,
   },
   usernameLine: {
     marginTop: 6,
@@ -116,10 +116,9 @@ const styles = StyleSheet.create({
     minWidth: 160,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.brand,
-    backgroundColor: 'rgba(0, 210, 106, 0.08)',
+    borderRadius: theme.radius.button,
+    borderWidth: 0,
+    backgroundColor: theme.colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
@@ -130,7 +129,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
+    color: theme.colors.onBrand,
   },
   logoutButton: {
     marginTop: 16,
@@ -140,7 +139,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.borderSubtle,
     backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',

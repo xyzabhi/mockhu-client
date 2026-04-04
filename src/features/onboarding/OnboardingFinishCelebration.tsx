@@ -79,12 +79,12 @@ export function OnboardingFinishCelebration({
           explosionSpeed={380}
           colors={[
             theme.colors.brand,
-            '#111827',
+            theme.colors.progress,
+            theme.colors.textPrimary,
+            theme.colors.brandBorder,
             '#FBBF24',
-            '#34D399',
             '#60A5FA',
             '#F472B6',
-            '#A78BFA',
           ]}
         />
         <Animated.View
