@@ -84,8 +84,8 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
   const isDark = effectiveScheme === 'dark';
-  /** Unstarred star icon — dark gray in both themes. */
-  const starInactiveColor = isDark ? '#52525b' : '#111827';
+  /** Unliked thumb — dark gray in both themes (Facebook-style). */
+  const likeInactiveColor = isDark ? '#52525b' : '#111827';
   const styles = useMemo(() => createPostCardStyles(colors), [colors]);
   const { accessToken } = useSession();
   const [deleting, setDeleting] = useState(false);
@@ -187,7 +187,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
 
   const submitStar = useCallback(async () => {
     if (!accessToken) {
-      Alert.alert('Sign in', 'Sign in to star posts.');
+      Alert.alert('Sign in', 'Sign in to like posts.');
       return;
     }
     try {
@@ -202,8 +202,8 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
         }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not update star.';
-      Alert.alert('Star', msg);
+      const msg = e instanceof Error ? e.message : 'Could not update like.';
+      Alert.alert('Like', msg);
     }
   }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post]);
 
@@ -366,14 +366,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             style={({ pressed }) => [styles.votePill, pressed && styles.pillPressed]}
             onPress={() => void submitStar()}
             accessibilityRole="button"
-            accessibilityLabel={starred ? 'Starred' : 'Star post'}
-            accessibilityHint={`${starCount} stars`}
+            accessibilityLabel={starred ? 'Liked' : 'Like post'}
+            accessibilityHint={`${starCount} likes`}
             accessibilityState={{ selected: starred }}
           >
             <MaterialCommunityIcons
-              name="star"
+              name={starred ? 'thumb-up' : 'thumb-up-outline'}
               size={20}
-              color={starred ? colors.brand : starInactiveColor}
+              color={starred ? colors.brand : likeInactiveColor}
             />
             <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
               {starCount}
@@ -585,7 +585,7 @@ function createPostCardStyles(colors: ThemeColors) {
     marginTop: 10,
     gap: 8,
   },
-  /** Star + comment pills — grouped on the left. */
+  /** Like + comment pills — grouped on the left. */
   footerLeft: {
     flex: 1,
     flexDirection: 'row',

@@ -238,14 +238,28 @@ export async function getHomeFeed(params?: GetPostsFeedParams): Promise<PostFeed
 }
 
 export type GetPostCommentsParams = {
+  /** Server default 20; max 50 — values are clamped before send. */
   limit?: number;
   cursor?: string | null;
 };
 
+/** Matches API: pagination applies to top-level threads only; each thread includes all replies. */
+const COMMENT_LIST_LIMIT_MIN = 1;
+const COMMENT_LIST_LIMIT_MAX = 50;
+
+function clampCommentListLimit(limit: number | undefined): number | undefined {
+  if (limit == null || !Number.isFinite(limit)) return undefined;
+  return Math.min(
+    COMMENT_LIST_LIMIT_MAX,
+    Math.max(COMMENT_LIST_LIMIT_MIN, Math.floor(limit)),
+  );
+}
+
 function buildCommentsQuery(params?: GetPostCommentsParams): string {
   const sp = new URLSearchParams();
-  if (params?.limit != null) {
-    sp.set('limit', String(params.limit));
+  const limit = clampCommentListLimit(params?.limit);
+  if (limit != null) {
+    sp.set('limit', String(limit));
   }
   if (params?.cursor) {
     sp.set('cursor', params.cursor);
@@ -254,7 +268,10 @@ function buildCommentsQuery(params?: GetPostCommentsParams): string {
   return q ? `?${q}` : '';
 }
 
-/** Paginated threads: top-level `comment` + `replies[]`. `GET /posts/:id/comments`. */
+/**
+ * Paginated threads: each item is top-level `comment` + `replies[]` (direct replies only).
+ * Replies to replies are rejected on create (`400`). `GET /posts/:id/comments`.
+ */
 export async function getPostComments(
   postId: string,
   params?: GetPostCommentsParams,
@@ -277,7 +294,10 @@ export function resolveCommentText(input: CreateCommentBody): string {
   return s;
 }
 
-/** `POST /posts/:id/comments` — 201 → `CommentResponse`. */
+/**
+ * `POST /posts/:id/comments` — 201 → `CommentResponse`.
+ * Top-level: omit `parent_comment_id`. Reply: set to a **top-level** comment id on this post only.
+ */
 export async function createPostComment(
   postId: string,
   body: CreateCommentBody,

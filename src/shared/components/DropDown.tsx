@@ -105,10 +105,15 @@ function DropDown({
                     <MaterialCommunityIcons
                       name={option.icon}
                       size={18}
-                      color={theme.colors.textPrimary}
+                      color={isSelected ? theme.colors.onBrand : theme.colors.textPrimary}
                     />
                   ) : null}
-                  <Text style={[styles.menuText, isSelected && styles.menuTextSelected]}>
+                  <Text
+                    style={[
+                      styles.menuText,
+                      isSelected && styles.menuTextSelected,
+                    ]}
+                  >
                     {option.label}
                   </Text>
                 </View>
@@ -116,7 +121,7 @@ function DropDown({
                   <MaterialCommunityIcons
                     name="check"
                     size={18}
-                    color={theme.colors.textPrimary}
+                    color={theme.colors.onBrand}
                   />
                 ) : null}
               </Pressable>
@@ -202,7 +207,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
   },
   menuItemSelected: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: theme.colors.brand,
   },
   menuItemPressed: {
     opacity: 0.9,
@@ -219,6 +224,7 @@ const styles = StyleSheet.create({
   },
   menuTextSelected: {
     fontFamily: theme.typography.semiBold,
+    color: theme.colors.onBrand,
   },
 });
 

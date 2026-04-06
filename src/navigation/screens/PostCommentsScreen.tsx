@@ -45,7 +45,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
   const isDark = effectiveScheme === 'dark';
-  const starInactiveColor = useMemo(
+  const likeInactiveColor = useMemo(
     () => (isDark ? '#52525b' : '#111827'),
     [isDark],
   );
@@ -118,14 +118,14 @@ export function PostCommentsScreen({ route, navigation }: Props) {
   const onPressCommentStar = useCallback(
     async (c: CommentResponse) => {
       if (!accessToken) {
-        Alert.alert('Sign in', 'Sign in to star comments.');
+        Alert.alert('Sign in', 'Sign in to like comments.');
         return;
       }
       try {
         await toggleCommentStar(c.id);
       } catch (e) {
-        const msg = e instanceof Error ? e.message : 'Could not update star.';
-        Alert.alert('Star', msg);
+        const msg = e instanceof Error ? e.message : 'Could not update like.';
+        Alert.alert('Like', msg);
       }
     },
     [accessToken, toggleCommentStar],
@@ -264,20 +264,20 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                     onPress={() => void onPressCommentStar(c)}
                     hitSlop={8}
                     style={({ pressed }) => [
-                      styles.commentStarBtn,
-                      pressed && styles.commentStarBtnPressed,
+                      styles.commentLikeBtn,
+                      pressed && styles.commentLikeBtnPressed,
                     ]}
                     accessibilityRole="button"
-                    accessibilityLabel={c.starred_by_me ? 'Starred' : 'Star comment'}
-                    accessibilityHint={`${c.star_count ?? 0} stars`}
+                    accessibilityLabel={c.starred_by_me ? 'Liked' : 'Like comment'}
+                    accessibilityHint={`${c.star_count ?? 0} likes`}
                     accessibilityState={{ selected: c.starred_by_me === true }}
                   >
                     <MaterialCommunityIcons
-                      name="star"
+                      name={c.starred_by_me ? 'thumb-up' : 'thumb-up-outline'}
                       size={18}
-                      color={c.starred_by_me ? colors.brand : starInactiveColor}
+                      color={c.starred_by_me ? colors.brand : likeInactiveColor}
                     />
-                    <Text style={styles.commentStarCount} maxFontSizeMultiplier={1.4}>
+                    <Text style={styles.commentLikeCount} maxFontSizeMultiplier={1.4}>
                       {c.star_count ?? 0}
                     </Text>
                   </Pressable>
@@ -291,7 +291,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
     [
       styles,
       colors.brand,
-      starInactiveColor,
+      likeInactiveColor,
       currentUserId,
       isLoggedIn,
       openCommentMenu,
@@ -699,17 +699,17 @@ function createStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.xs,
       color: colors.brand,
     },
-    commentStarBtn: {
+    commentLikeBtn: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
       paddingVertical: 4,
       paddingRight: 4,
     },
-    commentStarBtnPressed: {
+    commentLikeBtnPressed: {
       opacity: 0.75,
     },
-    commentStarCount: {
+    commentLikeCount: {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fontSizes.meta,
       color: colors.textMuted,
