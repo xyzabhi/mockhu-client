@@ -25,7 +25,7 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView
         style={{ flex: 1, backgroundColor: theme.colors.surface }}
-        edges={['top', 'left', 'right']}
+        edges={['left', 'right', 'bottom']}
       >
         <RootNavigator />
       </SafeAreaView>

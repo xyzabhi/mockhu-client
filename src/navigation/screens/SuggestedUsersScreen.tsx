@@ -62,7 +62,7 @@ export function SuggestedUsersScreen() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Pressable
           style={({ pressed }) => [styles.continueCta, pressed && styles.continueCtaPressed]}
-          onPress={() => resetToRoute('Home')}
+          onPress={() => resetToRoute('Main')}
           accessibilityRole="button"
           accessibilityLabel="Continue to home"
           android_ripple={{ color: 'rgba(255,255,255,0.2)' }}

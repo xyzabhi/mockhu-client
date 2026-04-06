@@ -123,3 +123,58 @@ export async function apiPut<T>(path: string, body?: unknown, init?: ApiRequestI
 export async function apiDelete<T>(path: string, init?: ApiRequestInit): Promise<T> {
   return apiClient<T>(path, { ...init, method: 'DELETE' });
 }
+
+/**
+ * `POST` with `multipart/form-data`. Do not set `Content-Type` — the runtime adds the boundary.
+ * Auth + 401 refresh/retry behavior matches `apiClient`.
+ */
+export async function apiPostMultipart<T>(
+  path: string,
+  formData: FormData,
+  init?: Omit<ApiRequestInit, 'body' | 'method'>,
+): Promise<T> {
+  const { skipAuth, headers: initHeaders, ...rest } = init ?? {};
+
+  const headers = new Headers(initHeaders as HeadersInit | undefined);
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+
+  await attachAuthHeaders(headers, skipAuth, path);
+
+  const url = joinUrl(path);
+  await devNetworkDelay();
+  let response = await fetch(url, { ...rest, method: 'POST', body: formData, headers });
+
+  const shouldTryRefresh =
+    response.status === 401 && !skipAuth && !isAuthPath(path);
+
+  if (shouldTryRefresh) {
+    const hasRefresh = (await sessionStore.getRefreshToken()) != null;
+    if (!hasRefresh) {
+      await sessionStore.clearSession();
+      notifyReauthRequired();
+      throw AppError.reauth();
+    }
+    try {
+      await refreshTokens();
+    } catch {
+      throw AppError.reauth();
+    }
+    const retryHeaders = new Headers(initHeaders as HeadersInit | undefined);
+    if (!retryHeaders.has('Accept')) {
+      retryHeaders.set('Accept', 'application/json');
+    }
+    await attachAuthHeaders(retryHeaders, skipAuth, path);
+    await devNetworkDelay();
+    response = await fetch(url, { ...rest, method: 'POST', body: formData, headers: retryHeaders });
+  }
+
+  if (response.status === 401 && !isAuthPath(path) && !skipAuth) {
+    await sessionStore.clearSession();
+    notifyReauthRequired();
+    throw AppError.reauth();
+  }
+
+  return parseApiResponse<T>(response);
+}

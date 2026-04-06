@@ -13,6 +13,8 @@ export type MeResponse = {
   grade: string | null;
   /** `null` or `YYYY-MM-DD` */
   dob: string | null;
+  /** Total XP when returned by `/me` (omit or `null` if not tracked). */
+  xp?: number | null;
   created_at: string;
   updated_at: string;
 };

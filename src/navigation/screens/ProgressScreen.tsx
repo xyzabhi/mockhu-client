@@ -31,12 +31,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.surfaceSubtle,
     paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 24,
   },
   title: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fontSizes.screenTitle,
     color: theme.colors.textPrimary,
+    marginTop: 8,
     marginBottom: 8,
   },
   subtitle: {
