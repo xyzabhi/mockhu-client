@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppError } from '../../api';
 import { useOnboardingDraft } from './OnboardingDraftContext';
 import { OnboardingFinishCelebration } from './OnboardingFinishCelebration';
@@ -81,6 +82,7 @@ type OnboardingLayoutProps = {
 };
 
 export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
+  const insets = useSafeAreaInsets();
   const { submitOnboarding } = useOnboardingDraft();
   const [step, setStep] = useState(0);
   const [showFinishCelebration, setShowFinishCelebration] = useState(false);
@@ -136,7 +138,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         onComplete={handleCelebrationComplete}
       />
       <View style={styles.body}>
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerTopRow}>
           {step > 0 ? (
             <Pressable
@@ -208,7 +210,6 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 8,
     paddingBottom: 16,
   },
   headerTopRow: {

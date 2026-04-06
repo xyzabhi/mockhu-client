@@ -41,6 +41,8 @@ export type TokenUser = {
   grade?: string;
   bio?: string;
   avatar_url?: string;
+  /** Total experience points from the server (e.g. `GET /me` → `xp`). */
+  xp?: number;
   exam_category_ids?: number[];
   exam_ids?: number[];
   created_at?: string;

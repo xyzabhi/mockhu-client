@@ -17,7 +17,7 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   const bottomPad = Math.max(insets.bottom, 12);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hero}>
         <Image source={require('../../../../../assets/splash-logo.png')} style={styles.logo} />
       </View>
