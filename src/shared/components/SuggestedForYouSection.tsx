@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -8,12 +8,15 @@ import {
 } from 'react-native';
 import { useUserSuggestions } from '../../api';
 import { theme } from '../../presentation/theme/theme';
+import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 import { navigationRef } from '../../navigation/navigationRef';
 import { SuggestedUserRow } from './SuggestedUserRow';
 
 const PREVIEW_COUNT = 5;
 
 export function SuggestedForYouSection() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createSectionStyles(colors), [colors]);
   const { items, loading, error, refresh } = useUserSuggestions();
 
   const goToFullList = useCallback(() => {
@@ -29,7 +32,7 @@ export function SuggestedForYouSection() {
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Suggested for you</Text>
         <View style={styles.loadingRow}>
-          <ActivityIndicator size="small" color={theme.colors.brand} />
+          <ActivityIndicator size="small" color={colors.brand} />
           <Text style={styles.muted}>Loading suggestions…</Text>
         </View>
       </View>
@@ -67,59 +70,61 @@ export function SuggestedForYouSection() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    marginTop: 20,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: theme.radius.card,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  sectionTitle: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-  },
-  seeAll: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
-  },
-  loadingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 16,
-  },
-  muted: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-  },
-  errorText: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.danger,
-    marginBottom: 10,
-  },
-  retryBtn: {
-    alignSelf: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: theme.radius.button,
-    backgroundColor: theme.colors.brand,
-  },
-  retryBtnText: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.onBrand,
-  },
-});
+function createSectionStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    card: {
+      marginTop: 20,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      borderRadius: theme.radius.card,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 4,
+    },
+    sectionTitle: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+    },
+    seeAll: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.sm,
+      color: colors.brand,
+    },
+    loadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 16,
+    },
+    muted: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textMuted,
+    },
+    errorText: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.danger,
+      marginBottom: 10,
+    },
+    retryBtn: {
+      alignSelf: 'flex-start',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: theme.radius.button,
+      backgroundColor: colors.brand,
+    },
+    retryBtnText: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.sm,
+      color: colors.onBrand,
+    },
+  });
+}

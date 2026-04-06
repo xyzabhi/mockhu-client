@@ -110,3 +110,8 @@ export { useFollowCounts } from './hooks/useFollowCounts';
 export { useHomeFeed } from './hooks/useHomeFeed';
 export { useTopicFeed } from './hooks/useTopicFeed';
 export { useLinkPreview } from './hooks/useLinkPreview';
+export {
+  useUserInterests,
+  expandInterestsToExamIds,
+  type UseUserInterestsResult,
+} from './hooks/useUserInterests';

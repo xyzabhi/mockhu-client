@@ -1,11 +1,15 @@
-import { NavigationContainer } from '@react-navigation/native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  NavigationContainer,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { hydrateSessionUserFromMe, loadPersistedSession, setReauthHandler } from '../api';
 import { refreshTokens } from '../api/refreshCoordinator';
 import * as sessionStore from '../api/sessionStore';
-import { theme } from '../presentation/theme/theme';
+import { useThemeColors, useThemePreference } from '../presentation/theme/ThemeContext';
 import { OnboardingDraftProvider } from '../features/onboarding/OnboardingDraftContext';
 import { OnboardingLayout } from '../features/onboarding/OnboardingLayout';
 import { AuthNavigator } from './AuthNavigator';
@@ -71,6 +75,24 @@ async function resolveInitialRoute(): Promise<keyof RootStackParamList> {
 }
 
 export function RootNavigator() {
+  const colors = useThemeColors();
+  const { effectiveScheme } = useThemePreference();
+  const navigationTheme = useMemo(() => {
+    const base = effectiveScheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: colors.brand,
+        background: colors.surface,
+        card: colors.surface,
+        text: colors.textPrimary,
+        border: colors.borderSubtle,
+        notification: colors.brand,
+      },
+    };
+  }, [effectiveScheme, colors]);
+
   const [initialRoute, setInitialRoute] =
     useState<keyof RootStackParamList | null>(null);
 
@@ -94,8 +116,15 @@ export function RootNavigator() {
 
   if (initialRoute == null) {
     return (
-      <View style={bootstrapStyles.root}>
-        <ActivityIndicator size="large" color={theme.colors.brand} />
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.brand} />
       </View>
     );
   }
@@ -104,6 +133,7 @@ export function RootNavigator() {
     <NavigationContainer
       ref={navigationRef}
       onReady={flushPendingNavigationReset}
+      theme={navigationTheme}
     >
       <Stack.Navigator
         initialRouteName={initialRoute}
@@ -117,8 +147,6 @@ export function RootNavigator() {
           options={{
             headerShown: true,
             title: 'Suggested for you',
-            headerBackVisible: false,
-            gestureEnabled: false,
           }}
         />
         <Stack.Screen name="Main" component={MainTabNavigator} />
@@ -151,12 +179,3 @@ export function RootNavigator() {
     </NavigationContainer>
   );
 }
-
-const bootstrapStyles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
