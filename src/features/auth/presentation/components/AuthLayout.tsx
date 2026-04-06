@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BrandLogo } from '../../../../shared/components/BrandLogo';
 import { theme } from '../../../../presentation/theme/theme';
 
 type AuthLayoutProps = {
@@ -19,11 +20,7 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hero}>
-        <Image
-          source={require('../../../../../assets/brand_logo.png')}
-          style={styles.logo}
-          accessibilityLabel="Mockhu"
-        />
+        <BrandLogo style={styles.logo} />
       </View>
 
       <View style={[styles.sheet, { paddingBottom: bottomPad }]}> 
@@ -66,7 +63,7 @@ const styles = StyleSheet.create({
     width: '88%',
     maxWidth: 300,
     height: 96,
-    resizeMode: 'contain',
+    borderRadius: theme.radius.card,
   },
   sheet: {
     flex: SHEET_FLEX,

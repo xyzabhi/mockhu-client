@@ -13,7 +13,6 @@ import {
   Dimensions,
   Easing,
   FlatList,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -41,6 +40,7 @@ import {
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
 import type { PostResponse } from '../../api/post/types';
+import { BrandLogo } from '../../shared/components/BrandLogo';
 import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -380,12 +380,7 @@ export function HomeFeedScreen() {
           <View style={styles.drawerPanelHeader}>
             <View style={styles.drawerHeaderSpacer} />
             <View style={styles.drawerHeaderLogoWrap}>
-              <Image
-                source={require('../../../assets/brand_logo.png')}
-                style={styles.drawerBrandLogo}
-                resizeMode="contain"
-                accessibilityLabel="Mockhu"
-              />
+              <BrandLogo style={styles.drawerBrandLogo} />
             </View>
             <Pressable
               onPress={() => closeDrawer()}
@@ -467,12 +462,7 @@ export function HomeFeedScreen() {
         onLayout={onHeaderLayout}
       >
         <View style={styles.headerRow}>
-          {/* <Image
-            source={require('../../../assets/brand_logo.png')}
-            style={styles.brandLogo}
-            resizeMode="contain"
-            accessibilityLabel="Mockhu"
-          /> */}
+          {/* <BrandLogo style={styles.brandLogo} /> */}
           <View style={styles.searchRow}>
             <MaterialCommunityIcons
               name="magnify"
@@ -845,7 +835,6 @@ function createHomeStyles(colors: ThemeColors) {
       width: 64,
       flexShrink: 0,
       borderRadius: theme.radius.card,
-      overflow: 'hidden',
     },
     drawerClosePressed: {
       opacity: 0.65,
