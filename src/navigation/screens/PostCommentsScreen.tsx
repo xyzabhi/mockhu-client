@@ -33,7 +33,6 @@ import {
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
 import { formatRelativeTime } from '../../shared/utils/formatRelativeTime';
-import { LevelBadge } from '../../shared/components/LevelBadge';
 import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
 
@@ -233,15 +232,6 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                   <Text style={styles.commentAuthor} numberOfLines={1}>
                     {commentAuthorLabel(c.author)}
                   </Text>
-                  {c.author?.badge ? (
-                    <LevelBadge
-                      level={c.author.badge.level}
-                      tier={c.author.badge.tier}
-                      tierColorHint={c.author.badge.tier_color_hint}
-                      lineFontSize={theme.fintSizes.md}
-                      style={styles.commentAuthorBadge}
-                    />
-                  ) : null}
                 </View>
                 <Text style={styles.commentMetaSep}> · </Text>
                 <Text style={styles.commentTime}>{formatRelativeTime(c.created_at)}</Text>
@@ -745,10 +735,6 @@ function createStyles(colors: ThemeColors) {
       color: colors.textPrimary,
       flexShrink: 1,
       minWidth: 0,
-    },
-    commentAuthorBadge: {
-      marginLeft: 2,
-      flexShrink: 0,
     },
     commentMetaSep: {
       fontFamily: theme.typography.regular,
