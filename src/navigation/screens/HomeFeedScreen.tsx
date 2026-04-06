@@ -41,6 +41,7 @@ import {
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
 import type { PostResponse } from '../../api/post/types';
+import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -279,6 +280,9 @@ export function HomeFeedScreen() {
     closeDrawer(() => navigation.navigate('SuggestedUsers'));
   }, [closeDrawer, navigation]);
 
+  const firstName = profile?.first_name?.trim() ?? '';
+  const usernameDrawer = profile?.username?.trim() ?? '';
+  const drawerDisplayName = firstName || 'You';
   return (
     <View style={styles.root}>
       <Modal
@@ -320,13 +324,35 @@ export function HomeFeedScreen() {
               <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
+          <Pressable
+            style={({ pressed }) => [styles.drawerUserRow, pressed && styles.drawerUserRowPressed]}
+            onPress={goProfile}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          >
+            <UserAvatar
+              seed={(currentUserId ?? usernameDrawer) || 'me'}
+              avatarUrl={profile?.avatar_url}
+              size={48}
+            />
+            <View style={styles.drawerUserTextCol}>
+              <Text style={styles.drawerUserName} numberOfLines={1}>
+                {drawerDisplayName}
+              </Text>
+              {usernameDrawer ? (
+                <Text style={styles.drawerUserMeta} numberOfLines={1}>
+                  @{usernameDrawer}
+                </Text>
+              ) : null}
+            </View>
+          </Pressable>
           <View style={styles.drawerBody}>
             <View style={styles.drawerMenuList}>
               <Pressable
                 style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
                 onPress={goProfile}
                 accessibilityRole="button"
-                accessibilityLabel="Open profile"
+                accessibilityLabel="Open profile menu item"
               >
                 <MaterialCommunityIcons name="account-circle-outline" size={22} color={colors.textPrimary} />
                 <Text style={styles.drawerItemLabel}>Profile</Text>
@@ -646,6 +672,33 @@ function createHomeStyles(colors: ThemeColors) {
       height: 44,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    drawerUserRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 4,
+      marginBottom: 8,
+      borderRadius: 12,
+    },
+    drawerUserRowPressed: {
+      backgroundColor: colors.surfaceSubtle,
+    },
+    drawerUserTextCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    drawerUserName: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.lg,
+      color: colors.textPrimary,
+    },
+    drawerUserMeta: {
+      marginTop: 2,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textMuted,
     },
     drawerBody: {
       flex: 1,

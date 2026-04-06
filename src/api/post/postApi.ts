@@ -6,6 +6,7 @@ import type {
   CreateCommentBody,
   DeleteCommentResponse,
 } from './commentTypes';
+import type { AuthorBadge } from '../user/types';
 import type {
   DeletePostResponse,
   LinkPreviewData,
@@ -15,6 +16,30 @@ import type {
   StarResponse,
   UnstarResponse,
 } from './types';
+
+function num(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Parse `author.badge` from feed/post/comment payloads (JSON numbers may be strings). */
+export function normalizeAuthorBadge(raw: unknown): AuthorBadge | undefined {
+  if (raw == null || typeof raw !== 'object') return undefined;
+  const o = raw as Record<string, unknown>;
+  if (o.level == null) return undefined;
+  const levelN = Number(o.level);
+  if (!Number.isFinite(levelN)) return undefined;
+  const L = Math.max(1, Math.floor(levelN));
+  return {
+    level: L,
+    xp: num(o.xp),
+    tier: typeof o.tier === 'string' ? o.tier : '',
+    tier_color_hint: typeof o.tier_color_hint === 'string' ? o.tier_color_hint : '',
+    xp_to_next_level: num(o.xp_to_next_level),
+    current_hp: num(o.current_hp),
+    max_hp: num(o.max_hp),
+  };
+}
 
 export function normalizeComment(c: CommentResponse): CommentResponse {
   const author = c.author;
@@ -29,6 +54,7 @@ export function normalizeComment(c: CommentResponse): CommentResponse {
           first_name: author.first_name,
           last_name: author.last_name,
           avatar_url: author.avatar_url ?? undefined,
+          badge: normalizeAuthorBadge(author.badge) ?? undefined,
         }
       : undefined,
   };
@@ -65,6 +91,7 @@ function normalizeThread(t: CommentThread): CommentThread {
 
 /** Map feed/post payloads to `PostResponse` — booleans and counts come from the API only. */
 export function normalizePost(p: PostResponse): PostResponse {
+  const author = p.author;
   return {
     ...p,
     title: typeof p.title === 'string' ? p.title : '',
@@ -75,6 +102,16 @@ export function normalizePost(p: PostResponse): PostResponse {
     star_count: typeof p.star_count === 'number' ? p.star_count : 0,
     starred_by_me: p.starred_by_me === true,
     comment_count: typeof p.comment_count === 'number' ? p.comment_count : 0,
+    author:
+      author === null || author === undefined
+        ? author
+        : {
+            username: typeof author.username === 'string' ? author.username : '',
+            first_name: author.first_name,
+            last_name: author.last_name,
+            avatar_url: author.avatar_url ?? undefined,
+            badge: normalizeAuthorBadge(author.badge) ?? undefined,
+          },
   };
 }
 

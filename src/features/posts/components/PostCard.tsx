@@ -26,6 +26,7 @@ import {
   useThemeColors,
   useThemePreference,
 } from '../../../presentation/theme/ThemeContext';
+import { LevelBadge } from '../../../shared/components/LevelBadge';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
 
 function displayName(post: PostResponse): string {
@@ -251,18 +252,30 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
         </View>
         <View style={styles.headerMain}>
           <View style={styles.nameRow}>
-            <Animated.Text
-              style={[
-                styles.displayName,
-                {
-                  transform: [{ scale: authorNameScale }],
-                  color: authorNameColor,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {displayName(post)}
-            </Animated.Text>
+            <View style={styles.nameWithBadgeRow}>
+              <Animated.Text
+                style={[
+                  styles.displayName,
+                  styles.displayNameFlex,
+                  {
+                    transform: [{ scale: authorNameScale }],
+                    color: authorNameColor,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {displayName(post)}
+              </Animated.Text>
+              {!post.is_anonymous && post.author?.badge ? (
+                <LevelBadge
+                  level={post.author.badge.level}
+                  tier={post.author.badge.tier}
+                  tierColorHint={post.author.badge.tier_color_hint}
+                  lineFontSize={theme.fintSizes.sm}
+                  style={styles.authorLevelBadge}
+                />
+              ) : null}
+            </View>
             {timeLabel ? <Text style={styles.timeMeta}> · {timeLabel}</Text> : null}
             <View style={styles.headerSpacer} />
             <View style={[styles.typePill, { backgroundColor: badge.bg }]}>
@@ -449,10 +462,26 @@ function createPostCardStyles(colors: ThemeColors) {
     flexWrap: 'wrap',
     gap: 4,
   },
+  nameWithBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '100%',
+    gap: 2,
+  },
   displayName: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
     color: colors.textPrimary,
+  },
+  displayNameFlex: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  authorLevelBadge: {
+    marginLeft: 2,
+    flexShrink: 0,
   },
   timeMeta: {
     fontFamily: theme.typography.regular,

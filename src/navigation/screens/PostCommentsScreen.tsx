@@ -33,6 +33,7 @@ import {
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
 import { formatRelativeTime } from '../../shared/utils/formatRelativeTime';
+import { LevelBadge } from '../../shared/components/LevelBadge';
 import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
 
@@ -228,9 +229,20 @@ export function PostCommentsScreen({ route, navigation }: Props) {
           <View style={styles.commentBody}>
             <View style={styles.commentHeaderRow}>
               <View style={styles.commentHeaderLeft}>
-                <Text style={styles.commentAuthor} numberOfLines={1}>
-                  {commentAuthorLabel(c.author)}
-                </Text>
+                <View style={styles.commentAuthorNameRow}>
+                  <Text style={styles.commentAuthor} numberOfLines={1}>
+                    {commentAuthorLabel(c.author)}
+                  </Text>
+                  {c.author?.badge ? (
+                    <LevelBadge
+                      level={c.author.badge.level}
+                      tier={c.author.badge.tier}
+                      tierColorHint={c.author.badge.tier_color_hint}
+                      lineFontSize={theme.fintSizes.sm}
+                      style={styles.commentAuthorBadge}
+                    />
+                  ) : null}
+                </View>
                 <Text style={styles.commentMetaSep}> · </Text>
                 <Text style={styles.commentTime}>{formatRelativeTime(c.created_at)}</Text>
               </View>
@@ -719,11 +731,24 @@ function createStyles(colors: ThemeColors) {
       minWidth: 0,
       paddingRight: 4,
     },
+    commentAuthorNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 1,
+      minWidth: 0,
+      maxWidth: '100%',
+      gap: 2,
+    },
     commentAuthor: {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.sm,
       color: colors.textPrimary,
       flexShrink: 1,
+      minWidth: 0,
+    },
+    commentAuthorBadge: {
+      marginLeft: 2,
+      flexShrink: 0,
     },
     commentMetaSep: {
       fontFamily: theme.typography.regular,

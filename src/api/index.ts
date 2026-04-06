@@ -52,10 +52,15 @@ export type * from './auth/types';
 
 export { userApi } from './user/userApi';
 export type {
+  AuthorBadge,
   FollowListQuery,
   FollowListResponse,
   FollowResponse,
+  HpInfo,
+  LevelInfo,
   MeResponse,
+  ProfileProgression,
+  UserBadgeSnapshot,
   UserInterestsResponse,
   UserSuggestionsResponse,
   UserSummary,
@@ -72,6 +77,7 @@ export {
   postApi,
   normalizePost,
   normalizeComment,
+  normalizeAuthorBadge,
   mergeStarResponse,
   mergeUnstarResponse,
   mergeCommentStarResponse,

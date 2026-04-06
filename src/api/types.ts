@@ -41,8 +41,17 @@ export type TokenUser = {
   grade?: string;
   bio?: string;
   avatar_url?: string;
-  /** Total experience points from the server (e.g. `GET /me` → `xp`). */
+  /** Total experience points from the server (e.g. `GET /me` → `xp` or `level_info.total_xp`). */
   xp?: number;
+  /** From `/me` `level_info` when exposed. */
+  level?: number;
+  tier?: string;
+  tier_color_hint?: string;
+  xp_to_next_level?: number;
+  special_badges?: string[];
+  /** From `/me` `hp_info` — privilege / health meter (separate from XP). */
+  current_hp?: number;
+  max_hp?: number;
   exam_category_ids?: number[];
   exam_ids?: number[];
   created_at?: string;
