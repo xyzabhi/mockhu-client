@@ -187,6 +187,11 @@ export function PostCommentsScreen({ route, navigation }: Props) {
     setExpandedReplyRoots((prev) => new Set(prev).add(rootId));
   }, []);
 
+  const cancelInlineReply = useCallback(() => {
+    setReplyingTo(null);
+    setDraft('');
+  }, []);
+
   const renderItem = useCallback(
     ({ item }: { item: ReturnType<typeof flattenThreads>[number] }) => {
       if (item.kind === 'show_more_replies') {
@@ -250,13 +255,28 @@ export function PostCommentsScreen({ route, navigation }: Props) {
               <View style={styles.commentActions}>
                 {showReply ? (
                   <Pressable
-                    onPress={() => setReplyingTo(c)}
+                    onPress={() => {
+                      if (replyingTo?.id === c.id) {
+                        cancelInlineReply();
+                      } else {
+                        setDraft('');
+                        setReplyingTo(c);
+                      }
+                    }}
                     hitSlop={8}
                     style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
                     accessibilityRole="button"
                     accessibilityLabel={`Reply to ${commentAuthorLabel(c.author)}`}
+                    accessibilityState={{ expanded: replyingTo?.id === c.id }}
                   >
-                    <Text style={styles.actionBtnText}>Reply</Text>
+                    <Text
+                      style={[
+                        styles.actionBtnText,
+                        replyingTo?.id === c.id && styles.actionBtnTextActive,
+                      ]}
+                    >
+                      {replyingTo?.id === c.id ? 'Cancel' : 'Reply'}
+                    </Text>
                   </Pressable>
                 ) : null}
                 {isLoggedIn ? (
@@ -284,6 +304,57 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                 ) : null}
               </View>
             ) : null}
+            {showReply && replyingTo?.id === c.id && isLoggedIn ? (
+              <View style={styles.inlineReplyBox}>
+                <View style={styles.inlineReplyHeader}>
+                  <Text style={styles.inlineReplyTitle} numberOfLines={1}>
+                    Reply to {commentAuthorLabel(c.author)}
+                  </Text>
+                  <Pressable onPress={cancelInlineReply} hitSlop={8} accessibilityRole="button">
+                    <Text style={styles.inlineReplyCancel}>Cancel</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.inlineReplyRow}>
+                  <View style={styles.inlineInputBox}>
+                    <TextInput
+                      style={styles.inlineInput}
+                      placeholder="Write a reply…"
+                      placeholderTextColor={colors.textHint}
+                      value={draft}
+                      onChangeText={(t) => {
+                        if (t.length <= COMMENT_MAX) setDraft(t);
+                      }}
+                      multiline
+                      maxLength={COMMENT_MAX}
+                      editable={!sending}
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.sendBtn,
+                      !canSend && styles.sendBtnDisabled,
+                      pressed && canSend && styles.sendBtnPressed,
+                    ]}
+                    onPress={() => void submit()}
+                    disabled={!canSend}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send reply"
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color={colors.onBrand} />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name="send"
+                        size={22}
+                        color={canSend ? colors.onBrand : colors.textHint}
+                      />
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
           </View>
         </View>
       );
@@ -291,12 +362,20 @@ export function PostCommentsScreen({ route, navigation }: Props) {
     [
       styles,
       colors.brand,
+      colors.onBrand,
+      colors.textHint,
       likeInactiveColor,
       currentUserId,
       isLoggedIn,
       openCommentMenu,
       onPressCommentStar,
       expandReplies,
+      replyingTo,
+      draft,
+      sending,
+      canSend,
+      submit,
+      cancelInlineReply,
     ],
   );
 
@@ -373,6 +452,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
               <FlatList
                 style={styles.list}
                 data={flatRows}
+                extraData={{ replyingId: replyingTo?.id, draftLen: draft.length, sending }}
                 keyExtractor={(row) =>
                   row.kind === 'show_more_replies' ? `more-${row.rootId}` : row.comment.id
                 }
@@ -419,58 +499,49 @@ export function PostCommentsScreen({ route, navigation }: Props) {
               />
             )}
 
-            <View style={styles.composerOuter}>
-              {replyingTo ? (
-                <View style={styles.replyBanner}>
-                  <Text style={styles.replyBannerText} numberOfLines={1}>
-                    Replying to {commentAuthorLabel(replyingTo.author)}
-                  </Text>
-                  <Pressable onPress={() => setReplyingTo(null)} hitSlop={8}>
-                    <Text style={styles.replyBannerCancel}>Cancel</Text>
-                  </Pressable>
-                </View>
-              ) : null}
+            <View style={[styles.composerOuter, replyingTo && styles.composerOuterCollapsed]}>
               {!isLoggedIn ? (
                 <Text style={styles.signInHint}>Sign in to add a comment.</Text>
-              ) : null}
-              <View style={styles.composerRow}>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={replyingTo ? 'Write a reply…' : 'Add a comment…'}
-                    placeholderTextColor={colors.textHint}
-                    value={draft}
-                    onChangeText={(t) => {
-                      if (t.length <= COMMENT_MAX) setDraft(t);
-                    }}
-                    multiline
-                    maxLength={COMMENT_MAX}
-                    editable={isLoggedIn && !sending}
-                    textAlignVertical="top"
-                  />
-                </View>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.sendBtn,
-                    !canSend && styles.sendBtnDisabled,
-                    pressed && canSend && styles.sendBtnPressed,
-                  ]}
-                  onPress={() => void submit()}
-                  disabled={!canSend}
-                  accessibilityRole="button"
-                  accessibilityLabel="Send comment"
-                >
-                  {sending ? (
-                    <ActivityIndicator size="small" color={colors.onBrand} />
-                  ) : (
-                    <MaterialCommunityIcons
-                      name="send"
-                      size={22}
-                      color={canSend ? colors.onBrand : colors.textHint}
+              ) : replyingTo ? null : (
+                <View style={styles.composerRow}>
+                  <View style={styles.inputBox}>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Add a comment…"
+                      placeholderTextColor={colors.textHint}
+                      value={draft}
+                      onChangeText={(t) => {
+                        if (t.length <= COMMENT_MAX) setDraft(t);
+                      }}
+                      multiline
+                      maxLength={COMMENT_MAX}
+                      editable={!sending}
+                      textAlignVertical="top"
                     />
-                  )}
-                </Pressable>
-              </View>
+                  </View>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.sendBtn,
+                      !canSend && styles.sendBtnDisabled,
+                      pressed && canSend && styles.sendBtnPressed,
+                    ]}
+                    onPress={() => void submit()}
+                    disabled={!canSend}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send comment"
+                  >
+                    {sending ? (
+                      <ActivityIndicator size="small" color={colors.onBrand} />
+                    ) : (
+                      <MaterialCommunityIcons
+                        name="send"
+                        size={22}
+                        color={canSend ? colors.onBrand : colors.textHint}
+                      />
+                    )}
+                  </Pressable>
+                </View>
+              )}
             </View>
           </KeyboardAvoidingView>
         </SafeAreaView>
@@ -699,6 +770,59 @@ function createStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.xs,
       color: colors.brand,
     },
+    actionBtnTextActive: {
+      color: colors.textMuted,
+    },
+    inlineReplyBox: {
+      marginTop: 10,
+      padding: 12,
+      borderRadius: theme.radius.input,
+      borderWidth: theme.borderWidth.default,
+      borderColor: colors.borderSubtle,
+      backgroundColor: colors.surfaceSubtle,
+    },
+    inlineReplyHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 10,
+      gap: 8,
+    },
+    inlineReplyTitle: {
+      flex: 1,
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.xs,
+      color: colors.textMuted,
+    },
+    inlineReplyCancel: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.xs,
+      color: colors.brand,
+    },
+    inlineReplyRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 10,
+    },
+    inlineInputBox: {
+      flex: 1,
+      minHeight: 44,
+      maxHeight: 120,
+      borderRadius: theme.radius.input,
+      borderWidth: theme.borderWidth.default,
+      borderColor: colors.borderSubtle,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    inlineInput: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textPrimary,
+      minHeight: 24,
+      maxHeight: 100,
+      padding: 0,
+    },
     commentLikeBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -738,31 +862,13 @@ function createStyles(colors: ThemeColors) {
       borderTopColor: colors.borderSubtle,
       paddingHorizontal: theme.spacing.screenPaddingH,
       paddingTop: 10,
+      paddingBottom: 10,
       backgroundColor: colors.surface,
     },
-    replyBanner: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 8,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      borderRadius: theme.radius.badge,
-      backgroundColor: colors.surfaceSubtle,
-      borderWidth: theme.borderWidth.default,
-      borderColor: colors.borderSubtle,
-    },
-    replyBannerText: {
-      flex: 1,
-      fontFamily: theme.typography.regular,
-      fontSize: theme.fintSizes.xs,
-      color: colors.textMuted,
-      marginRight: 8,
-    },
-    replyBannerCancel: {
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.xs,
-      color: colors.brand,
+    /** Reply UI moves inline under the comment; keep a slim bar for sign-in hint only. */
+    composerOuterCollapsed: {
+      paddingTop: 4,
+      paddingBottom: 4,
     },
     signInHint: {
       fontFamily: theme.typography.regular,
