@@ -15,6 +15,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -455,6 +456,11 @@ export function HomeFeedScreen() {
               onRefresh={refresh}
               tintColor={colors.brand}
               colors={[colors.brand]}
+              /** Keep spinner below the absolute header (otherwise hidden behind search/chips). */
+              progressViewOffset={headerH}
+              {...(Platform.OS === 'android'
+                ? { progressBackgroundColor: colors.surface }
+                : {})}
             />
           }
           scrollEventThrottle={16}
