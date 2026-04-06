@@ -5,7 +5,7 @@
 export const theme = {
   colors: {
     /** Primary interactive — tabs, chips selected, FAB, CTA fill, avatar ring */
-    brand: '#3921b4',
+    brand: '#7C3AED',
     brandLight: '#EEF2FF',
     brandBorder: '#C7D2FE',
     /** Filled star / starred post */
