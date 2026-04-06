@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Fragment, useCallback, useRef, useState } from 'react';
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -21,6 +21,11 @@ import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../../api/post/mediaUrl';
 import { theme } from '../../../presentation/theme/theme';
+import {
+  type ThemeColors,
+  useThemeColors,
+  useThemePreference,
+} from '../../../presentation/theme/ThemeContext';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
 
 function displayName(post: PostResponse): string {
@@ -44,18 +49,26 @@ function authorInitials(post: PostResponse): string {
   return (u?.[0] ?? '?').toUpperCase();
 }
 
-function typeBadgeColors(t: PostType): { bg: string; fg: string } {
+function typeBadgeColors(
+  t: PostType,
+  colors: ThemeColors,
+  isDark: boolean,
+): { bg: string; fg: string } {
   switch (t) {
     case 'TIP':
-      return { bg: theme.colors.progressLight, fg: theme.colors.progress };
+      return { bg: colors.progressLight, fg: colors.progress };
     case 'DOUBT':
-      return { bg: theme.colors.brandLight, fg: theme.colors.brand };
+      return { bg: colors.brandLight, fg: colors.brand };
     case 'WIN':
-      return { bg: '#FFF7ED', fg: '#EA580C' };
+      return isDark
+        ? { bg: '#451a03', fg: '#fb923c' }
+        : { bg: '#FFF7ED', fg: '#EA580C' };
     case 'EXPERIENCE':
-      return { bg: '#EEF2FF', fg: '#4338CA' };
+      return isDark
+        ? { bg: '#1e1b4b', fg: '#a5b4fc' }
+        : { bg: '#EEF2FF', fg: '#4338CA' };
     default:
-      return { bg: theme.colors.brandLight, fg: theme.colors.brand };
+      return { bg: colors.brandLight, fg: colors.brand };
   }
 }
 
@@ -68,6 +81,10 @@ type PostCardProps = {
 };
 
 export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: PostCardProps) {
+  const colors = useThemeColors();
+  const { effectiveScheme } = useThemePreference();
+  const isDark = effectiveScheme === 'dark';
+  const styles = useMemo(() => createPostCardStyles(colors), [colors]);
   const { accessToken } = useSession();
   const [deleting, setDeleting] = useState(false);
   const authorStarPulse = useRef(new Animated.Value(0)).current;
@@ -76,10 +93,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
     inputRange: [0, 0.5, 1],
     outputRange: [1, 1.09, 1],
   });
-  const authorNameColor = authorStarPulse.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [theme.colors.textPrimary, theme.colors.starGold, theme.colors.textPrimary],
-  });
+  const authorNameColor = useMemo(
+    () =>
+      authorStarPulse.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [colors.textPrimary, colors.starGold, colors.textPrimary],
+      }),
+    [authorStarPulse, colors.textPrimary, colors.starGold],
+  );
 
   const playAuthorStarredAnimation = useCallback(() => {
     authorStarPulse.setValue(0);
@@ -97,7 +118,10 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
     ]).start();
   }, [authorStarPulse]);
   const isOwner = currentUserId != null && post.user_id === currentUserId;
-  const badge = typeBadgeColors(post.post_type);
+  const badge = useMemo(
+    () => typeBadgeColors(post.post_type, colors, isDark),
+    [post.post_type, colors, isDark],
+  );
   const images = post.images ?? [];
   const timeLabel = formatRelativeTime(post.created_at);
   const avatarUri = post.is_anonymous ? null : post.author?.avatar_url?.trim();
@@ -251,9 +275,9 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
               style={styles.overflowBtn}
             >
               {deleting ? (
-                <ActivityIndicator size="small" color={theme.colors.textPrimary} />
+                <ActivityIndicator size="small" color={colors.textPrimary} />
               ) : (
-                <MaterialCommunityIcons name="dots-vertical" size={22} color={theme.colors.textPrimary} />
+                <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.textPrimary} />
               )}
             </Pressable>
           </View>
@@ -315,7 +339,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             />
           ) : (
             <View style={styles.linkImgPlaceholder}>
-              <MaterialCommunityIcons name="link-variant" size={28} color={theme.colors.textPrimary} />
+              <MaterialCommunityIcons name="link-variant" size={28} color={colors.textPrimary} />
             </View>
           )}
           <View style={styles.linkText}>
@@ -347,7 +371,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             <MaterialCommunityIcons
               name={starred ? 'star' : 'star-outline'}
               size={20}
-              color={starred ? theme.colors.starGold : theme.colors.textPrimary}
+              color={starred ? colors.starGold : colors.textPrimary}
             />
             <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
               {starCount}
@@ -359,7 +383,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             accessibilityRole="button"
             accessibilityLabel={`Comments, ${post.comment_count}`}
           >
-            <MaterialCommunityIcons name="message-outline" size={20} color={theme.colors.textPrimary} />
+            <MaterialCommunityIcons name="message-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.replyCountText} maxFontSizeMultiplier={1.4}>
               {post.comment_count}
             </Text>
@@ -372,7 +396,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             accessibilityRole="button"
             accessibilityLabel="Save"
           >
-            <MaterialCommunityIcons name="bookmark-outline" size={22} color={theme.colors.textPrimary} />
+            <MaterialCommunityIcons name="bookmark-outline" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
       </View>
@@ -380,14 +404,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
   );
 }
 
-const styles = StyleSheet.create({
+function createPostCardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
     paddingVertical: theme.spacing.cardPaddingV,
     paddingHorizontal: theme.spacing.cardPaddingH,
-    borderRadius: theme.radius.card,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
+    borderColor: colors.borderSubtle,
   },
   topRow: {
     flexDirection: 'row',
@@ -400,7 +424,7 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     overflow: 'hidden',
-    backgroundColor: theme.colors.brandLight,
+    backgroundColor: colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -411,7 +435,7 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   headerMain: {
     flex: 1,
@@ -426,12 +450,12 @@ const styles = StyleSheet.create({
   displayName: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   timeMeta: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   headerSpacer: {
     flex: 1,
@@ -460,30 +484,30 @@ const styles = StyleSheet.create({
   topicLinePart: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   topicSep: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   /** Last breadcrumb segment (usually exam) — brand emphasis. */
   topicLineLast: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   postTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 24,
     marginBottom: 6,
   },
   content: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 22,
     marginBottom: 8,
   },
@@ -492,7 +516,7 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 10,
     borderRadius: theme.radius.badge,
     marginBottom: 10,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   imageStrip: {
     marginBottom: 10,
@@ -503,16 +527,15 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: theme.radius.badge,
     marginRight: 8,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkCard: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    borderRadius: theme.radius.card,
+    borderColor: colors.borderSubtle,
     overflow: 'hidden',
     marginBottom: 10,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkCardPressed: {
     opacity: 0.92,
@@ -520,14 +543,14 @@ const styles = StyleSheet.create({
   linkImg: {
     width: 88,
     height: 88,
-    backgroundColor: theme.colors.borderSubtle,
+    backgroundColor: colors.borderSubtle,
   },
   linkImgPlaceholder: {
     width: 88,
     height: 88,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkText: {
     flex: 1,
@@ -538,19 +561,19 @@ const styles = StyleSheet.create({
   linkTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   linkDesc: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   linkUrl: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -584,8 +607,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: theme.radius.pill,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     minHeight: 38,
   },
   pillPressed: {
@@ -594,7 +617,7 @@ const styles = StyleSheet.create({
   voteScore: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     minWidth: 28,
     textAlign: 'center',
   },
@@ -606,15 +629,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: theme.radius.pill,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     maxWidth: '100%',
     minHeight: 38,
   },
   replyCountText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     minWidth: 20,
     textAlign: 'center',
   },
@@ -625,7 +648,8 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: theme.radius.badge,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
-});
+  });
+}

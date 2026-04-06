@@ -5,7 +5,7 @@
 export const theme = {
   colors: {
     /** Primary interactive — tabs, chips selected, FAB, CTA fill, avatar ring */
-    brand: '#4F46E5',
+    brand: '#3921b4',
     brandLight: '#EEF2FF',
     brandBorder: '#C7D2FE',
     /** Filled star / starred post */
@@ -34,6 +34,34 @@ export const theme = {
     iconApple: '#111827',
     footerLink: '#9CA3AF',
     footerLinkUnderline: '#D1D5DB',
+  },
+  /**
+   * System dark mode — same keys as `colors`. Use via `useThemeColors()` / ThemeProvider.
+   */
+  colorsDark: {
+    brand: '#7c6fdc',
+    brandLight: '#1e1b4b',
+    brandBorder: '#4c1d95',
+    starGold: '#fbbf24',
+    progress: '#34d399',
+    progressLight: '#052e16',
+    progressBorder: '#166534',
+    textPrimary: '#f4f4f5',
+    textMuted: '#a1a1aa',
+    textHint: '#71717a',
+    surface: '#121214',
+    surfaceSubtle: '#0a0a0b',
+    borderSubtle: '#27272a',
+    borderStrong: '#fafafa',
+    danger: '#f87171',
+    onBrand: '#ffffff',
+    ctaDisabledBackground: '#18181b',
+    iconPhone: '#e4e4e7',
+    iconEmail: '#e4e4e7',
+    iconFacebook: '#1877F2',
+    iconApple: '#e4e4e7',
+    footerLink: '#71717a',
+    footerLinkUnderline: '#3f3f46',
   },
   typography: {
     regular: 'Inter_400Regular',

@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   loginCtaText: {
-    fontFamily: theme.typography.semiBold,
+    fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.md,
     color: theme.colors.onBrand,
     textAlign: 'center',
