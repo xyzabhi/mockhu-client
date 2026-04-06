@@ -26,6 +26,7 @@ import {
   useThemeColors,
   useThemePreference,
 } from '../../../presentation/theme/ThemeContext';
+import { FollowAuthorLink } from '../../../shared/components/FollowAuthorLink';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
 
 function displayName(post: PostResponse): string {
@@ -75,12 +76,22 @@ function typeBadgeColors(
 type PostCardProps = {
   post: PostResponse;
   currentUserId?: string;
+  /** Signed-in user’s following ids (for Follow on post author). */
+  followingIds?: Set<string>;
+  onFollowListChanged?: () => void;
   onDeleted?: (postId: string) => void;
   /** Merge server post after vote (and other updates). */
   onPostUpdated?: (post: PostResponse) => void;
 };
 
-export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: PostCardProps) {
+export function PostCard({
+  post,
+  currentUserId,
+  followingIds,
+  onFollowListChanged,
+  onDeleted,
+  onPostUpdated,
+}: PostCardProps) {
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
   const isDark = effectiveScheme === 'dark';
@@ -251,7 +262,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
         </View>
         <View style={styles.headerMain}>
           <View style={styles.nameRow}>
-            <View style={styles.nameWithBadgeRow}>
+            <View style={styles.authorNameRow}>
               <Animated.Text
                 style={[
                   styles.displayName,
@@ -265,6 +276,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
               >
                 {displayName(post)}
               </Animated.Text>
+              {!post.is_anonymous ? (
+                <FollowAuthorLink
+                  targetUserId={post.user_id}
+                  currentUserId={currentUserId}
+                  followingIds={followingIds}
+                  onFollowListChanged={onFollowListChanged}
+                />
+              ) : null}
             </View>
             {timeLabel ? <Text style={styles.timeMeta}> · {timeLabel}</Text> : null}
             <View style={styles.headerSpacer} />
@@ -452,13 +471,13 @@ function createPostCardStyles(colors: ThemeColors) {
     flexWrap: 'wrap',
     gap: 4,
   },
-  nameWithBadgeRow: {
+  authorNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 1,
     minWidth: 0,
     maxWidth: '100%',
-    gap: 2,
+    gap: 6,
   },
   displayName: {
     fontFamily: theme.typography.semiBold,

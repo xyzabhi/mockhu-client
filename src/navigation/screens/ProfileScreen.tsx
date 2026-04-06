@@ -11,23 +11,19 @@ import {
 } from 'react-native';
 import {
   clearSession,
-  getSessionSnapshot,
   hydrateSessionUserFromMe,
   normalizeTokenUserProfile,
   useFollowCounts,
   useSession,
 } from '../../api';
-import { resolveProgressionFromTokenUser } from '../../badge/progressionDisplay';
+import { resolveLevelBadgeFromUser } from '../../badge/progressionDisplay';
 import { theme } from '../../presentation/theme/theme';
 import { ThemeAppearanceToggle } from '../../presentation/theme/ThemeAppearanceToggle';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
-import { HpMeterCard } from '../../shared/components/HpMeterCard';
 import { LevelBadge } from '../../shared/components/LevelBadge';
 import { SpecialBadgesRow } from '../../shared/components/SpecialBadgesRow';
 import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
 import { UserAvatar } from '../../shared/components/UserAvatar';
-import { XpProgressCard } from '../../shared/components/XpProgressCard';
-import { formatCompactCount } from '../../shared/utils/formatCompactCount';
 import { resetToRoute } from '../navigationRef';
 
 /** Matches ~`lineFontSize` × 1.38 cap on `LevelBadge` + row gap. */
@@ -50,31 +46,6 @@ export function ProfileScreen() {
           /* offline / 401 */
         }
         if (cancelled) return;
-        if (typeof __DEV__ !== 'undefined' && __DEV__) {
-          const raw = getSessionSnapshot().user;
-          const p = raw ? normalizeTokenUserProfile(raw) : null;
-          const resolved = p
-            ? resolveProgressionFromTokenUser({
-                xp: p.xp,
-                level: p.level,
-                tier: p.tier,
-                xp_to_next_level: p.xp_to_next_level,
-              })
-            : null;
-          console.log('[ProfileScreen] focus', {
-            userId: p?.id,
-            username: p?.username,
-            xp: p?.xp,
-            level: p?.level,
-            tier: p?.tier,
-            tier_color_hint: p?.tier_color_hint,
-            xp_to_next_level: p?.xp_to_next_level,
-            current_hp: p?.current_hp,
-            max_hp: p?.max_hp,
-            special_badges: p?.special_badges,
-            resolvedProgression: resolved,
-          });
-        }
       })();
       return () => {
         cancelled = true;
@@ -90,35 +61,17 @@ export function ProfileScreen() {
   const lastName = profile?.last_name?.trim() ?? '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ');
   const username = profile?.username?.trim() ?? '';
-  const xp =
-    typeof profile?.xp === 'number' && Number.isFinite(profile.xp) ? profile.xp : 0;
 
-  const progression = profile
-    ? resolveProgressionFromTokenUser({
-        xp: profile.xp,
-        level: profile.level,
-        tier: profile.tier,
-        xp_to_next_level: profile.xp_to_next_level,
-      })
-    : null;
-  const hasProgression = progression != null;
+  const levelBadge = profile ? resolveLevelBadgeFromUser(profile) : null;
+  const hasLevelBadge = levelBadge != null;
   const nameMaxWidth = useMemo(() => {
     const pad = theme.spacing.screenPaddingH * 2;
-    if (!hasProgression) {
+    if (!hasLevelBadge) {
       return Math.max(120, windowWidth - pad);
     }
     return Math.max(120, windowWidth - pad - LEVEL_BADGE_WIDTH_APPROX - 8);
-  }, [windowWidth, hasProgression]);
+  }, [windowWidth, hasLevelBadge]);
   const specialBadges = profile?.special_badges ?? [];
-
-  const hpCur =
-    typeof profile?.current_hp === 'number' && Number.isFinite(profile.current_hp)
-      ? profile.current_hp
-      : undefined;
-  const hpMax =
-    typeof profile?.max_hp === 'number' && Number.isFinite(profile.max_hp) ? profile.max_hp : undefined;
-  const showHp =
-    hpCur != null && hpMax != null && hpMax > 0;
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -154,10 +107,10 @@ export function ProfileScreen() {
           >
             {fullName ? fullName : 'Profile'}
           </Text>
-          {hasProgression && progression ? (
+          {hasLevelBadge && levelBadge ? (
             <LevelBadge
-              level={progression.level}
-              tier={progression.tierLabel}
+              level={levelBadge.level}
+              tier={levelBadge.tierLabel}
               tierColorHint={profile?.tier_color_hint}
               lineFontSize={theme.fontSizes.screenTitle}
               style={styles.levelBadgeInline}
@@ -188,33 +141,8 @@ export function ProfileScreen() {
             </Text>
             <Text style={styles.countLabel}>Following</Text>
           </View>
-          {!hasProgression ? (
-            <>
-              <View style={styles.countDivider} />
-              <View style={styles.countBlock}>
-                <Text
-                  style={styles.countValueXp}
-                  accessibilityLabel={`Experience points ${xp}`}
-                >
-                  {formatCompactCount(xp)}
-                </Text>
-                <Text style={styles.countLabel}>XP</Text>
-              </View>
-            </>
-          ) : null}
         </View>
       ) : null}
-
-      {hasProgression && progression ? (
-        <XpProgressCard
-          totalXp={xp}
-          level={progression.level}
-          tier={progression.tierLabel}
-          xpToNextLevel={progression.xpToNext}
-        />
-      ) : null}
-
-      {showHp ? <HpMeterCard currentHp={hpCur!} maxHp={hpMax!} /> : null}
 
       {specialBadges.length > 0 ? <SpecialBadgesRow codes={specialBadges} /> : null}
 
@@ -315,12 +243,6 @@ function createProfileStyles(colors: ThemeColors) {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.xl,
       color: colors.textPrimary,
-      fontVariant: ['tabular-nums'],
-    },
-    countValueXp: {
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.xl,
-      color: colors.progress,
       fontVariant: ['tabular-nums'],
     },
     countLabel: {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AppError } from '../AppError';
 import type { CommentResponse, CommentThread } from '../post/commentTypes';
+import { refreshSessionProfile } from '../hydrateSessionProfile';
 import {
   createPostComment,
   deletePostComment,
@@ -150,6 +151,7 @@ export function usePostComments(postId: string | undefined, initialCommentCount?
           );
         }
         setCommentCountBadge((c) => c + 1);
+        void refreshSessionProfile();
       } catch (e) {
         const err = mapUnknownToAppError(e);
         setError(err);
@@ -223,6 +225,7 @@ export function usePostComments(postId: string | undefined, initialCommentCount?
             ),
           );
         }
+        void refreshSessionProfile();
       } catch (e) {
         const err = mapUnknownToAppError(e);
         setError(err);

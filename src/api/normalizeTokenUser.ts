@@ -28,34 +28,25 @@ export function normalizeTokenUserProfile(u: TokenUser): TokenUser {
     };
     return pick(a) ?? pick(b);
   };
-  const xp = numOr(r.xp, r.total_xp);
+
+  const level = numOr(r.level, undefined);
 
   const next: Record<string, unknown> = { ...r };
   delete next.firstName;
   delete next.lastName;
   delete next.userName;
-  delete next.total_xp;
 
   if (first_name !== undefined) next.first_name = first_name;
   if (last_name !== undefined) next.last_name = last_name;
   if (username !== undefined) next.username = username;
-  if (xp !== undefined) next.xp = xp;
-
-  const level = numOr(r.level, undefined);
   if (level !== undefined) next.level = level;
   if (typeof r.tier === 'string' && r.tier.trim()) next.tier = r.tier.trim();
   if (typeof r.tier_color_hint === 'string' && r.tier_color_hint.trim()) {
     next.tier_color_hint = r.tier_color_hint.trim();
   }
-  const xpn = numOr(r.xp_to_next_level, undefined);
-  if (xpn !== undefined) next.xp_to_next_level = xpn;
   if (Array.isArray(r.special_badges)) {
     next.special_badges = r.special_badges.filter((b) => typeof b === 'string' && b.trim() !== '');
   }
-  const ch = numOr(r.current_hp, undefined);
-  const mh = numOr(r.max_hp, undefined);
-  if (ch !== undefined) next.current_hp = ch;
-  if (mh !== undefined) next.max_hp = mh;
 
   return next as unknown as TokenUser;
 }

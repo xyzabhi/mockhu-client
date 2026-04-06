@@ -25,15 +25,10 @@ function strOrUndef(s: string | null | undefined): string | undefined {
 
 /**
  * Maps `/me` JSON into `TokenUser` partials for `mergeSessionUser`.
- * Prefers **top-level** `level`, `xp`, `tier`, `hp`, … then falls back to legacy `level_info` / `hp_info`.
+ * Level / tier for LevelBadge — top-level or legacy `level_info`.
  */
 export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
   const li = me.level_info;
-  const hpLegacy = me.hp_info;
-
-  const xpTop = numOrUndef(me.xp);
-  const xpLi = li != null ? numOrUndef(li.total_xp) : undefined;
-  const xpMerged = xpTop ?? xpLi;
 
   const levelTop = numOrUndef(me.level);
   const levelLi = li != null ? numOrUndef(li.level) : undefined;
@@ -46,17 +41,6 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
     hintRaw != null && typeof hintRaw === 'string' && hintRaw.trim() !== ''
       ? hintRaw.trim()
       : undefined;
-
-  const xpnTop = numOrUndef(me.xp_to_next_level);
-  const xpnLi = li != null ? numOrUndef(li.xp_to_next_level) : undefined;
-  const xpnMerged = xpnTop ?? xpnLi;
-
-  const chTop = numOrUndef(me.current_hp);
-  const mhTop = numOrUndef(me.max_hp);
-  const chHp = hpLegacy != null ? numOrUndef(hpLegacy.current_hp) : undefined;
-  const mhHp = hpLegacy != null ? numOrUndef(hpLegacy.max_hp) : undefined;
-  const ch = chTop ?? chHp;
-  const mh = mhTop ?? mhHp;
 
   const patch: Partial<TokenUser> = {
     id: me.id,
@@ -73,9 +57,6 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
     updated_at: me.updated_at,
   };
 
-  if (xpMerged !== undefined) {
-    patch.xp = xpMerged;
-  }
   if (levelMerged !== undefined) {
     patch.level = levelMerged;
   }
@@ -84,14 +65,6 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
   }
   if (hint !== undefined) {
     patch.tier_color_hint = hint;
-  }
-  if (xpnMerged !== undefined) {
-    patch.xp_to_next_level = xpnMerged;
-  }
-
-  if (ch !== undefined && mh !== undefined && mh > 0) {
-    patch.current_hp = Math.max(0, Math.min(ch, mh));
-    patch.max_hp = mh;
   }
 
   const badges = me.special_badges;

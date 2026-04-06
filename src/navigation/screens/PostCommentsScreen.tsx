@@ -18,7 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { normalizeTokenUserProfile, useSession } from '../../api';
+import { normalizeTokenUserProfile, useFollowList, useSession } from '../../api';
 import type { CommentResponse } from '../../api/post/commentTypes';
 import {
   commentAuthorLabel,
@@ -32,6 +32,7 @@ import {
   useThemeColors,
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
+import { FollowAuthorLink } from '../../shared/components/FollowAuthorLink';
 import { formatRelativeTime } from '../../shared/utils/formatRelativeTime';
 import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
@@ -53,6 +54,15 @@ export function PostCommentsScreen({ route, navigation }: Props) {
   const { postId, commentCount: routeCommentCount } = route.params;
   const { user, isLoggedIn, accessToken } = useSession();
   const currentUserId = user ? normalizeTokenUserProfile(user).id?.trim() : undefined;
+
+  const { users: followingUsers, refresh: refreshFollowingList } = useFollowList({
+    userId: currentUserId,
+    kind: 'following',
+  });
+  const followingIds = useMemo(
+    () => new Set(followingUsers.map((u) => u.id)),
+    [followingUsers],
+  );
 
   const {
     threads,
@@ -232,6 +242,15 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                   <Text style={styles.commentAuthor} numberOfLines={1}>
                     {commentAuthorLabel(c.author)}
                   </Text>
+                  {!isMine ? (
+                    <FollowAuthorLink
+                      targetUserId={c.user_id}
+                      currentUserId={currentUserId}
+                      followingIds={followingIds}
+                      onFollowListChanged={refreshFollowingList}
+                      compact
+                    />
+                  ) : null}
                 </View>
                 <Text style={styles.commentMetaSep}> · </Text>
                 <Text style={styles.commentTime}>{formatRelativeTime(c.created_at)}</Text>
@@ -727,7 +746,7 @@ function createStyles(colors: ThemeColors) {
       flexShrink: 1,
       minWidth: 0,
       maxWidth: '100%',
-      gap: 2,
+      gap: 6,
     },
     commentAuthor: {
       fontFamily: theme.typography.semiBold,

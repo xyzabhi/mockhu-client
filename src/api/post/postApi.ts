@@ -17,11 +17,6 @@ import type {
   UnstarResponse,
 } from './types';
 
-function num(v: unknown): number {
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
 /** Parse `author.badge` from feed/post/comment payloads (JSON numbers may be strings). */
 export function normalizeAuthorBadge(raw: unknown): AuthorBadge | undefined {
   if (raw == null || typeof raw !== 'object') return undefined;
@@ -30,15 +25,9 @@ export function normalizeAuthorBadge(raw: unknown): AuthorBadge | undefined {
   const levelN = Number(o.level);
   if (!Number.isFinite(levelN)) return undefined;
   const L = Math.max(1, Math.floor(levelN));
-  return {
-    level: L,
-    xp: num(o.xp),
-    tier: typeof o.tier === 'string' ? o.tier : '',
-    tier_color_hint: typeof o.tier_color_hint === 'string' ? o.tier_color_hint : '',
-    xp_to_next_level: num(o.xp_to_next_level),
-    current_hp: num(o.current_hp),
-    max_hp: num(o.max_hp),
-  };
+  const tier = typeof o.tier === 'string' ? o.tier : '';
+  const hint = typeof o.tier_color_hint === 'string' ? o.tier_color_hint : undefined;
+  return hint !== undefined ? { level: L, tier, tier_color_hint: hint } : { level: L, tier };
 }
 
 export function normalizeComment(c: CommentResponse): CommentResponse {

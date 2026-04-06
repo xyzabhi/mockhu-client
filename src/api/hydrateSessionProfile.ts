@@ -7,6 +7,11 @@ export type HydrateSessionOptions = {
   includeInterests?: boolean;
 };
 
+/** Refetch `/me` and merge profile (level, tier, etc.) without reloading interests. */
+export function refreshSessionProfile(): Promise<void> {
+  return hydrateSessionUserFromMe({ includeInterests: false });
+}
+
 /**
  * Fetches `GET /me` and merges into the cached user.
  * Optionally loads `GET /users/:id/interests` so exam lists match the server.

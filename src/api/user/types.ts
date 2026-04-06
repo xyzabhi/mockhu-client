@@ -1,51 +1,19 @@
 /**
- * Progression from `internal/badge` — exposed on `/me` when wired (`BuildLevelInfo` / `SnapshotForUser`).
+ * Legacy nested `level_info` on `/me` — level / tier for LevelBadge.
  */
 export type LevelInfo = {
   level: number;
-  total_xp: number;
   tier: string;
   tier_color_hint?: string | null;
-  xp_to_next_level: number;
-};
-
-export type UserBadgeSnapshot = LevelInfo & {
-  special_badges?: string[];
-};
-
-/** `user_hp` — separate from XP; can decrease (moderation, etc.). */
-export type HpInfo = {
-  current_hp: number;
-  max_hp: number;
 };
 
 /**
- * Gamification subset of `GET /api/v1/me` `data` — **top-level** snake_case fields (current API).
- * Legacy clients may still receive nested `level_info` / `hp_info` instead.
- */
-export type ProfileProgression = {
-  level: number;
-  xp: number;
-  tier: string;
-  tier_color_hint: string;
-  xp_to_next_level: number;
-  current_hp: number;
-  max_hp: number;
-  special_badges?: string[];
-};
-
-/**
- * Nested under post/comment `author.badge` — same progression fields as `/me` flat `data`
- * (no `special_badges` in batch author snapshots).
+ * Nested under post/comment `author.badge` — level / tier for optional future use.
  */
 export type AuthorBadge = {
   level: number;
-  xp: number;
   tier: string;
-  tier_color_hint: string;
-  xp_to_next_level: number;
-  current_hp: number;
-  max_hp: number;
+  tier_color_hint?: string;
 };
 
 /**
@@ -63,21 +31,13 @@ export type MeResponse = {
   grade: string | null;
   /** `null` or `YYYY-MM-DD` */
   dob: string | null;
-  /** Total XP — top-level on `/me` (preferred). */
-  xp?: number | null;
-  /** Top-level progression (preferred over nested `level_info` when both exist). */
   level?: number | null;
   tier?: string | null;
   tier_color_hint?: string | null;
-  xp_to_next_level?: number | null;
-  current_hp?: number | null;
-  max_hp?: number | null;
   /** Milestone codes (`user_special_badges`). */
   special_badges?: string[] | null;
   /** Legacy nested DTO — still supported if the server sends it. */
   level_info?: LevelInfo | null;
-  /** Legacy nested HP — still supported if top-level `current_hp` / `max_hp` are absent. */
-  hp_info?: HpInfo | null;
   created_at: string;
   updated_at: string;
 };

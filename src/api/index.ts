@@ -17,6 +17,7 @@ export {
 } from './config';
 export {
   hydrateSessionUserFromMe,
+  refreshSessionProfile,
   type HydrateSessionOptions,
 } from './hydrateSessionProfile';
 export { getHealth } from './health';
@@ -56,11 +57,8 @@ export type {
   FollowListQuery,
   FollowListResponse,
   FollowResponse,
-  HpInfo,
   LevelInfo,
   MeResponse,
-  ProfileProgression,
-  UserBadgeSnapshot,
   UserInterestsResponse,
   UserSuggestionsResponse,
   UserSummary,

@@ -32,6 +32,7 @@ import {
   useSession,
   useUserInterests,
 } from '../../api';
+import { resolveLevelBadgeFromUser } from '../../badge/progressionDisplay';
 import { PostCard } from '../../features/posts/components/PostCard';
 import { theme } from '../../presentation/theme/theme';
 import {
@@ -41,6 +42,7 @@ import {
 } from '../../presentation/theme/ThemeContext';
 import type { PostResponse } from '../../api/post/types';
 import { BrandLogo } from '../../shared/components/BrandLogo';
+import { LevelBadge } from '../../shared/components/LevelBadge';
 import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -177,8 +179,12 @@ export function HomeFeedScreen() {
   const { user } = useSession();
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const currentUserId = profile?.id?.trim();
+  const headerLevelBadge = useMemo(
+    () => (user ? resolveLevelBadgeFromUser(user) : null),
+    [user],
+  );
 
-  const { users: followingUsers } = useFollowList({
+  const { users: followingUsers, refresh: refreshFollowingList } = useFollowList({
     userId: currentUserId,
     kind: 'following',
   });
@@ -250,11 +256,13 @@ export function HomeFeedScreen() {
       <PostCard
         post={item}
         currentUserId={currentUserId}
+        followingIds={followingIds}
+        onFollowListChanged={refreshFollowingList}
         onDeleted={removePost}
         onPostUpdated={updatePost}
       />
     ),
-    [currentUserId, removePost, updatePost],
+    [currentUserId, followingIds, refreshFollowingList, removePost, updatePost],
   );
 
   const listEmpty = !loading && filtered.length === 0;
@@ -507,6 +515,15 @@ export function HomeFeedScreen() {
               ) : null}
             </View>
           </View>
+          {headerLevelBadge && currentUserId ? (
+            <LevelBadge
+              compact
+              level={headerLevelBadge.level}
+              tier={headerLevelBadge.tierLabel}
+              tierColorHint={profile?.tier_color_hint}
+              style={styles.headerLevelBadge}
+            />
+          ) : null}
           <Pressable
             onPress={() => setDrawerOpen(true)}
             style={({ pressed }) => [styles.drawerIconBtn, pressed && styles.drawerIconBtnPressed]}
@@ -854,6 +871,10 @@ function createHomeStyles(colors: ThemeColors) {
       fontFamily: theme.typography.medium,
       fontSize: theme.fintSizes.md,
       color: colors.textPrimary,
+    },
+    headerLevelBadge: {
+      flexShrink: 0,
+      marginRight: 2,
     },
     drawerIconBtn: {
       padding: 4,

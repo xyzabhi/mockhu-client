@@ -3,7 +3,7 @@ import type { StyleProp, ViewStyle } from 'react-native';
 import { Platform, StyleSheet, View } from 'react-native';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 import { theme } from '../../presentation/theme/theme';
-import { useThemeColors } from '../../presentation/theme/ThemeContext';
+import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 
 const SCALLOP_LOBES = 8;
 const SCALLOP_POINTS = 96;
@@ -43,6 +43,8 @@ type CoinPalette = {
   fill: string;
   rim: string;
   numFill?: string;
+  /** API `tier_color_hint` — digits use on-brand (usually white). */
+  usesServerTierTint?: boolean;
 };
 
 export type LevelBadgeMetalElement = {
@@ -64,7 +66,26 @@ export function getLevelBadgeThemeLabel(level: number): string {
   return `${metal} · ${element}`;
 }
 
-function coinPaletteFromLevel(level: number): CoinPalette {
+/** `#RGB` / `#RRGGBB` from API `tier_color_hint` — drives rim/fill when present. */
+function parseTierHex(hint: string | null | undefined): string | null {
+  const s = hint?.trim();
+  if (!s || !s.startsWith('#')) return null;
+  const hex = s.slice(1);
+  if (/^[0-9a-fA-F]{6}$/.test(hex)) return `#${hex.toLowerCase()}`;
+  if (/^[0-9a-fA-F]{3}$/.test(hex)) {
+    const a = hex[0] + hex[0];
+    const b = hex[1] + hex[1];
+    const c = hex[2] + hex[2];
+    return `#${a}${b}${c}`.toLowerCase();
+  }
+  return null;
+}
+
+function coinPaletteFromLevel(level: number, tierColorHint?: string | null): CoinPalette {
+  const hint = parseTierHex(tierColorHint);
+  if (hint) {
+    return { fill: hint, rim: hint, usesServerTierTint: true };
+  }
   const L = Math.max(1, Math.floor(level));
   if (L <= 10) {
     return { fill: '#C9955C', rim: '#4A2E1A', numFill: '#1C1917' };
@@ -81,11 +102,12 @@ function coinPaletteFromLevel(level: number): CoinPalette {
   return { fill: '#8B5CF6', rim: '#3B0764' };
 }
 
-function digitFillForLevel(level: number, coin: CoinPalette): string {
+function digitFillForLevel(level: number, coin: CoinPalette, colors: ThemeColors): string {
+  if (coin.usesServerTierTint) return colors.onBrand;
   const L = Math.max(1, Math.floor(level));
-  if (L >= 51 && L <= 100) return theme.colors.textPrimary;
-  if (L > 100) return theme.colors.onBrand;
-  return coin.numFill ?? theme.colors.textPrimary;
+  if (L >= 51 && L <= 100) return colors.textPrimary;
+  if (L > 100) return colors.onBrand;
+  return coin.numFill ?? colors.textPrimary;
 }
 
 const SIZE = { compact: 36, default: 44 } as const;
@@ -113,10 +135,17 @@ function geometryForSize(size: number, strokeW: number) {
   return { cx, cy, r0, amp, maxR };
 }
 
-export function LevelBadge({ level, tier, compact, lineFontSize, style }: LevelBadgeProps) {
+export function LevelBadge({
+  level,
+  tier,
+  tierColorHint,
+  compact,
+  lineFontSize,
+  style,
+}: LevelBadgeProps) {
   const colors = useThemeColors();
-  const coin = useMemo(() => coinPaletteFromLevel(level), [level]);
-  const digitFill = useMemo(() => digitFillForLevel(level, coin), [level, coin]);
+  const coin = useMemo(() => coinPaletteFromLevel(level, tierColorHint), [level, tierColorHint]);
+  const digitFill = useMemo(() => digitFillForLevel(level, coin, colors), [level, coin, colors]);
   const themeLabel = useMemo(() => getLevelBadgeThemeLabel(level), [level]);
   const lineFont =
     lineFontSize != null && Number.isFinite(lineFontSize) && lineFontSize > 0

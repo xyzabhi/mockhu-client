@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { AppError } from '../AppError';
+import { refreshSessionProfile } from '../hydrateSessionProfile';
 import { userApi } from '../user/userApi';
 import type { FollowResponse } from '../user/types';
 import { mapUnknownToAppError } from './mapUnknownToAppError';
@@ -16,7 +17,9 @@ export function useFollow() {
     setPending(true);
     setError(null);
     try {
-      return await userApi.followUser(userId);
+      const res = await userApi.followUser(userId);
+      void refreshSessionProfile();
+      return res;
     } catch (e) {
       const err = mapUnknownToAppError(e);
       setError(err);
@@ -30,7 +33,9 @@ export function useFollow() {
     setPending(true);
     setError(null);
     try {
-      return await userApi.unfollowUser(userId);
+      const res = await userApi.unfollowUser(userId);
+      void refreshSessionProfile();
+      return res;
     } catch (e) {
       const err = mapUnknownToAppError(e);
       setError(err);
