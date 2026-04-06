@@ -137,7 +137,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         visible={showFinishCelebration}
         onComplete={handleCelebrationComplete}
       />
-      <View style={styles.body}>
+      <View style={[styles.body, { paddingBottom: insets.bottom }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerTopRow}>
           {step > 0 ? (
