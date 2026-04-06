@@ -407,7 +407,8 @@ function createHomeStyles(colors: ThemeColors) {
     },
     chipSelected: {
       backgroundColor: colors.brand,
-      borderColor: colors.brand,
+      borderWidth: 1,
+      borderColor: colors.buttonBorder,
     },
     chipPressed: {
       opacity: 0.88,
@@ -456,6 +457,8 @@ function createHomeStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: theme.radius.button,
+      borderWidth: 1,
+      borderColor: colors.buttonBorder,
       backgroundColor: colors.brand,
     },
     retryBtnText: {

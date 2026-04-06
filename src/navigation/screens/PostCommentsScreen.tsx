@@ -798,11 +798,15 @@ function createStyles(colors: ThemeColors) {
       width: 44,
       height: 44,
       borderRadius: 22,
+      borderWidth: 1,
+      borderColor: colors.buttonBorder,
       backgroundColor: colors.brand,
       alignItems: 'center',
       justifyContent: 'center',
     },
     sendBtnDisabled: {
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
       backgroundColor: colors.borderSubtle,
     },
     sendBtnPressed: {

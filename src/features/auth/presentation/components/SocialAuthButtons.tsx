@@ -136,7 +136,8 @@ const styles = StyleSheet.create({
   },
   loginCta: {
     borderRadius: theme.radius.button,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: theme.colors.buttonBorder,
     backgroundColor: theme.colors.brand,
     paddingVertical: 12,
     paddingHorizontal: 16,

@@ -20,6 +20,8 @@ export const theme = {
     surface: '#ffffff',
     surfaceSubtle: '#F9FAFB',
     borderSubtle: '#E5E7EB',
+    /** 1px outline on **brand-filled** controls only (light: black) */
+    buttonBorder: '#000000',
     /** Outer app frame only */
     borderStrong: '#111827',
     danger: '#EF4444',
@@ -52,6 +54,7 @@ export const theme = {
     surface: '#121214',
     surfaceSubtle: '#0a0a0b',
     borderSubtle: '#27272a',
+    buttonBorder: '#52525b',
     borderStrong: '#fafafa',
     danger: '#f87171',
     onBrand: '#ffffff',

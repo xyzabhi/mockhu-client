@@ -119,6 +119,8 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
       }),
     ]).start();
   }, [authorStarPulse]);
+  /** Same function — old name kept so stale bundles / HMR do not throw. */
+  const playAuthorFiredAnimation = playAuthorStarredAnimation;
   const isOwner = currentUserId != null && post.user_id === currentUserId;
   const badge = useMemo(
     () => typeBadgeColors(post.post_type, colors, isDark),
@@ -196,14 +198,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
         const star = await postApi.starPost(post.id);
         onPostUpdated?.(mergeStarResponse(post, star));
         if (star.starred) {
-          playAuthorStarredAnimation();
+          playAuthorFiredAnimation();
         }
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not update star.';
       Alert.alert('Star', msg);
     }
-  }, [accessToken, onPostUpdated, playAuthorStarredAnimation, post]);
+  }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post]);
 
   const openPostMenu = useCallback(() => {
     if (Platform.OS === 'ios') {
