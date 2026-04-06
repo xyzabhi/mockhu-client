@@ -19,7 +19,11 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hero}>
-        <Image source={require('../../../../../assets/splash-logo.png')} style={styles.logo} />
+        <Image
+          source={require('../../../../../assets/brand_logo.png')}
+          style={styles.logo}
+          accessibilityLabel="Mockhu"
+        />
       </View>
 
       <View style={[styles.sheet, { paddingBottom: bottomPad }]}> 
@@ -59,8 +63,9 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
   },
   logo: {
-    width: 112,
-    height: 112,
+    width: '88%',
+    maxWidth: 300,
+    height: 96,
     resizeMode: 'contain',
   },
   sheet: {

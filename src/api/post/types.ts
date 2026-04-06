@@ -24,9 +24,9 @@ export type PostResponse = {
   link_img?: string | null;
   is_anonymous: boolean;
   upvote_count: number;
-  /** Star count (POST `/posts/:id/star`). */
+  /** Star count on the post (distinct from per-comment stars). */
   star_count: number;
-  /** Whether the current user has starred (feed + after star). */
+  /** Whether the current user has starred this post. */
   starred_by_me: boolean;
   comment_count: number;
   images: string[];
@@ -52,14 +52,17 @@ export type DeletePostResponse = {
   deleted: boolean;
 };
 
-/** `POST /posts/:id/star` — idempotent per user. */
+/**
+ * Star toggle response shape for posts (`POST /posts/:id/star`) and comments
+ * (`POST /posts/:postId/comments/:id/star`).
+ */
 export type StarResponse = {
   star_count: number;
   /** `true` only when this call added a new star. */
   starred: boolean;
 };
 
-/** `DELETE /posts/:id/star` — remove current user’s star. */
+/** Same shape for `DELETE` post/comment star. */
 export type UnstarResponse = {
   star_count: number;
   /** `true` when this call removed your star. */

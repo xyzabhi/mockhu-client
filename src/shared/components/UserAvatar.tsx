@@ -13,22 +13,19 @@ export type UserAvatarProps = {
 
 /**
  * Circular avatar: remote photo when set, otherwise a deterministic dog image.
- * Ring uses brand border + light brand fill.
  */
 export function UserAvatar({ seed, avatarUrl, size = 48 }: UserAvatarProps) {
-  /** Outer box: inner image `size` + 2px brand border on each side (RN border is inside width). */
-  const outer = size + 4;
   const trimmed = typeof avatarUrl === 'string' ? avatarUrl.trim() : '';
   const uri = isUsableAvatarDraftUri(trimmed) ? trimmed : pickDogAvatarUri(seed);
 
   return (
     <View
       style={[
-        styles.ring,
+        styles.wrap,
         {
-          width: outer,
-          height: outer,
-          borderRadius: outer / 2,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
         },
       ]}
       accessibilityIgnoresInvertColors
@@ -44,9 +41,7 @@ export function UserAvatar({ seed, avatarUrl, size = 48 }: UserAvatarProps) {
 }
 
 const styles = StyleSheet.create({
-  ring: {
-    borderWidth: theme.borderWidth.cta,
-    borderColor: theme.colors.brand,
+  wrap: {
     backgroundColor: theme.colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',

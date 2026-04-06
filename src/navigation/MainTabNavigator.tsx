@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { theme } from '../presentation/theme/theme';
+import { useThemeColors } from '../presentation/theme/ThemeContext';
 import type { MainTabParamList } from './types';
 import { HomeFeedScreen } from './screens/HomeFeedScreen';
 import { InboxScreen } from './screens/InboxScreen';
@@ -13,15 +15,19 @@ import { ProgressScreen } from './screens/ProgressScreen';
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabNavigator() {
+  const colors = useThemeColors();
   const insets = useSafeAreaInsets();
-  const tabBarBottomPad = Math.max(insets.bottom, 6);
-  const tabBarVisibleStyle = {
-    backgroundColor: theme.colors.surface,
-    borderTopColor: theme.colors.borderSubtle,
-    paddingTop: 4,
-    paddingBottom: tabBarBottomPad,
-    height: 52 + tabBarBottomPad,
-  };
+  const tabBarBottomPad = Math.max(insets.bottom, 4);
+  const tabBarVisibleStyle = useMemo(
+    () => ({
+      backgroundColor: colors.surface,
+      borderTopColor: colors.borderSubtle,
+      paddingTop: 2,
+      paddingBottom: tabBarBottomPad,
+      minHeight: 48 + tabBarBottomPad,
+    }),
+    [colors.borderSubtle, colors.surface, tabBarBottomPad],
+  );
 
   return (
     <Tab.Navigator
@@ -30,17 +36,24 @@ export function MainTabNavigator() {
         headerTitleStyle: {
           fontFamily: theme.typography.semiBold,
           fontSize: theme.fontSizes.screenTitle,
-          color: theme.colors.textPrimary,
+          color: colors.textPrimary,
         },
         headerStyle: {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: colors.surface,
         },
         headerShadowVisible: false,
-        tabBarActiveTintColor: theme.colors.brand,
-        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarActiveTintColor: colors.brand,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
           fontFamily: theme.typography.medium,
           fontSize: theme.fontSizes.navLabel,
+          marginBottom: 0,
+        },
+        tabBarIconStyle: {
+          marginTop: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 2,
         },
         /** Hide tab bar on Post (compose) only; restore when switching tabs */
         tabBarStyle:
@@ -93,9 +106,9 @@ export function MainTabNavigator() {
                   width: size,
                   height: size,
                   borderRadius: size / 2,
-                  backgroundColor: focused ? theme.colors.brand : 'transparent',
+                  backgroundColor: focused ? colors.brand : 'transparent',
                   borderWidth: focused ? 0 : 1.5,
-                  borderColor: theme.colors.borderSubtle,
+                  borderColor: colors.borderSubtle,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -103,7 +116,7 @@ export function MainTabNavigator() {
                 <MaterialCommunityIcons
                   name="plus"
                   size={22}
-                  color={focused ? theme.colors.onBrand : theme.colors.textMuted}
+                  color={focused ? colors.onBrand : colors.textMuted}
                 />
               </View>
             );

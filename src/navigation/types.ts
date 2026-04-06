@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 /**
  * Central param lists for React Navigation.
  * Add new stacks/screens here first, then wire navigators.
@@ -23,9 +25,9 @@ export type RootStackParamList = {
   Onboarding: undefined;
   SuggestedUsers: undefined;
   /** Main tab shell (avoid naming this `Home` — tab stack also has a `Home` tab). */
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   /** Thread / composer for a post (opened from feed). */
-  PostComments: { postId: string };
+  PostComments: { postId: string; commentCount?: number };
   ExamCategories: undefined;
   ExamCategory: { categoryId: number };
   ExamDetail: { examId: number };

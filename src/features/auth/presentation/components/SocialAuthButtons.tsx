@@ -136,7 +136,8 @@ const styles = StyleSheet.create({
   },
   loginCta: {
     borderRadius: theme.radius.button,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: theme.colors.buttonBorder,
     backgroundColor: theme.colors.brand,
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     opacity: 0.92,
   },
   loginCtaText: {
-    fontFamily: theme.typography.semiBold,
+    fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.md,
     color: theme.colors.onBrand,
     textAlign: 'center',

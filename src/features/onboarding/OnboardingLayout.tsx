@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Image,
   KeyboardAvoidingView,
   Pressable,
   StyleSheet,
@@ -10,7 +11,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppError } from '../../api';
+import { AppError, clearSession } from '../../api';
+import { resetToRoute } from '../../navigation/navigationRef';
 import { useOnboardingDraft } from './OnboardingDraftContext';
 import { OnboardingFinishCelebration } from './OnboardingFinishCelebration';
 import { BioScreen } from './presentation/screens/BioScreen';
@@ -105,6 +107,26 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
     setStep((s) => Math.max(0, s - 1));
   };
 
+  const handleLogout = useCallback(() => {
+    Alert.alert('Log out?', 'You can sign in again anytime.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log out',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await clearSession();
+              resetToRoute('Auth');
+            } catch {
+              resetToRoute('Auth');
+            }
+          })();
+        },
+      },
+    ]);
+  }, []);
+
   const handlePrimary = useCallback(() => {
     if (isLast) {
       void (async () => {
@@ -137,8 +159,15 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         visible={showFinishCelebration}
         onComplete={handleCelebrationComplete}
       />
-      <View style={styles.body}>
+      <View style={[styles.body, { paddingBottom: insets.bottom }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.brandRow}>
+          <Image
+            source={require('../../../assets/brand_logo.png')}
+            style={styles.brandLogo}
+            accessibilityLabel="Mockhu"
+          />
+        </View>
         <View style={styles.headerTopRow}>
           {step > 0 ? (
             <Pressable
@@ -158,6 +187,22 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
           ) : (
             <View style={styles.backButtonPlaceholder} />
           )}
+          <View style={styles.headerTopRowSpacer} />
+          {step === 0 ? (
+            <Pressable
+              onPress={handleLogout}
+              style={({ pressed }) => [
+                styles.logoutButton,
+                pressed && styles.logoutButtonPressed,
+              ]}
+              hitSlop={8}
+              android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+              accessibilityRole="button"
+              accessibilityLabel="Log out and return to sign in"
+            >
+              <Text style={styles.logoutButtonText}>Log out</Text>
+            </Pressable>
+          ) : null}
         </View>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{current.title}</Text>
@@ -212,11 +257,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.screenPaddingH,
     paddingBottom: 16,
   },
+  brandRow: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  brandLogo: {
+    height: 56,
+    width: 56,
+    maxWidth: '100%',
+    resizeMode: 'contain',
+  },
   headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
     minHeight: 40,
+  },
+  headerTopRowSpacer: {
+    flex: 1,
+    minWidth: 8,
+  },
+  logoutButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    minHeight: 40,
+    justifyContent: 'center',
+    borderRadius: theme.radius.button,
+    borderWidth: 1,
+    borderColor: theme.colors.buttonBorder,
+    backgroundColor: theme.colors.surface,
+  },
+  logoutButtonPressed: {
+    opacity: 0.65,
+  },
+  logoutButtonText: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.sm,
+    color: theme.colors.textPrimary,
   },
   backButton: {
     width: 40,
@@ -255,7 +332,8 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.screenPaddingH,
     marginBottom: 24,
     borderRadius: theme.radius.button,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: theme.colors.buttonBorder,
     backgroundColor: theme.colors.brand,
     paddingVertical: 14,
     alignItems: 'center',

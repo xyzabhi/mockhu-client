@@ -1,5 +1,5 @@
 export { AuthNavigator } from './AuthNavigator';
-export { navigationRef, resetToRoute } from './navigationRef';
+export { navigationRef, navigateToPostComments, resetToRoute } from './navigationRef';
 export {
   resetToRootAfterAuth,
   rootDestinationForSession,

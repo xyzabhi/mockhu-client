@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Fragment, useCallback, useRef, useState } from 'react';
+import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -16,11 +16,16 @@ import {
   View,
 } from 'react-native';
 import { mergeStarResponse, mergeUnstarResponse, postApi, useSession } from '../../../api';
-import { navigationRef } from '../../../navigation/navigationRef';
+import { navigateToPostComments } from '../../../navigation/navigationRef';
 import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../../api/post/mediaUrl';
 import { theme } from '../../../presentation/theme/theme';
+import {
+  type ThemeColors,
+  useThemeColors,
+  useThemePreference,
+} from '../../../presentation/theme/ThemeContext';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
 
 function displayName(post: PostResponse): string {
@@ -44,18 +49,26 @@ function authorInitials(post: PostResponse): string {
   return (u?.[0] ?? '?').toUpperCase();
 }
 
-function typeBadgeColors(t: PostType): { bg: string; fg: string } {
+function typeBadgeColors(
+  t: PostType,
+  colors: ThemeColors,
+  isDark: boolean,
+): { bg: string; fg: string } {
   switch (t) {
     case 'TIP':
-      return { bg: theme.colors.progressLight, fg: theme.colors.progress };
+      return { bg: colors.progressLight, fg: colors.progress };
     case 'DOUBT':
-      return { bg: theme.colors.brandLight, fg: theme.colors.brand };
+      return { bg: colors.brandLight, fg: colors.brand };
     case 'WIN':
-      return { bg: '#FFF7ED', fg: '#EA580C' };
+      return isDark
+        ? { bg: '#451a03', fg: '#fb923c' }
+        : { bg: '#FFF7ED', fg: '#EA580C' };
     case 'EXPERIENCE':
-      return { bg: '#EEF2FF', fg: '#4338CA' };
+      return isDark
+        ? { bg: '#1e1b4b', fg: '#a5b4fc' }
+        : { bg: '#EEF2FF', fg: '#4338CA' };
     default:
-      return { bg: theme.colors.brandLight, fg: theme.colors.brand };
+      return { bg: colors.brandLight, fg: colors.brand };
   }
 }
 
@@ -68,6 +81,12 @@ type PostCardProps = {
 };
 
 export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: PostCardProps) {
+  const colors = useThemeColors();
+  const { effectiveScheme } = useThemePreference();
+  const isDark = effectiveScheme === 'dark';
+  /** Unliked thumb — dark gray in both themes (Facebook-style). */
+  const likeInactiveColor = isDark ? '#52525b' : '#111827';
+  const styles = useMemo(() => createPostCardStyles(colors), [colors]);
   const { accessToken } = useSession();
   const [deleting, setDeleting] = useState(false);
   const authorStarPulse = useRef(new Animated.Value(0)).current;
@@ -76,10 +95,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
     inputRange: [0, 0.5, 1],
     outputRange: [1, 1.09, 1],
   });
-  const authorNameColor = authorStarPulse.interpolate({
-    inputRange: [0, 0.5, 1],
-    outputRange: [theme.colors.textPrimary, theme.colors.starGold, theme.colors.textPrimary],
-  });
+  const authorNameColor = useMemo(
+    () =>
+      authorStarPulse.interpolate({
+        inputRange: [0, 0.5, 1],
+        outputRange: [colors.textPrimary, colors.brand, colors.textPrimary],
+      }),
+    [authorStarPulse, colors.textPrimary, colors.brand],
+  );
 
   const playAuthorStarredAnimation = useCallback(() => {
     authorStarPulse.setValue(0);
@@ -96,8 +119,13 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
       }),
     ]).start();
   }, [authorStarPulse]);
+  /** Same function — old name kept so stale bundles / HMR do not throw. */
+  const playAuthorFiredAnimation = playAuthorStarredAnimation;
   const isOwner = currentUserId != null && post.user_id === currentUserId;
-  const badge = typeBadgeColors(post.post_type);
+  const badge = useMemo(
+    () => typeBadgeColors(post.post_type, colors, isDark),
+    [post.post_type, colors, isDark],
+  );
   const images = post.images ?? [];
   const timeLabel = formatRelativeTime(post.created_at);
   const avatarUri = post.is_anonymous ? null : post.author?.avatar_url?.trim();
@@ -154,14 +182,12 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
   const starCount = post.star_count ?? 0;
 
   const openComments = useCallback(() => {
-    if (navigationRef.isReady()) {
-      navigationRef.navigate('PostComments', { postId: post.id });
-    }
-  }, [post.id]);
+    navigateToPostComments({ postId: post.id, commentCount: post.comment_count });
+  }, [post.id, post.comment_count]);
 
   const submitStar = useCallback(async () => {
     if (!accessToken) {
-      Alert.alert('Sign in', 'Sign in to star posts.');
+      Alert.alert('Sign in', 'Sign in to like posts.');
       return;
     }
     try {
@@ -172,14 +198,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
         const star = await postApi.starPost(post.id);
         onPostUpdated?.(mergeStarResponse(post, star));
         if (star.starred) {
-          playAuthorStarredAnimation();
+          playAuthorFiredAnimation();
         }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not update star.';
-      Alert.alert('Star', msg);
+      const msg = e instanceof Error ? e.message : 'Could not update like.';
+      Alert.alert('Like', msg);
     }
-  }, [accessToken, onPostUpdated, playAuthorStarredAnimation, post]);
+  }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post]);
 
   const openPostMenu = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -251,9 +277,9 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
               style={styles.overflowBtn}
             >
               {deleting ? (
-                <ActivityIndicator size="small" color={theme.colors.textPrimary} />
+                <ActivityIndicator size="small" color={colors.textPrimary} />
               ) : (
-                <MaterialCommunityIcons name="dots-vertical" size={22} color={theme.colors.textPrimary} />
+                <MaterialCommunityIcons name="dots-vertical" size={22} color={colors.textPrimary} />
               )}
             </Pressable>
           </View>
@@ -315,7 +341,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             />
           ) : (
             <View style={styles.linkImgPlaceholder}>
-              <MaterialCommunityIcons name="link-variant" size={28} color={theme.colors.textPrimary} />
+              <MaterialCommunityIcons name="link-variant" size={28} color={colors.textPrimary} />
             </View>
           )}
           <View style={styles.linkText}>
@@ -340,14 +366,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             style={({ pressed }) => [styles.votePill, pressed && styles.pillPressed]}
             onPress={() => void submitStar()}
             accessibilityRole="button"
-            accessibilityLabel={starred ? 'Starred' : 'Star post'}
-            accessibilityHint={`${starCount} stars`}
+            accessibilityLabel={starred ? 'Liked' : 'Like post'}
+            accessibilityHint={`${starCount} likes`}
             accessibilityState={{ selected: starred }}
           >
             <MaterialCommunityIcons
-              name={starred ? 'star' : 'star-outline'}
+              name={starred ? 'thumb-up' : 'thumb-up-outline'}
               size={20}
-              color={starred ? theme.colors.starGold : theme.colors.textPrimary}
+              color={starred ? colors.brand : likeInactiveColor}
             />
             <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
               {starCount}
@@ -359,7 +385,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             accessibilityRole="button"
             accessibilityLabel={`Comments, ${post.comment_count}`}
           >
-            <MaterialCommunityIcons name="message-outline" size={20} color={theme.colors.textPrimary} />
+            <MaterialCommunityIcons name="message-outline" size={20} color={colors.textPrimary} />
             <Text style={styles.replyCountText} maxFontSizeMultiplier={1.4}>
               {post.comment_count}
             </Text>
@@ -372,7 +398,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             accessibilityRole="button"
             accessibilityLabel="Save"
           >
-            <MaterialCommunityIcons name="bookmark-outline" size={22} color={theme.colors.textPrimary} />
+            <MaterialCommunityIcons name="bookmark-outline" size={22} color={colors.textPrimary} />
           </Pressable>
         </View>
       </View>
@@ -380,14 +406,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
   );
 }
 
-const styles = StyleSheet.create({
+function createPostCardStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   card: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
     paddingVertical: theme.spacing.cardPaddingV,
     paddingHorizontal: theme.spacing.cardPaddingH,
-    borderRadius: theme.radius.card,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
+    borderColor: colors.borderSubtle,
   },
   topRow: {
     flexDirection: 'row',
@@ -396,11 +422,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   avatarWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: theme.colors.brandLight,
+    backgroundColor: colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -411,7 +437,7 @@ const styles = StyleSheet.create({
   avatarInitials: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   headerMain: {
     flex: 1,
@@ -426,12 +452,12 @@ const styles = StyleSheet.create({
   displayName: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   timeMeta: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   headerSpacer: {
     flex: 1,
@@ -460,30 +486,30 @@ const styles = StyleSheet.create({
   topicLinePart: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   topicSep: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   /** Last breadcrumb segment (usually exam) — brand emphasis. */
   topicLineLast: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   postTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 24,
     marginBottom: 6,
   },
   content: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 22,
     marginBottom: 8,
   },
@@ -492,7 +518,7 @@ const styles = StyleSheet.create({
     aspectRatio: 16 / 10,
     borderRadius: theme.radius.badge,
     marginBottom: 10,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   imageStrip: {
     marginBottom: 10,
@@ -503,16 +529,15 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: theme.radius.badge,
     marginRight: 8,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkCard: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    borderRadius: theme.radius.card,
+    borderColor: colors.borderSubtle,
     overflow: 'hidden',
     marginBottom: 10,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkCardPressed: {
     opacity: 0.92,
@@ -520,14 +545,14 @@ const styles = StyleSheet.create({
   linkImg: {
     width: 88,
     height: 88,
-    backgroundColor: theme.colors.borderSubtle,
+    backgroundColor: colors.borderSubtle,
   },
   linkImgPlaceholder: {
     width: 88,
     height: 88,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkText: {
     flex: 1,
@@ -538,19 +563,19 @@ const styles = StyleSheet.create({
   linkTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   linkDesc: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   linkUrl: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -560,7 +585,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     gap: 8,
   },
-  /** Star vote + comment pills — grouped on the left. */
+  /** Like + comment pills — grouped on the left. */
   footerLeft: {
     flex: 1,
     flexDirection: 'row',
@@ -584,8 +609,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: theme.radius.pill,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     minHeight: 38,
   },
   pillPressed: {
@@ -594,7 +619,7 @@ const styles = StyleSheet.create({
   voteScore: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     minWidth: 28,
     textAlign: 'center',
   },
@@ -606,15 +631,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: theme.radius.pill,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     maxWidth: '100%',
     minHeight: 38,
   },
   replyCountText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     minWidth: 20,
     textAlign: 'center',
   },
@@ -625,7 +650,8 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: theme.radius.badge,
     borderWidth: theme.borderWidth.default,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
-});
+  });
+}
