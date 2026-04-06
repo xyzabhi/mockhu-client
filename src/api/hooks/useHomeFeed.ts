@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AppError } from '../AppError';
 import { postApi } from '../post/postApi';
 import type { PostResponse } from '../post/types';
+import { subscribePostStarUpdate } from '../../shared/postStarSync';
 import { mapUnknownToAppError } from './mapUnknownToAppError';
 
 const PAGE_SIZE = 20;
@@ -38,6 +39,14 @@ export function useHomeFeed() {
   useEffect(() => {
     void loadFirstPage('initial');
   }, [loadFirstPage]);
+
+  useEffect(() => {
+    return subscribePostStarUpdate((postId, patch) => {
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)),
+      );
+    });
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (loading || loadingMore || refreshing || nextCursor == null) return;

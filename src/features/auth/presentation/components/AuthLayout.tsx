@@ -20,7 +20,7 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hero}>
         <Image
-          source={require('../../../../../assets/mockhu_brand_logo.png')}
+          source={require('../../../../../assets/brand_logo.png')}
           style={styles.logo}
           accessibilityLabel="Mockhu"
         />

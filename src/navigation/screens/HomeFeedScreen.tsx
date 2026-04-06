@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
   LayoutChangeEvent,
   NativeScrollEvent,
@@ -10,14 +10,19 @@ import type {
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
+  Easing,
   FlatList,
   Image,
+  Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,6 +41,8 @@ import {
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
 import type { PostResponse } from '../../api/post/types';
+import type { RootStackParamList } from '../types';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type HomeFeedFilter = 'all' | 'following' | 'topic';
 
@@ -51,6 +58,40 @@ export function HomeFeedScreen() {
   const { effectiveScheme } = useThemePreference();
   const styles = useMemo(() => createHomeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerSlideX = useRef(new Animated.Value(0)).current;
+
+  const closeDrawer = useCallback(
+    (afterClose?: () => void) => {
+      const w = windowWidth || Dimensions.get('window').width;
+      Animated.timing(drawerSlideX, {
+        toValue: w,
+        duration: 260,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          setDrawerOpen(false);
+          afterClose?.();
+        }
+      });
+    },
+    [drawerSlideX, windowWidth],
+  );
+
+  useLayoutEffect(() => {
+    if (!drawerOpen) return;
+    const w = windowWidth || Dimensions.get('window').width;
+    drawerSlideX.setValue(w);
+    Animated.timing(drawerSlideX, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [drawerOpen, drawerSlideX, windowWidth]);
   /** 0 = header fully visible, H = fully hidden — driven by scroll *delta*, not scroll position. */
   const headerOffsetRef = useRef(0);
   const headerTranslateY = useRef(new Animated.Value(0)).current;
@@ -226,20 +267,109 @@ export function HomeFeedScreen() {
     [headerTranslateY],
   );
 
+  const goProfile = useCallback(() => {
+    closeDrawer(() => navigation.navigate('Main', { screen: 'Profile' }));
+  }, [closeDrawer, navigation]);
+
+  const goExams = useCallback(() => {
+    closeDrawer(() => navigation.navigate('ExamCategories'));
+  }, [closeDrawer, navigation]);
+
+  const goSuggested = useCallback(() => {
+    closeDrawer(() => navigation.navigate('SuggestedUsers'));
+  }, [closeDrawer, navigation]);
+
   return (
     <View style={styles.root}>
+      <Modal
+        visible={drawerOpen}
+        transparent
+        animationType="none"
+        onRequestClose={() => closeDrawer()}
+        statusBarTranslucent
+      >
+        <Animated.View
+          style={[
+            styles.drawerFullScreen,
+            {
+              paddingTop: insets.top + 12,
+              paddingBottom: insets.bottom + 16,
+              paddingLeft: Math.max(insets.left, theme.spacing.screenPaddingH),
+              paddingRight: Math.max(insets.right, theme.spacing.screenPaddingH),
+              transform: [{ translateX: drawerSlideX }],
+            },
+          ]}
+        >
+          <View style={styles.drawerPanelHeader}>
+            <View style={styles.drawerHeaderSpacer} />
+            <View style={styles.drawerHeaderLogoWrap}>
+              <Image
+                source={require('../../../assets/brand_logo.png')}
+                style={styles.drawerBrandLogo}
+                resizeMode="contain"
+                accessibilityLabel="Mockhu"
+              />
+            </View>
+            <Pressable
+              onPress={() => closeDrawer()}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Close menu"
+              style={({ pressed }) => [styles.drawerHeaderClose, pressed && styles.drawerClosePressed]}
+            >
+              <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
+            </Pressable>
+          </View>
+          <View style={styles.drawerBody}>
+            <View style={styles.drawerMenuList}>
+              <Pressable
+                style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                onPress={goProfile}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
+              >
+                <MaterialCommunityIcons name="account-circle-outline" size={22} color={colors.textPrimary} />
+                <Text style={styles.drawerItemLabel}>Profile</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                onPress={goExams}
+                accessibilityRole="button"
+                accessibilityLabel="Browse exams"
+              >
+                <MaterialCommunityIcons name="school-outline" size={22} color={colors.textPrimary} />
+                <Text style={styles.drawerItemLabel}>Exams</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                onPress={goSuggested}
+                accessibilityRole="button"
+                accessibilityLabel="Suggested people"
+              >
+                <MaterialCommunityIcons name="account-multiple-outline" size={22} color={colors.textPrimary} />
+                <Text style={styles.drawerItemLabel}>Suggested for you</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Animated.View>
+      </Modal>
+
       <Animated.View
         pointerEvents="box-none"
         style={[
           styles.topZone,
-          { paddingTop: insets.top },
+          {
+            paddingTop: insets.top,
+            paddingLeft: Math.max(insets.left, theme.spacing.screenPaddingH),
+            paddingRight: Math.max(insets.right, theme.spacing.screenPaddingH),
+          },
           { transform: [{ translateY: headerTranslateY }] },
         ]}
         onLayout={onHeaderLayout}
       >
         <View style={styles.headerRow}>
           <Image
-            source={require('../../../assets/mockhu_brand_logo.png')}
+            source={require('../../../assets/brand_logo.png')}
             style={styles.brandLogo}
             resizeMode="contain"
             accessibilityLabel="Mockhu"
@@ -262,6 +392,15 @@ export function HomeFeedScreen() {
               accessibilityLabel="Search feed"
             />
           </View>
+          <Pressable
+            onPress={() => setDrawerOpen(true)}
+            style={({ pressed }) => [styles.drawerIconBtn, pressed && styles.drawerIconBtnPressed]}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Open menu"
+          >
+            <MaterialCommunityIcons name="menu" size={26} color={colors.textPrimary} />
+          </Pressable>
         </View>
         <ScrollView
           horizontal
@@ -317,6 +456,11 @@ export function HomeFeedScreen() {
               onRefresh={refresh}
               tintColor={colors.brand}
               colors={[colors.brand]}
+              /** Keep spinner below the absolute header (otherwise hidden behind search/chips). */
+              progressViewOffset={headerH}
+              {...(Platform.OS === 'android'
+                ? { progressBackgroundColor: colors.surface }
+                : {})}
             />
           }
           scrollEventThrottle={16}
@@ -363,8 +507,10 @@ function createHomeStyles(colors: ThemeColors) {
     },
     brandLogo: {
       height: 44,
-      width: 72,
+      width: 44,
       flexShrink: 0,
+      borderRadius: theme.radius.card,
+      overflow: 'hidden',
     },
     searchRow: {
       flex: 1,
@@ -407,7 +553,8 @@ function createHomeStyles(colors: ThemeColors) {
     },
     chipSelected: {
       backgroundColor: colors.brand,
-      borderColor: colors.brand,
+      borderWidth: 1,
+      borderColor: colors.buttonBorder,
     },
     chipPressed: {
       opacity: 0.88,
@@ -456,6 +603,8 @@ function createHomeStyles(colors: ThemeColors) {
       paddingVertical: 10,
       paddingHorizontal: 20,
       borderRadius: theme.radius.button,
+      borderWidth: 1,
+      borderColor: colors.buttonBorder,
       backgroundColor: colors.brand,
     },
     retryBtnText: {
@@ -472,6 +621,74 @@ function createHomeStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.sm,
       color: colors.textMuted,
       paddingVertical: 32,
+    },
+    drawerFullScreen: {
+      flex: 1,
+      width: '100%',
+      backgroundColor: colors.surface,
+    },
+    drawerPanelHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    drawerHeaderSpacer: {
+      width: 44,
+      height: 44,
+    },
+    drawerHeaderLogoWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    drawerHeaderClose: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    drawerBody: {
+      flex: 1,
+      minHeight: 0,
+      marginTop: 8,
+    },
+    drawerMenuList: {
+      paddingTop: 4,
+    },
+    drawerBrandLogo: {
+      height: 64,
+      width: 64,
+      flexShrink: 0,
+      borderRadius: theme.radius.card,
+      overflow: 'hidden',
+    },
+    drawerClosePressed: {
+      opacity: 0.65,
+    },
+    drawerItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 4,
+      borderRadius: 12,
+    },
+    drawerItemPressed: {
+      backgroundColor: colors.surfaceSubtle,
+    },
+    drawerItemLabel: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+    },
+    drawerIconBtn: {
+      padding: 4,
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexShrink: 0,
+    },
+    drawerIconBtnPressed: {
+      opacity: 0.72,
     },
   });
 }

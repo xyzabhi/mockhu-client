@@ -5,10 +5,10 @@
 export const theme = {
   colors: {
     /** Primary interactive — tabs, chips selected, FAB, CTA fill, avatar ring */
-    brand: '#3921b4',
+    brand: '#7C3AED',
     brandLight: '#EEF2FF',
     brandBorder: '#C7D2FE',
-    /** Filled star / starred post */
+    /** Amber accent (badges, legacy); starred posts use `brand` indigo in UI */
     starGold: '#E5A50A',
     /** Streak, studied, completion, progress bars only — not mixed with brand on one element */
     progress: '#00D26A',
@@ -20,6 +20,8 @@ export const theme = {
     surface: '#ffffff',
     surfaceSubtle: '#F9FAFB',
     borderSubtle: '#E5E7EB',
+    /** 1px outline on **brand-filled** controls only (light: black) */
+    buttonBorder: '#000000',
     /** Outer app frame only */
     borderStrong: '#111827',
     danger: '#EF4444',
@@ -52,6 +54,7 @@ export const theme = {
     surface: '#121214',
     surfaceSubtle: '#0a0a0b',
     borderSubtle: '#27272a',
+    buttonBorder: '#52525b',
     borderStrong: '#fafafa',
     danger: '#f87171',
     onBrand: '#ffffff',

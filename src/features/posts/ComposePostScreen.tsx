@@ -676,7 +676,8 @@ const styles = StyleSheet.create({
   },
   headerPostBtnPrimary: {
     backgroundColor: theme.colors.brand,
-    borderColor: theme.colors.brand,
+    borderWidth: 1,
+    borderColor: theme.colors.buttonBorder,
   },
   headerPostBtnDisabled: {
     borderColor: theme.colors.borderSubtle,

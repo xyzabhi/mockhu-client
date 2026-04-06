@@ -320,7 +320,8 @@ const styles = StyleSheet.create({
     primaryButton: {
         borderRadius: theme.radius.button,
         backgroundColor: theme.colors.brand,
-        borderWidth: 0,
+        borderWidth: 1,
+        borderColor: theme.colors.buttonBorder,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,

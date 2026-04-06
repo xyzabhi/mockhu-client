@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import { mergeStarResponse, mergeUnstarResponse, postApi, useSession } from '../../../api';
-import { navigationRef } from '../../../navigation/navigationRef';
+import { navigateToPostComments } from '../../../navigation/navigationRef';
 import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../../api/post/mediaUrl';
@@ -84,6 +84,8 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
   const isDark = effectiveScheme === 'dark';
+  /** Unliked thumb — dark gray in both themes (Facebook-style). */
+  const likeInactiveColor = isDark ? '#52525b' : '#111827';
   const styles = useMemo(() => createPostCardStyles(colors), [colors]);
   const { accessToken } = useSession();
   const [deleting, setDeleting] = useState(false);
@@ -97,9 +99,9 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
     () =>
       authorStarPulse.interpolate({
         inputRange: [0, 0.5, 1],
-        outputRange: [colors.textPrimary, colors.starGold, colors.textPrimary],
+        outputRange: [colors.textPrimary, colors.brand, colors.textPrimary],
       }),
-    [authorStarPulse, colors.textPrimary, colors.starGold],
+    [authorStarPulse, colors.textPrimary, colors.brand],
   );
 
   const playAuthorStarredAnimation = useCallback(() => {
@@ -117,6 +119,8 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
       }),
     ]).start();
   }, [authorStarPulse]);
+  /** Same function — old name kept so stale bundles / HMR do not throw. */
+  const playAuthorFiredAnimation = playAuthorStarredAnimation;
   const isOwner = currentUserId != null && post.user_id === currentUserId;
   const badge = useMemo(
     () => typeBadgeColors(post.post_type, colors, isDark),
@@ -178,14 +182,12 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
   const starCount = post.star_count ?? 0;
 
   const openComments = useCallback(() => {
-    if (navigationRef.isReady()) {
-      navigationRef.navigate('PostComments', { postId: post.id });
-    }
-  }, [post.id]);
+    navigateToPostComments({ postId: post.id, commentCount: post.comment_count });
+  }, [post.id, post.comment_count]);
 
   const submitStar = useCallback(async () => {
     if (!accessToken) {
-      Alert.alert('Sign in', 'Sign in to star posts.');
+      Alert.alert('Sign in', 'Sign in to like posts.');
       return;
     }
     try {
@@ -196,14 +198,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
         const star = await postApi.starPost(post.id);
         onPostUpdated?.(mergeStarResponse(post, star));
         if (star.starred) {
-          playAuthorStarredAnimation();
+          playAuthorFiredAnimation();
         }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not update star.';
-      Alert.alert('Star', msg);
+      const msg = e instanceof Error ? e.message : 'Could not update like.';
+      Alert.alert('Like', msg);
     }
-  }, [accessToken, onPostUpdated, playAuthorStarredAnimation, post]);
+  }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post]);
 
   const openPostMenu = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -364,14 +366,14 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             style={({ pressed }) => [styles.votePill, pressed && styles.pillPressed]}
             onPress={() => void submitStar()}
             accessibilityRole="button"
-            accessibilityLabel={starred ? 'Starred' : 'Star post'}
-            accessibilityHint={`${starCount} stars`}
+            accessibilityLabel={starred ? 'Liked' : 'Like post'}
+            accessibilityHint={`${starCount} likes`}
             accessibilityState={{ selected: starred }}
           >
             <MaterialCommunityIcons
-              name={starred ? 'star' : 'star-outline'}
+              name={starred ? 'thumb-up' : 'thumb-up-outline'}
               size={20}
-              color={starred ? colors.starGold : colors.textPrimary}
+              color={starred ? colors.brand : likeInactiveColor}
             />
             <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
               {starCount}
@@ -420,9 +422,9 @@ function createPostCardStyles(colors: ThemeColors) {
     marginBottom: 10,
   },
   avatarWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: colors.brandLight,
     alignItems: 'center',
@@ -583,7 +585,7 @@ function createPostCardStyles(colors: ThemeColors) {
     marginTop: 10,
     gap: 8,
   },
-  /** Star vote + comment pills — grouped on the left. */
+  /** Like + comment pills — grouped on the left. */
   footerLeft: {
     flex: 1,
     flexDirection: 'row',
