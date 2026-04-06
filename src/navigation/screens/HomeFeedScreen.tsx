@@ -394,12 +394,12 @@ export function HomeFeedScreen() {
         onLayout={onHeaderLayout}
       >
         <View style={styles.headerRow}>
-          <Image
+          {/* <Image
             source={require('../../../assets/brand_logo.png')}
             style={styles.brandLogo}
             resizeMode="contain"
             accessibilityLabel="Mockhu"
-          />
+          /> */}
           <View style={styles.searchRow}>
             <MaterialCommunityIcons
               name="magnify"

@@ -238,7 +238,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                       level={c.author.badge.level}
                       tier={c.author.badge.tier}
                       tierColorHint={c.author.badge.tier_color_hint}
-                      lineFontSize={theme.fintSizes.sm}
+                      lineFontSize={theme.fintSizes.md}
                       style={styles.commentAuthorBadge}
                     />
                   ) : null}

@@ -97,7 +97,7 @@ export function MainTabNavigator() {
         options={{
           title: 'Post',
           headerShown: false,
-          /** Center create: circular hit target (50% → full circle) */
+          /** Center create: circular hit target */
           tabBarIcon: ({ focused }) => {
             const size = 40;
             return (

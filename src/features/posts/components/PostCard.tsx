@@ -271,7 +271,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
                   level={post.author.badge.level}
                   tier={post.author.badge.tier}
                   tierColorHint={post.author.badge.tier_color_hint}
-                  lineFontSize={theme.fintSizes.sm}
+                  lineFontSize={theme.fintSizes.md}
                   style={styles.authorLevelBadge}
                 />
               ) : null}
@@ -472,7 +472,7 @@ function createPostCardStyles(colors: ThemeColors) {
   },
   displayName: {
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
   },
   displayNameFlex: {
@@ -530,16 +530,16 @@ function createPostCardStyles(colors: ThemeColors) {
   },
   postTitle: {
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.md,
+    fontSize: theme.fintSizes.lg,
     color: colors.textPrimary,
-    lineHeight: 24,
+    lineHeight: 26,
     marginBottom: 6,
   },
   content: {
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
-    lineHeight: 22,
+    lineHeight: 24,
     marginBottom: 8,
   },
   singleImage: {
@@ -591,19 +591,19 @@ function createPostCardStyles(colors: ThemeColors) {
   },
   linkTitle: {
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
   },
   linkDesc: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
+    fontSize: theme.fintSizes.sm,
     color: colors.textMuted,
   },
   linkUrl: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
+    fontSize: theme.fintSizes.sm,
     color: colors.brand,
   },
   cardFooter: {
