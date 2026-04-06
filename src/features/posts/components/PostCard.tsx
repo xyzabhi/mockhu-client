@@ -15,7 +15,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { mergeStarResponse, postApi, useSession } from '../../../api';
+import { mergeStarResponse, mergeUnstarResponse, postApi, useSession } from '../../../api';
 import { navigationRef } from '../../../navigation/navigationRef';
 import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
@@ -150,7 +150,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
     Alert.alert('Report', 'Thanks — we will review reports in a future update.');
   }, []);
 
-  const starred = post.starred === true;
+  const starred = post.starred_by_me === true;
   const starCount = post.star_count ?? 0;
 
   const openComments = useCallback(() => {
@@ -165,15 +165,19 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
       return;
     }
     try {
-      const star = await postApi.starPost(post.id);
-      const prevCount = post.star_count ?? 0;
-      onPostUpdated?.(mergeStarResponse(post, star));
-      if (star.starred || star.star_count > prevCount) {
-        playAuthorStarredAnimation();
+      if (post.starred_by_me) {
+        const res = await postApi.unstarPost(post.id);
+        onPostUpdated?.(mergeUnstarResponse(post, res));
+      } else {
+        const star = await postApi.starPost(post.id);
+        onPostUpdated?.(mergeStarResponse(post, star));
+        if (star.starred) {
+          playAuthorStarredAnimation();
+        }
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Could not star.';
-      Alert.alert('Star failed', msg);
+      const msg = e instanceof Error ? e.message : 'Could not update star.';
+      Alert.alert('Star', msg);
     }
   }, [accessToken, onPostUpdated, playAuthorStarredAnimation, post]);
 

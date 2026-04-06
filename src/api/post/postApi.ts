@@ -6,9 +6,10 @@ import type {
   PostResponse,
   PostType,
   StarResponse,
+  UnstarResponse,
 } from './types';
 
-/** Server may omit or null `tags` / `images`; UI expects arrays. */
+/** Map feed/post payloads to `PostResponse` — booleans and counts come from the API only. */
 export function normalizePost(p: PostResponse): PostResponse {
   return {
     ...p,
@@ -18,25 +19,32 @@ export function normalizePost(p: PostResponse): PostResponse {
     images: Array.isArray(p.images) ? p.images : [],
     upvote_count: typeof p.upvote_count === 'number' ? p.upvote_count : 0,
     star_count: typeof p.star_count === 'number' ? p.star_count : 0,
-    starred: typeof p.starred === 'boolean' ? p.starred : undefined,
+    starred_by_me: p.starred_by_me === true,
     comment_count: typeof p.comment_count === 'number' ? p.comment_count : 0,
   };
 }
 
-/** Merge `POST /posts/:id/star` into a post row (keeps `starred` if duplicate call). */
+/**
+ * Apply `POST /posts/:id/star` body only (`star_count`, `starred` per-call).
+ * `starred_by_me` on the post is true if this call added a star (`star.starred`), else unchanged (duplicate idempotent tap).
+ */
 export function mergeStarResponse(post: PostResponse, star: StarResponse): PostResponse {
-  const prevCount = post.star_count ?? 0;
-  const nextCount = star.star_count;
-  const countIncreased = nextCount > prevCount;
-  /** Filled gold star: API says new star, count went up, or repeat tap while already starred (idempotent). */
-  const starred =
-    star.starred ||
-    countIncreased ||
-    (post.starred === true && nextCount === prevCount);
   return normalizePost({
     ...post,
-    star_count: nextCount,
-    starred,
+    star_count: star.star_count,
+    starred_by_me: star.starred ? true : post.starred_by_me,
+  });
+}
+
+/**
+ * Apply `DELETE /posts/:id/star` body (`star_count`, `unstarred` per-call).
+ * `starred_by_me` is false when this call removed your star; else unchanged if duplicate idempotent tap.
+ */
+export function mergeUnstarResponse(post: PostResponse, res: UnstarResponse): PostResponse {
+  return normalizePost({
+    ...post,
+    star_count: res.star_count,
+    starred_by_me: res.unstarred ? false : post.starred_by_me,
   });
 }
 
@@ -129,6 +137,11 @@ export async function starPost(postId: string): Promise<StarResponse> {
   return apiPost<StarResponse>(`/posts/${encodeURIComponent(postId)}/star`, {});
 }
 
+/** Remove current user’s star. `DELETE /api/v1/posts/:id/star`. */
+export async function unstarPost(postId: string): Promise<UnstarResponse> {
+  return apiDelete<UnstarResponse>(`/posts/${encodeURIComponent(postId)}/star`);
+}
+
 export type GetPostsFeedParams = {
   limit?: number;
   cursor?: string | null;
@@ -175,6 +188,7 @@ export const postApi = {
   createPost,
   deletePost,
   starPost,
+  unstarPost,
   getTopicFeed,
   getHomeFeed,
 };

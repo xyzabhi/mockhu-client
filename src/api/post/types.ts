@@ -26,8 +26,8 @@ export type PostResponse = {
   upvote_count: number;
   /** Star count (POST `/posts/:id/star`). */
   star_count: number;
-  /** Whether the current user has starred (when provided by feed). */
-  starred?: boolean;
+  /** Whether the current user has starred (feed + after star). */
+  starred_by_me: boolean;
   comment_count: number;
   images: string[];
   tags: string[];
@@ -57,4 +57,11 @@ export type StarResponse = {
   star_count: number;
   /** `true` only when this call added a new star. */
   starred: boolean;
+};
+
+/** `DELETE /posts/:id/star` — remove current user’s star. */
+export type UnstarResponse = {
+  star_count: number;
+  /** `true` when this call removed your star. */
+  unstarred: boolean;
 };

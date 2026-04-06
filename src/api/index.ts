@@ -68,7 +68,7 @@ export type { Exam, ExamCategory, ExamListData, ListExamsParams } from './exam/t
 export { postOnboarding } from './onboarding/onboardingApi';
 export type { OnboardingPayload, OnboardingResponseData } from './onboarding/types';
 
-export { postApi, normalizePost, mergeStarResponse } from './post/postApi';
+export { postApi, normalizePost, mergeStarResponse, mergeUnstarResponse } from './post/postApi';
 export type { CreatePostImageInput, CreatePostParams } from './post/postApi';
 export type {
   DeletePostResponse,
@@ -78,6 +78,7 @@ export type {
   PostResponse,
   PostType,
   StarResponse,
+  UnstarResponse,
 } from './post/types';
 export { resolvePostMediaUrl } from './post/mediaUrl';
 export {
