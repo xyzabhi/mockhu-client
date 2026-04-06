@@ -25,7 +25,7 @@ export type RootStackParamList = {
   /** Main tab shell (avoid naming this `Home` — tab stack also has a `Home` tab). */
   Main: undefined;
   /** Thread / composer for a post (opened from feed). */
-  PostComments: { postId: string };
+  PostComments: { postId: string; commentCount?: number };
   ExamCategories: undefined;
   ExamCategory: { categoryId: number };
   ExamDetail: { examId: number };

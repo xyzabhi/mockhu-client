@@ -3,6 +3,18 @@ import type { RootStackParamList } from './types';
 
 export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
+/** Prefer this over raw `navigate` when opening comments so `onReady` races don’t drop navigation. */
+export function navigateToPostComments(params: RootStackParamList['PostComments']) {
+  const go = () => navigationRef.navigate('PostComments', params);
+  if (navigationRef.isReady()) {
+    go();
+    return;
+  }
+  requestAnimationFrame(() => {
+    if (navigationRef.isReady()) go();
+  });
+}
+
 let pendingReset: keyof RootStackParamList | null = null;
 
 export function resetToRoute(name: keyof RootStackParamList) {

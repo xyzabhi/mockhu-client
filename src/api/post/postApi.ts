@@ -1,5 +1,12 @@
 import { apiDelete, apiGet, apiPost, apiPostMultipart } from '../apiClient';
 import type {
+  CommentListResponse,
+  CommentResponse,
+  CommentThread,
+  CreateCommentBody,
+  DeleteCommentResponse,
+} from './commentTypes';
+import type {
   DeletePostResponse,
   LinkPreviewData,
   PostFeedResponse,
@@ -8,6 +15,53 @@ import type {
   StarResponse,
   UnstarResponse,
 } from './types';
+
+export function normalizeComment(c: CommentResponse): CommentResponse {
+  const author = c.author;
+  return {
+    ...c,
+    parent_comment_id: c.parent_comment_id,
+    star_count: typeof c.star_count === 'number' ? c.star_count : 0,
+    starred_by_me: c.starred_by_me === true,
+    author: author
+      ? {
+          username: typeof author.username === 'string' ? author.username : '',
+          first_name: author.first_name,
+          last_name: author.last_name,
+          avatar_url: author.avatar_url ?? undefined,
+        }
+      : undefined,
+  };
+}
+
+export function mergeCommentStarResponse(
+  c: CommentResponse,
+  res: StarResponse,
+): CommentResponse {
+  return normalizeComment({
+    ...c,
+    star_count: res.star_count,
+    starred_by_me: res.starred ? true : c.starred_by_me,
+  });
+}
+
+export function mergeCommentUnstarResponse(
+  c: CommentResponse,
+  res: UnstarResponse,
+): CommentResponse {
+  return normalizeComment({
+    ...c,
+    star_count: res.star_count,
+    starred_by_me: res.unstarred ? false : c.starred_by_me,
+  });
+}
+
+function normalizeThread(t: CommentThread): CommentThread {
+  return {
+    comment: normalizeComment(t.comment),
+    replies: (Array.isArray(t.replies) ? t.replies : []).map(normalizeComment),
+  };
+}
 
 /** Map feed/post payloads to `PostResponse` — booleans and counts come from the API only. */
 export function normalizePost(p: PostResponse): PostResponse {
@@ -130,14 +184,14 @@ export async function deletePost(postId: string): Promise<DeletePostResponse> {
 }
 
 /**
- * Star a post (idempotent per user).
- * `POST /api/v1/posts/:id/star` — no body; returns counts + whether this call added a star.
+ * Star a post (idempotent per user). Per-comment stars use `starComment` instead.
+ * `POST /api/v1/posts/:id/star` — JSON body `{}`; `Accept: application/json`; `Authorization: Bearer`.
  */
 export async function starPost(postId: string): Promise<StarResponse> {
   return apiPost<StarResponse>(`/posts/${encodeURIComponent(postId)}/star`, {});
 }
 
-/** Remove current user’s star. `DELETE /api/v1/posts/:id/star`. */
+/** Unstar the same post. `DELETE /api/v1/posts/:id/star`. */
 export async function unstarPost(postId: string): Promise<UnstarResponse> {
   return apiDelete<UnstarResponse>(`/posts/${encodeURIComponent(postId)}/star`);
 }
@@ -183,6 +237,95 @@ export async function getHomeFeed(params?: GetPostsFeedParams): Promise<PostFeed
   return normalizeFeed(await apiGet<PostFeedResponse>(`/posts/home${q}`));
 }
 
+export type GetPostCommentsParams = {
+  limit?: number;
+  cursor?: string | null;
+};
+
+function buildCommentsQuery(params?: GetPostCommentsParams): string {
+  const sp = new URLSearchParams();
+  if (params?.limit != null) {
+    sp.set('limit', String(params.limit));
+  }
+  if (params?.cursor) {
+    sp.set('cursor', params.cursor);
+  }
+  const q = sp.toString();
+  return q ? `?${q}` : '';
+}
+
+/** Paginated threads: top-level `comment` + `replies[]`. `GET /posts/:id/comments`. */
+export async function getPostComments(
+  postId: string,
+  params?: GetPostCommentsParams,
+): Promise<CommentListResponse> {
+  const raw = await apiGet<CommentListResponse>(
+    `/posts/${encodeURIComponent(postId)}/comments${buildCommentsQuery(params)}`,
+  );
+  const threads = Array.isArray(raw.threads) ? raw.threads : [];
+  return {
+    next_cursor: raw.next_cursor ?? null,
+    threads: threads.map((row) => normalizeThread(row as CommentThread)),
+  };
+}
+
+/** Resolve `body` vs `str` per API: trimmed `body` wins; if empty, use trimmed `str`. */
+export function resolveCommentText(input: CreateCommentBody): string {
+  const b = typeof input.body === 'string' ? input.body.trim() : '';
+  if (b !== '') return b;
+  const s = typeof input.str === 'string' ? input.str.trim() : '';
+  return s;
+}
+
+/** `POST /posts/:id/comments` — 201 → `CommentResponse`. */
+export async function createPostComment(
+  postId: string,
+  body: CreateCommentBody,
+): Promise<CommentResponse> {
+  const text = resolveCommentText(body);
+  const payload: Record<string, unknown> = { body: text };
+  if (body.parent_comment_id != null && body.parent_comment_id !== '') {
+    payload.parent_comment_id = body.parent_comment_id;
+  }
+  return normalizeComment(
+    await apiPost<CommentResponse>(`/posts/${encodeURIComponent(postId)}/comments`, payload),
+  );
+}
+
+/** Author-only; cascade removes replies for top-level. */
+export async function deletePostComment(
+  postId: string,
+  commentId: string,
+): Promise<DeleteCommentResponse> {
+  return apiDelete<DeleteCommentResponse>(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}`,
+  );
+}
+
+/**
+ * Star a comment (idempotent per user).
+ * `POST /api/v1/posts/:postId/comments/:commentId/star`
+ */
+export async function starComment(
+  postId: string,
+  commentId: string,
+): Promise<StarResponse> {
+  return apiPost<StarResponse>(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/star`,
+    {},
+  );
+}
+
+/** `DELETE /api/v1/posts/:postId/comments/:commentId/star` */
+export async function unstarComment(
+  postId: string,
+  commentId: string,
+): Promise<UnstarResponse> {
+  return apiDelete<UnstarResponse>(
+    `/posts/${encodeURIComponent(postId)}/comments/${encodeURIComponent(commentId)}/star`,
+  );
+}
+
 export const postApi = {
   getLinkPreview,
   createPost,
@@ -191,4 +334,9 @@ export const postApi = {
   unstarPost,
   getTopicFeed,
   getHomeFeed,
+  getPostComments,
+  createPostComment,
+  deletePostComment,
+  starComment,
+  unstarComment,
 };
