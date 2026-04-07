@@ -1,9 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
-  ActivityIndicator,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import {
-  clearSession,
   hydrateSessionUserFromMe,
   normalizeTokenUserProfile,
   useFollowCounts,
@@ -19,14 +16,11 @@ import {
 } from '../../api';
 import { resolveLevelBadgeFromUser } from '../../badge/progressionDisplay';
 import { theme } from '../../presentation/theme/theme';
-import { ThemeAppearanceToggle } from '../../presentation/theme/ThemeAppearanceToggle';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 import { LevelBadge } from '../../shared/components/LevelBadge';
 import { SpecialBadgesRow } from '../../shared/components/SpecialBadgesRow';
 import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
 import { UserAvatar } from '../../shared/components/UserAvatar';
-import { resetToRoute } from '../navigationRef';
-
 /** Matches ~`lineFontSize` × 1.38 cap on `LevelBadge` + row gap. */
 const LEVEL_BADGE_WIDTH_APPROX = 40;
 
@@ -35,7 +29,6 @@ export function ProfileScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const styles = useMemo(() => createProfileStyles(colors), [colors]);
   const { user } = useSession();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -73,17 +66,6 @@ export function ProfileScreen() {
     return Math.max(120, windowWidth - pad - LEVEL_BADGE_WIDTH_APPROX - 8);
   }, [windowWidth, hasLevelBadge]);
   const specialBadges = profile?.special_badges ?? [];
-
-  const handleLogout = async () => {
-    if (isLoggingOut) return;
-    setIsLoggingOut(true);
-    try {
-      await clearSession();
-      resetToRoute('Auth');
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
 
   return (
     <ScrollView
@@ -147,28 +129,7 @@ export function ProfileScreen() {
 
       {specialBadges.length > 0 ? <SpecialBadgesRow codes={specialBadges} /> : null}
 
-      <ThemeAppearanceToggle />
-
       <SuggestedForYouSection />
-
-      <Pressable
-        style={({ pressed }) => [
-          styles.logoutButton,
-          pressed && styles.logoutButtonPressed,
-          isLoggingOut && styles.logoutButtonDisabled,
-        ]}
-        onPress={() => void handleLogout()}
-        disabled={isLoggingOut}
-        accessibilityRole="button"
-        accessibilityLabel="Log out"
-        android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
-      >
-        {isLoggingOut ? (
-          <ActivityIndicator size="small" color={colors.textPrimary} />
-        ) : (
-          <Text style={styles.logoutButtonText}>Log out</Text>
-        )}
-      </Pressable>
     </ScrollView>
   );
 }
@@ -265,31 +226,6 @@ function createProfileStyles(colors: ThemeColors) {
       width: 1,
       alignSelf: 'stretch',
       backgroundColor: colors.borderSubtle,
-    },
-    logoutButton: {
-      marginTop: 20,
-      alignSelf: 'flex-start',
-      minWidth: 140,
-      paddingVertical: 12,
-      paddingHorizontal: 20,
-      borderRadius: 999,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.borderSubtle,
-      backgroundColor: colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: 48,
-    },
-    logoutButtonPressed: {
-      opacity: 0.88,
-    },
-    logoutButtonDisabled: {
-      opacity: 0.6,
-    },
-    logoutButtonText: {
-      fontFamily: theme.typography.medium,
-      fontSize: theme.fintSizes.md,
-      color: colors.textPrimary,
     },
   });
 }

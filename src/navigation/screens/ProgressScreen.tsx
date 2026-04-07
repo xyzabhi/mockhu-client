@@ -9,6 +9,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ContributionHeatmap } from '../../shared/components/ContributionHeatmap';
+import { ProgressAreaChart } from '../../shared/components/ProgressAreaChart';
 import {
   examCatalogApi,
   normalizeTokenUserProfile,
@@ -132,10 +134,15 @@ export function ProgressScreen() {
     setSelectedTab(tab);
   }, []);
 
-  return (
-    <View style={[styles.root, { paddingTop: Math.max(insets.top, 8) }]}>
-      <Text style={styles.title}>Progress</Text>
+  const vizSeed = useMemo(
+    () =>
+      `progress-viz-${currentUserId ?? 'guest'}-${examIdsKey}-${String(selectedTab)}`,
+    [currentUserId, examIdsKey, selectedTab],
+  );
 
+  /* Tab stack shows the header; keep top padding small so we do not double safe-area. */
+  return (
+    <View style={[styles.root, { paddingTop: 8 }]}>
       {!currentUserId ? (
         <Text style={styles.subtitle}>
           Sign in to see progress broken down by the exams you care about.
@@ -198,15 +205,34 @@ export function ProgressScreen() {
         </>
       )}
 
-      <View style={styles.grid}>
-        {MOCK_STATS.map((row) => (
-          <View key={row.label} style={styles.card}>
-            <MaterialCommunityIcons name={row.icon} size={28} color={colors.progress} />
-            <Text style={styles.value}>{row.value}</Text>
-            <Text style={styles.label}>{row.label}</Text>
-          </View>
-        ))}
-      </View>
+      <ScrollView
+        style={styles.mainScroll}
+        contentContainerStyle={[
+          styles.mainScrollContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 24 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Activity</Text>
+          <ContributionHeatmap colors={colors} seed={vizSeed} />
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Weekly trend</Text>
+          <ProgressAreaChart colors={colors} seed={vizSeed} />
+        </View>
+
+        <View style={styles.statsRow}>
+          {MOCK_STATS.map((row) => (
+            <View key={row.label} style={styles.statCard}>
+              <MaterialCommunityIcons name={row.icon} size={22} color={colors.progress} />
+              <Text style={styles.statValue}>{row.value}</Text>
+              <Text style={styles.statLabel}>{row.label}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -218,11 +244,57 @@ function createProgressStyles(colors: ThemeColors) {
       backgroundColor: colors.surfaceSubtle,
       paddingHorizontal: theme.spacing.screenPaddingH,
     },
-    title: {
+    mainScroll: {
+      flex: 1,
+    },
+    mainScrollContent: {
+      flexGrow: 1,
+      paddingTop: 4,
+    },
+    sectionCard: {
+      backgroundColor: colors.surface,
+      borderRadius: theme.radius.card,
+      padding: 16,
+      marginBottom: 12,
+      borderWidth: theme.borderWidth.default,
+      borderColor: colors.borderSubtle,
+    },
+    sectionTitle: {
       fontFamily: theme.typography.semiBold,
-      fontSize: theme.fontSizes.screenTitle,
-      color: colors.textPrimary,
+      fontSize: theme.fontSizes.sectionHead,
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: colors.textMuted,
+      marginBottom: 4,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      gap: 10,
       marginBottom: 8,
+    },
+    statCard: {
+      flex: 1,
+      minWidth: 0,
+      backgroundColor: colors.surface,
+      borderRadius: theme.radius.card,
+      paddingVertical: 12,
+      paddingHorizontal: 10,
+      borderWidth: theme.borderWidth.default,
+      borderColor: colors.borderSubtle,
+      alignItems: 'center',
+    },
+    statValue: {
+      marginTop: 6,
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.lg,
+      color: colors.textPrimary,
+    },
+    statLabel: {
+      marginTop: 2,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textMuted,
+      textAlign: 'center',
     },
     subtitle: {
       fontFamily: theme.typography.regular,
@@ -282,28 +354,6 @@ function createProgressStyles(colors: ThemeColors) {
     },
     chipLabelSelected: {
       color: colors.onBrand,
-    },
-    grid: {
-      gap: 12,
-    },
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: theme.radius.card,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: colors.borderSubtle,
-    },
-    value: {
-      marginTop: 10,
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.xxl,
-      color: colors.textPrimary,
-    },
-    label: {
-      marginTop: 4,
-      fontFamily: theme.typography.regular,
-      fontSize: theme.fintSizes.sm,
-      color: colors.textMuted,
     },
   });
 }
