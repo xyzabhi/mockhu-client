@@ -345,7 +345,8 @@ function createAuthEmailStyles(colors: ThemeColors) {
       color: colors.textPrimary,
     },
     inputIdle: {
-      borderWidth: 0,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
       backgroundColor: colors.surface,
       ...inputShadow,
     },

@@ -58,12 +58,16 @@ export type {
   FollowListResponse,
   FollowResponse,
   LevelInfo,
+  MeAvatarUploadResponse,
   MeResponse,
   UserInterestsResponse,
   UserSuggestionsResponse,
   UserSummary,
 } from './user/types';
-export { meResponseToTokenUserPatch } from './user/meResponseMap';
+export {
+  meAvatarUploadToTokenUserPatch,
+  meResponseToTokenUserPatch,
+} from './user/meResponseMap';
 
 export { examCatalogApi } from './exam/examCatalogApi';
 export type { Exam, ExamCategory, ExamListData, ListExamsParams } from './exam/types';

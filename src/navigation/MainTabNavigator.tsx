@@ -1,4 +1,3 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -7,8 +6,10 @@ import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useMemo } from 'react';
 import { Platform, Pressable, View } from 'react-native';
+import { normalizeTokenUserProfile, useSession } from '../api';
 import { theme } from '../presentation/theme/theme';
 import { useThemeColors } from '../presentation/theme/ThemeContext';
+import { UserAvatar } from '../shared/components/UserAvatar';
 import type { MainTabParamList } from './types';
 import { HomeFeedScreen } from './screens/HomeFeedScreen';
 import { InboxScreen } from './screens/InboxScreen';
@@ -64,6 +65,12 @@ function backToHomeHeaderOptions(
 
 export function MainTabNavigator() {
   const colors = useThemeColors();
+  const { user } = useSession();
+  const profile = useMemo(
+    () => (user ? normalizeTokenUserProfile(user) : null),
+    [user],
+  );
+  const profileSeed = profile?.id?.trim() || profile?.username?.trim() || 'profile';
 
   const postFabStyle = useMemo(
     () => ({
@@ -175,8 +182,26 @@ export function MainTabNavigator() {
         options={({ navigation }) => ({
           title: 'Profile',
           ...backToHomeHeaderOptions(colors, navigation),
-          tabBarIcon: ({ color, size }) => (
-            <FontAwesome name="user-circle-o" size={size ?? TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View
+              style={{
+                width: (size ?? TAB_ICON_SIZE) + 10,
+                height: (size ?? TAB_ICON_SIZE) + 10,
+                borderRadius: ((size ?? TAB_ICON_SIZE) + 10) / 2,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: focused ? 1.5 : 1,
+                borderColor: focused ? colors.brand : `${color}80`,
+                backgroundColor: focused ? `${colors.brand}1A` : `${color}0F`,
+              }}
+            >
+              <UserAvatar
+                seed={profileSeed}
+                avatarUrl={profile?.avatar_url}
+                avatarUrls={profile?.avatar_urls}
+                size={(size ?? TAB_ICON_SIZE) - 2}
+              />
+            </View>
           ),
         })}
       />

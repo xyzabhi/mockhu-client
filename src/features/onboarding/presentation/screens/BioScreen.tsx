@@ -1,12 +1,72 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 
 const MAX_CHARS = 500;
 
+function createBioStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.surface,
+    },
+    scrollContent: {
+      paddingHorizontal: theme.spacing.screenPaddingH,
+      paddingTop: 4,
+      paddingBottom: 24,
+      flexGrow: 1,
+    },
+    input: {
+      minHeight: 160,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.md,
+      lineHeight: 24,
+      color: colors.textPrimary,
+      backgroundColor: colors.surface,
+    },
+    inputHasText: {
+      backgroundColor: colors.surface,
+      fontFamily: theme.typography.regular,
+    },
+    inputFocused: {
+      borderColor: colors.brand,
+      borderWidth: 2,
+      backgroundColor: colors.surface,
+    },
+    inputAtLimit: {
+      borderColor: colors.brand,
+    },
+    charCount: {
+      alignSelf: 'flex-end',
+      marginTop: 10,
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.xs,
+      color: colors.textMuted,
+      fontVariant: ['tabular-nums'],
+    },
+    charCountWarn: {
+      color: colors.textPrimary,
+    },
+    charCountLimit: {
+      color: colors.brand,
+    },
+  });
+}
+
 export function BioScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createBioStyles(colors), [colors]);
   const { draft, updateDraft } = useOnboardingDraft();
   const [bio, setBio] = useState(draft.bio);
   const [isFocused, setIsFocused] = useState(false);
@@ -44,7 +104,7 @@ export function BioScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
         multiline
         textAlignVertical="top"
         placeholder="Optional"
-        placeholderTextColor={theme.colors.textMuted}
+        placeholderTextColor={colors.textMuted}
         accessibilityLabel="Bio"
         maxLength={MAX_CHARS}
       />
@@ -61,55 +121,3 @@ export function BioScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  scrollContent: {
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 4,
-    paddingBottom: 24,
-    flexGrow: 1,
-  },
-  input: {
-    minHeight: 160,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.md,
-    lineHeight: 24,
-    color: theme.colors.textPrimary,
-    backgroundColor: '#ffffff',
-  },
-  inputHasText: {
-    backgroundColor: '#ffffff',
-    fontFamily: theme.typography.regular,
-  },
-  inputFocused: {
-    borderColor: theme.colors.brand,
-    borderWidth: 2,
-    backgroundColor: '#ffffff',
-  },
-  inputAtLimit: {
-    borderColor: theme.colors.brand,
-  },
-  charCount: {
-    alignSelf: 'flex-end',
-    marginTop: 10,
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  charCountWarn: {
-    color: theme.colors.textPrimary,
-  },
-  charCountLimit: {
-    color: theme.colors.brand,
-  },
-});

@@ -18,6 +18,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useExamCategories, useExamsList } from '../../../../api';
 import type { Exam, ExamCategory } from '../../../../api';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
 import { formatCompactCount } from '../../../../shared/utils/formatCompactCount';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
@@ -45,33 +49,358 @@ function categoryDisplayHashtag(name: string): string {
   return slug ? `#${slug}` : `#${body}`;
 }
 
+const CHIP_GAP = 10;
+
+function createOnboardingExamInterestsStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+  screenRoot: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  listFlex: {
+    flex: 1,
+  },
+  categoriesScrollContent: {
+    paddingHorizontal: theme.spacing.screenPaddingH,
+    paddingBottom: 16,
+    flexGrow: 1,
+  },
+  mainSearchBlock: {
+    paddingBottom: 12,
+  },
+  selectedExamsSection: {
+    marginBottom: 16,
+  },
+  selectedExamsSectionLabel: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: colors.textMuted,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  modalSearchBlock: {
+    paddingBottom: 12,
+    paddingTop: 4,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: CHIP_GAP,
+  },
+  modalHeaderMeta: {
+    marginTop: 8,
+  },
+  categoryChipMeta: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  /** Chip: subtle border; brand fill when selected (no check icon). */
+  examChoiceChip: {
+    alignSelf: 'flex-start',
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    overflow: 'hidden',
+    minHeight: 42,
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    maxWidth: '100%',
+  },
+  examChoiceChipPressed: {
+    opacity: 0.92,
+  },
+  examChoiceChipTrack: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.surface,
+  },
+  examChoiceChipFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.brand,
+  },
+  examChoiceChipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    zIndex: 1,
+  },
+  examChoiceChipLabel: {
+    flexShrink: 1,
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.sm,
+    lineHeight: 18,
+    color: colors.textPrimary,
+  },
+  examChoiceChipLabelOnFill: {
+    color: colors.onBrand,
+  },
+  examChoiceChipMeta: {
+    fontFamily: theme.typography.medium,
+    fontSize: 11,
+    lineHeight: 14,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  examChoiceChipMetaSelected: {
+    color: colors.onBrand,
+  },
+  searchShell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: colors.inputBorder,
+    borderRadius: theme.radius.input,
+    paddingHorizontal: 12,
+    backgroundColor: colors.surfaceSubtle,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.md,
+    color: colors.textPrimary,
+    paddingVertical: 10,
+  },
+  headerMeta: {
+    marginTop: 8,
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: colors.textMuted,
+  },
+  modalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  modalAlignEnd: {
+    width: '100%',
+    justifyContent: 'flex-end',
+    flex: 1,
+  },
+  sheetOuter: {
+    width: '100%',
+  },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: theme.radius.pill,
+    borderTopRightRadius: theme.radius.pill,
+    paddingTop: 8,
+    paddingHorizontal: theme.spacing.screenPaddingH,
+    overflow: 'hidden',
+  },
+  sheetFlex: {
+    flex: 1,
+  },
+  modalChrome: {
+    paddingBottom: 4,
+  },
+  modalGrab: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.borderSubtle,
+    marginBottom: 12,
+  },
+  modalTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  modalTitle: {
+    flex: 1,
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.lg,
+    color: colors.textPrimary,
+  },
+  modalClose: {
+    padding: 4,
+  },
+  modalFlatList: {
+    flex: 1,
+    minHeight: 200,
+  },
+  modalListContent: {
+    paddingBottom: 12,
+    flexGrow: 1,
+  },
+  modalRequestBar: {
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+  },
+  modalRequestButton: {
+    borderRadius: 24,
+    borderWidth: 0,
+    overflow: 'hidden',
+    minHeight: 48,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalRequestButtonDisabled: {
+    opacity: 0.42,
+  },
+  modalRequestButtonPressed: {
+    opacity: 0.92,
+  },
+  modalRequestTrack: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.borderSubtle,
+  },
+  modalRequestFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.brand,
+  },
+  modalRequestText: {
+    zIndex: 1,
+    fontFamily: theme.typography.bold,
+    fontSize: theme.fintSizes.md,
+    color: colors.textPrimary,
+  },
+  modalRequestTextOnBrand: {
+    color: colors.onBrand,
+  },
+  modalBodyFill: {
+    minHeight: 200,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+  },
+  modalBodyGrow: {
+    flex: 1,
+  },
+  footerBlock: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadMore: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  loadMoreText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: colors.textPrimary,
+  },
+  retrySmall: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  retrySmallText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: colors.brand,
+  },
+  errorInline: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.sm,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: colors.surface,
+  },
+  errorText: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.sm,
+    color: colors.textPrimary,
+    textAlign: 'center',
+  },
+  retry: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: theme.spacing.screenPaddingH,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  retryText: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.sm,
+    color: colors.textPrimary,
+  },
+  empty: {
+    paddingVertical: 32,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.sm,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
+  emptyCta: {
+    marginTop: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  emptyCtaPressed: {
+    opacity: 0.9,
+  },
+  emptyCtaText: {
+    fontFamily: theme.typography.bold,
+    fontSize: theme.fintSizes.md,
+    color: colors.textPrimary,
+  },
+  });
+}
+
 function SearchField({
   value,
   onChange,
   placeholder,
   accessibilityLabel,
+  styles,
+  colors,
 }: {
   value: string;
   onChange: (t: string) => void;
   placeholder: string;
   accessibilityLabel: string;
+  styles: ReturnType<typeof createOnboardingExamInterestsStyles>;
+  colors: ThemeColors;
 }) {
   return (
     <View style={styles.searchShell}>
-      <MaterialCommunityIcons name="magnify" size={22} color={theme.colors.textMuted} />
+      <MaterialCommunityIcons name="magnify" size={22} color={colors.textMuted} />
       <TextInput
         style={styles.searchInput}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor={theme.colors.textMuted}
+        placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
         autoCorrect={false}
         accessibilityLabel={accessibilityLabel}
       />
       {value.length > 0 ? (
         <Pressable onPress={() => onChange('')} hitSlop={8} accessibilityLabel="Clear search">
-          <MaterialCommunityIcons name="close-circle" size={20} color={theme.colors.textMuted} />
+          <MaterialCommunityIcons name="close-circle" size={20} color={colors.textMuted} />
         </Pressable>
       ) : null}
     </View>
@@ -86,6 +415,8 @@ function CategoryExamsModalBody({
   selectedExamIds,
   onToggleExam,
   bottomInset,
+  styles,
+  colors,
 }: {
   categoryId: number;
   categoryName: string;
@@ -98,6 +429,8 @@ function CategoryExamsModalBody({
     userCount?: number,
   ) => void;
   bottomInset: number;
+  styles: ReturnType<typeof createOnboardingExamInterestsStyles>;
+  colors: ThemeColors;
 }) {
   const [examSearch, setExamSearch] = useState('');
   const {
@@ -156,7 +489,7 @@ function CategoryExamsModalBody({
         </Pressable>
       );
     },
-    [selectedExamIds, onToggleExam],
+    [selectedExamIds, onToggleExam, styles],
   );
 
   const handleExamScroll = useCallback(
@@ -186,7 +519,7 @@ function CategoryExamsModalBody({
     return (
       <View style={styles.footerBlock}>
         {loadingMore ? (
-          <ActivityIndicator color={theme.colors.brand} />
+          <ActivityIndicator color={colors.brand} />
         ) : (
           <Pressable
             style={styles.loadMore}
@@ -199,7 +532,7 @@ function CategoryExamsModalBody({
         )}
       </View>
     );
-  }, [listError, items.length, hasMore, loadingMore, loadMore, refresh]);
+  }, [listError, items.length, hasMore, loadingMore, loadMore, refresh, styles, colors.brand]);
 
   const q = examSearch.trim();
   const emptyMessage =
@@ -240,6 +573,8 @@ function CategoryExamsModalBody({
         onChange={setExamSearch}
         placeholder="Search exams"
         accessibilityLabel="Search exams"
+        styles={styles}
+        colors={colors}
       />
       <Text style={[styles.modalHeaderMeta, styles.categoryChipMeta]}>
         {formatCompactCount(total)} exam{total === 1 ? '' : 's'}
@@ -256,9 +591,9 @@ function CategoryExamsModalBody({
     return (
       <View style={[styles.sheetOuter, { height: sheetMax }]}>
         <View style={[styles.sheet, styles.sheetFlex, { paddingBottom: bottomInset + 16 }]}>
-          <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} />
+          <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} styles={styles} colors={colors} />
           <View style={[styles.modalBodyFill, styles.modalBodyGrow]}>
-            <ActivityIndicator size="large" color={theme.colors.brand} />
+            <ActivityIndicator size="large" color={colors.brand} />
           </View>
         </View>
       </View>
@@ -269,7 +604,7 @@ function CategoryExamsModalBody({
     return (
       <View style={[styles.sheetOuter, { height: sheetMax }]}>
         <View style={[styles.sheet, styles.sheetFlex, { paddingBottom: bottomInset + 16 }]}>
-          <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} />
+          <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} styles={styles} colors={colors} />
           <View style={[styles.modalBodyFill, styles.modalBodyGrow]}>
             <Text style={styles.errorText}>{listError.message}</Text>
             <Pressable style={styles.retry} onPress={refresh}>
@@ -284,7 +619,7 @@ function CategoryExamsModalBody({
   return (
     <View style={[styles.sheetOuter, { height: sheetMax }]}>
       <View style={[styles.sheet, styles.sheetFlex]}>
-        <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} />
+        <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} styles={styles} colors={colors} />
         <ScrollView
           style={styles.modalFlatList}
           contentContainerStyle={styles.modalListContent}
@@ -356,7 +691,17 @@ function CategoryExamsModalBody({
   );
 }
 
-function ModalChrome({ title, onClose }: { title: string; onClose: () => void }) {
+function ModalChrome({
+  title,
+  onClose,
+  styles,
+  colors,
+}: {
+  title: string;
+  onClose: () => void;
+  styles: ReturnType<typeof createOnboardingExamInterestsStyles>;
+  colors: ThemeColors;
+}) {
   return (
     <View style={styles.modalChrome}>
       <View style={styles.modalGrab} accessibilityLabel="Sheet" />
@@ -371,7 +716,7 @@ function ModalChrome({ title, onClose }: { title: string; onClose: () => void })
           accessibilityRole="button"
           accessibilityLabel="Close"
         >
-          <MaterialCommunityIcons name="close" size={26} color={theme.colors.textPrimary} />
+          <MaterialCommunityIcons name="close" size={26} color={colors.textPrimary} />
         </Pressable>
       </View>
     </View>
@@ -382,6 +727,8 @@ function ModalChrome({ title, onClose }: { title: string; onClose: () => void })
  * Categories (search + chips) on the step; tapping a category opens a bottom modal with exam search + chips.
  */
 export function OnboardingExamInterestsScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createOnboardingExamInterestsStyles(colors), [colors]);
   const { draft, updateDraft } = useOnboardingDraft();
   const insets = useSafeAreaInsets();
   const [categorySearch, setCategorySearch] = useState('');
@@ -438,7 +785,7 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
   if (loading && !categories) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={theme.colors.brand} />
+        <ActivityIndicator size="large" color={colors.brand} />
       </View>
     );
   }
@@ -470,6 +817,8 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
             onChange={setCategorySearch}
             placeholder="Search categories"
             accessibilityLabel="Search categories"
+            styles={styles}
+            colors={colors}
           />
           <Text style={styles.headerMeta}>
             {formatCompactCount((categories ?? []).length)} categor{(categories ?? []).length === 1 ? 'y' : 'ies'}
@@ -584,6 +933,8 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
                 selectedExamIds={selectedExamIds}
                 onToggleExam={toggleExam}
                 bottomInset={insets.bottom}
+                styles={styles}
+                colors={colors}
               />
             ) : null}
           </View>
@@ -592,322 +943,4 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
     </View>
   );
 }
-const CHIP_GAP = 10;
-
-const styles = StyleSheet.create({
-  screenRoot: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  listFlex: {
-    flex: 1,
-  },
-  categoriesScrollContent: {
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingBottom: 16,
-    flexGrow: 1,
-  },
-  mainSearchBlock: {
-    paddingBottom: 12,
-  },
-  selectedExamsSection: {
-    marginBottom: 16,
-  },
-  selectedExamsSectionLabel: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    marginBottom: 10,
-  },
-  modalSearchBlock: {
-    paddingBottom: 12,
-    paddingTop: 4,
-  },
-  chipWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: CHIP_GAP,
-  },
-  modalHeaderMeta: {
-    marginTop: 8,
-  },
-  categoryChipMeta: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  /** Chip: subtle border; brand fill when selected (no check icon). */
-  examChoiceChip: {
-    alignSelf: 'flex-start',
-    borderRadius: theme.radius.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    overflow: 'hidden',
-    minHeight: 42,
-    justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    maxWidth: '100%',
-  },
-  examChoiceChipPressed: {
-    opacity: 0.92,
-  },
-  examChoiceChipTrack: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.surface,
-  },
-  examChoiceChipFill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.brand,
-  },
-  examChoiceChipRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    zIndex: 1,
-  },
-  examChoiceChipLabel: {
-    flexShrink: 1,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    lineHeight: 18,
-    color: theme.colors.textPrimary,
-  },
-  examChoiceChipLabelOnFill: {
-    color: '#ffffff',
-  },
-  examChoiceChipMeta: {
-    fontFamily: theme.typography.medium,
-    fontSize: 11,
-    lineHeight: 14,
-    color: theme.colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  examChoiceChipMetaSelected: {
-    color: '#ffffff',
-  },
-  searchShell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    borderRadius: theme.radius.input,
-    paddingHorizontal: 12,
-    backgroundColor: theme.colors.surfaceSubtle,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-    paddingVertical: 10,
-  },
-  headerMeta: {
-    marginTop: 8,
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-  modalRoot: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-  },
-  modalAlignEnd: {
-    width: '100%',
-    justifyContent: 'flex-end',
-    flex: 1,
-  },
-  sheetOuter: {
-    width: '100%',
-  },
-  sheet: {
-    backgroundColor: theme.colors.surface,
-    borderTopLeftRadius: theme.radius.pill,
-    borderTopRightRadius: theme.radius.pill,
-    paddingTop: 8,
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    overflow: 'hidden',
-  },
-  sheetFlex: {
-    flex: 1,
-  },
-  modalChrome: {
-    paddingBottom: 4,
-  },
-  modalGrab: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: theme.colors.borderSubtle,
-    marginBottom: 12,
-  },
-  modalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 4,
-  },
-  modalTitle: {
-    flex: 1,
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.lg,
-    color: theme.colors.textPrimary,
-  },
-  modalClose: {
-    padding: 4,
-  },
-  modalFlatList: {
-    flex: 1,
-    minHeight: 200,
-  },
-  modalListContent: {
-    paddingBottom: 12,
-    flexGrow: 1,
-  },
-  modalRequestBar: {
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.borderSubtle,
-    backgroundColor: '#ffffff',
-  },
-  modalRequestButton: {
-    borderRadius: 24,
-    borderWidth: 0,
-    overflow: 'hidden',
-    minHeight: 48,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalRequestButtonDisabled: {
-    opacity: 0.42,
-  },
-  modalRequestButtonPressed: {
-    opacity: 0.92,
-  },
-  modalRequestTrack: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.borderSubtle,
-  },
-  modalRequestFill: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: theme.colors.brand,
-  },
-  modalRequestText: {
-    zIndex: 1,
-    fontFamily: theme.typography.bold,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-  },
-  modalRequestTextOnBrand: {
-    color: theme.colors.onBrand,
-  },
-  modalBodyFill: {
-    minHeight: 200,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-  },
-  modalBodyGrow: {
-    flex: 1,
-  },
-  footerBlock: {
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadMore: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-  },
-  loadMoreText: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
-  },
-  retrySmall: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  retrySmallText: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
-  },
-  errorInline: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#ffffff',
-  },
-  errorText: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-  },
-  retry: {
-    marginTop: 16,
-    paddingVertical: 12,
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-  },
-  retryText: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
-  },
-  empty: {
-    paddingVertical: 32,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-    paddingHorizontal: 16,
-  },
-  emptyCta: {
-    marginTop: 20,
-    paddingVertical: 14,
-    paddingHorizontal: 28,
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: '#ffffff',
-    minWidth: 200,
-    alignItems: 'center',
-  },
-  emptyCtaPressed: {
-    opacity: 0.9,
-  },
-  emptyCtaText: {
-    fontFamily: theme.typography.bold,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-  },
-});
 

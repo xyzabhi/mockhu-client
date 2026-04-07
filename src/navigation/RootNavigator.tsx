@@ -26,6 +26,7 @@ import { MainTabNavigator } from './MainTabNavigator';
 import { PostCommentsScreen } from './screens/PostCommentsScreen';
 import { JobNotificationsScreen } from './screens/JobNotificationsScreen';
 import { MatchingJobsScreen } from './screens/MatchingJobsScreen';
+import { FollowListScreen } from './screens/FollowListScreen';
 import { SuggestedUsersScreen } from './screens/SuggestedUsersScreen';
 import { LegalInfoScreen, legalInfoTitle } from './screens/LegalInfoScreen';
 import { TrendingScreen } from './screens/TrendingScreen';
@@ -152,6 +153,14 @@ export function RootNavigator() {
             headerShown: true,
             title: 'Suggested for you',
           }}
+        />
+        <Stack.Screen
+          name="FollowList"
+          component={FollowListScreen}
+          options={({ route }) => ({
+            headerShown: true,
+            title: route.params.kind === 'followers' ? 'Followers' : 'Following',
+          })}
         />
         <Stack.Screen
           name="JobNotifications"

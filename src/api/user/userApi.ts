@@ -1,8 +1,9 @@
-import { apiDelete, apiGet, apiPost } from '../apiClient';
+import { apiDelete, apiGet, apiPost, apiPostMultipart } from '../apiClient';
 import type {
   FollowListQuery,
   FollowListResponse,
   FollowResponse,
+  MeAvatarUploadResponse,
   MeResponse,
   UserInterestsResponse,
   UserSuggestionsResponse,
@@ -12,6 +13,23 @@ import type {
 /** `GET /api/v1/me` — JWT required; not a public route. */
 export async function getCurrentUserProfile(): Promise<MeResponse> {
   return apiGet<MeResponse>('/me');
+}
+
+/**
+ * `POST /api/v1/me/avatar` — multipart; field `file` or `avatar`; max 2 MiB; JPEG/PNG/WebP/GIF.
+ * Send local `file://` / `content://` URIs (React Native). Do not set `Content-Type` on the request.
+ */
+export async function uploadMeAvatar(localUri: string): Promise<MeAvatarUploadResponse> {
+  const fd = new FormData();
+  fd.append(
+    'file',
+    {
+      uri: localUri,
+      name: 'avatar.jpg',
+      type: 'image/jpeg',
+    } as unknown as Blob,
+  );
+  return apiPostMultipart<MeAvatarUploadResponse>('/me/avatar', fd);
 }
 
 /** `GET /api/v1/users/:user_id/interests` — interests (separate from `/me`). */
@@ -116,6 +134,7 @@ export async function getUserSuggestions(params?: {
 
 export const userApi = {
   getCurrentUserProfile,
+  uploadMeAvatar,
   getUserInterests,
   followUser,
   unfollowUser,
