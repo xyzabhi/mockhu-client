@@ -217,7 +217,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
             accessibilityRole="button"
             accessibilityLabel={`Show ${n} more ${n === 1 ? 'reply' : 'replies'}`}
           >
-            <MaterialCommunityIcons name="chevron-down" size={18} color={colors.brand} />
+            <MaterialCommunityIcons name="chevron-down" size={16} color={colors.brand} />
             <Text style={styles.showMoreRepliesText}>
               Show {n} more {n === 1 ? 'reply' : 'replies'}
             </Text>
@@ -235,7 +235,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
           style={[styles.commentRow, isReply && styles.commentRowReply]}
           accessibilityRole="none"
         >
-          <UserAvatar seed={c.user_id} avatarUrl={c.author?.avatar_url} size={isReply ? 28 : 32} />
+          <UserAvatar seed={c.user_id} avatarUrl={c.author?.avatar_url} size={isReply ? 30 : 34} />
           <View style={styles.commentBody}>
             <View style={styles.commentHeaderRow}>
               <View style={styles.commentHeaderLeft}>
@@ -306,7 +306,8 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                     onPress={() => void onPressCommentStar(c)}
                     hitSlop={8}
                     style={({ pressed }) => [
-                      styles.commentLikeBtn,
+                      styles.commentLikeChip,
+                      c.starred_by_me && styles.commentLikeChipActive,
                       pressed && styles.commentLikeBtnPressed,
                     ]}
                     accessibilityRole="button"
@@ -316,10 +317,16 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                   >
                     <Ionicons
                       name={c.starred_by_me ? 'caret-up' : 'caret-up-outline'}
-                      size={24}
+                      size={18}
                       color={c.starred_by_me ? colors.brand : likeInactiveColor}
                     />
-                    <Text style={styles.commentLikeCount} maxFontSizeMultiplier={1.4}>
+                    <Text
+                      style={[
+                        styles.commentLikeCount,
+                        c.starred_by_me && styles.commentLikeCountActive,
+                      ]}
+                      maxFontSizeMultiplier={1.4}
+                    >
                       {c.star_count ?? 0}
                     </Text>
                   </Pressable>
@@ -513,9 +520,15 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                 }
                 ListEmptyComponent={
                   !loading ? (
-                    <Text style={styles.placeholder}>
-                      No comments yet. Be the first to say something.
-                    </Text>
+                    <View style={styles.emptyState}>
+                      <MaterialCommunityIcons
+                        name="comment-text-outline"
+                        size={44}
+                        color={colors.textHint}
+                      />
+                      <Text style={styles.placeholderLead}>No comments yet.</Text>
+                      <Text style={styles.placeholderSub}>Be the first to say something.</Text>
+                    </View>
                   ) : null
                 }
               />
@@ -580,7 +593,7 @@ function createStyles(colors: ThemeColors) {
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(15, 23, 42, 0.48)',
+      backgroundColor: 'rgba(15, 23, 42, 0.42)',
     },
     sheetWrap: {
       ...StyleSheet.absoluteFillObject,
@@ -590,14 +603,14 @@ function createStyles(colors: ThemeColors) {
     sheet: {
       width: '100%',
       backgroundColor: colors.surface,
-      borderTopLeftRadius: theme.radius.card,
-      borderTopRightRadius: theme.radius.card,
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
       overflow: 'hidden',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: -4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 16,
+      shadowOffset: { width: 0, height: -6 },
+      shadowOpacity: 0.14,
+      shadowRadius: 20,
+      elevation: 20,
     },
     flex1: {
       flex: 1,
@@ -605,20 +618,21 @@ function createStyles(colors: ThemeColors) {
     sheetTopBar: {
       alignItems: 'center',
       paddingTop: 10,
-      paddingBottom: 4,
+      paddingBottom: 6,
     },
     dragHint: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
+      width: 40,
+      height: 5,
+      borderRadius: 3,
       backgroundColor: colors.borderSubtle,
+      opacity: 0.85,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 4,
-      paddingBottom: 8,
+      paddingHorizontal: 8,
+      paddingBottom: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderSubtle,
     },
@@ -635,11 +649,12 @@ function createStyles(colors: ThemeColors) {
     },
     headerTitle: {
       fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.md,
+      fontSize: theme.fintSizes.lg,
       color: colors.textPrimary,
+      letterSpacing: -0.2,
     },
     headerMeta: {
-      marginTop: 2,
+      marginTop: 4,
       fontFamily: theme.typography.regular,
       fontSize: theme.fontSizes.meta,
       color: colors.textMuted,
@@ -653,8 +668,8 @@ function createStyles(colors: ThemeColors) {
     },
     listContent: {
       paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 8,
-      paddingBottom: 12,
+      paddingTop: 4,
+      paddingBottom: 16,
       flexGrow: 1,
     },
     listTop: {
@@ -684,6 +699,13 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    emptyState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 20,
+      marginTop: 8,
+    },
     placeholder: {
       fontFamily: theme.typography.regular,
       fontSize: theme.fintSizes.sm,
@@ -692,34 +714,54 @@ function createStyles(colors: ThemeColors) {
       paddingVertical: 24,
       textAlign: 'center',
     },
+    placeholderLead: {
+      marginTop: 2,
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    placeholderSub: {
+      marginTop: 6,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 22,
+      maxWidth: 260,
+    },
     commentRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 10,
-      marginBottom: 16,
+      gap: 12,
+      marginBottom: 20,
     },
     commentRowReply: {
-      marginLeft: 20,
-      paddingLeft: 10,
+      marginLeft: 8,
+      paddingLeft: 14,
       borderLeftWidth: 2,
-      borderLeftColor: colors.borderSubtle,
+      borderLeftColor: colors.brandLight,
     },
     /** Align with reply text column: thread indent + border + avatar + gap. */
     showMoreRepliesRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginLeft: 20,
-      paddingLeft: 10 + 28 + 10,
-      marginBottom: 12,
-      paddingVertical: 4,
+      marginLeft: 8,
+      paddingLeft: 14 + 30 + 12,
+      marginBottom: 16,
+      paddingVertical: 8,
+      paddingRight: 14,
+      alignSelf: 'flex-start',
+      borderRadius: 999,
+      backgroundColor: colors.brandLight,
     },
     showMoreRepliesRowPressed: {
-      opacity: 0.75,
+      opacity: 0.82,
     },
     showMoreRepliesText: {
       fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.sm,
+      fontSize: theme.fontSizes.meta,
       color: colors.brand,
     },
     commentBody: {
@@ -731,7 +773,7 @@ function createStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 8,
-      marginBottom: 6,
+      marginBottom: 4,
     },
     commentHeaderLeft: {
       flex: 1,
@@ -753,6 +795,7 @@ function createStyles(colors: ThemeColors) {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.sm,
       color: colors.textPrimary,
+      letterSpacing: -0.15,
       flexShrink: 1,
       minWidth: 0,
     },
@@ -780,37 +823,49 @@ function createStyles(colors: ThemeColors) {
       fontFamily: theme.typography.regular,
       fontSize: theme.fintSizes.sm,
       color: colors.textPrimary,
-      lineHeight: 22,
+      lineHeight: 23,
+      marginTop: 2,
     },
     commentActions: {
       flexDirection: 'row',
       alignItems: 'center',
       flexWrap: 'wrap',
-      gap: 12,
-      marginTop: 8,
+      gap: 8,
+      marginTop: 10,
     },
     actionBtn: {
-      paddingVertical: 4,
-      paddingRight: 8,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceSubtle,
     },
     actionBtnPressed: {
-      opacity: 0.75,
+      opacity: 0.85,
     },
     actionBtnText: {
-      fontFamily: theme.typography.medium,
-      fontSize: theme.fintSizes.xs,
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fontSizes.meta,
       color: colors.brand,
     },
     actionBtnTextActive: {
       color: colors.textMuted,
     },
     inlineReplyBox: {
-      marginTop: 10,
-      padding: 12,
-      borderRadius: theme.radius.input,
-      borderWidth: theme.borderWidth.default,
-      borderColor: colors.borderSubtle,
+      marginTop: 12,
+      padding: 14,
+      borderRadius: 16,
+      borderWidth: 0,
       backgroundColor: colors.surfaceSubtle,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+        },
+        android: { elevation: 1 },
+        default: {},
+      }),
     },
     inlineReplyHeader: {
       flexDirection: 'row',
@@ -839,12 +894,21 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       minHeight: 44,
       maxHeight: 120,
-      borderRadius: theme.radius.input,
-      borderWidth: theme.borderWidth.default,
-      borderColor: colors.borderSubtle,
+      borderRadius: 22,
+      borderWidth: 0,
       backgroundColor: colors.surface,
-      paddingHorizontal: 12,
+      paddingHorizontal: 14,
       paddingVertical: 10,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+        },
+        android: { elevation: 1 },
+        default: {},
+      }),
     },
     inlineInput: {
       fontFamily: theme.typography.regular,
@@ -854,21 +918,29 @@ function createStyles(colors: ThemeColors) {
       maxHeight: 100,
       padding: 0,
     },
-    commentLikeBtn: {
+    commentLikeChip: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 4,
-      paddingVertical: 4,
-      paddingRight: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      backgroundColor: colors.surfaceSubtle,
+    },
+    commentLikeChipActive: {
+      backgroundColor: colors.brandLight,
     },
     commentLikeBtnPressed: {
-      opacity: 0.75,
+      opacity: 0.82,
     },
     commentLikeCount: {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fontSizes.meta,
       color: colors.textMuted,
-      minWidth: 18,
+      minWidth: 16,
+    },
+    commentLikeCountActive: {
+      color: colors.brand,
     },
     footerLoad: {
       paddingVertical: 16,
@@ -892,9 +964,9 @@ function createStyles(colors: ThemeColors) {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.borderSubtle,
       paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 10,
-      paddingBottom: 10,
-      backgroundColor: colors.surface,
+      paddingTop: 12,
+      paddingBottom: 12,
+      backgroundColor: colors.surfaceSubtle,
     },
     /** Reply UI moves inline under the comment; keep a slim bar for sign-in hint only. */
     composerOuterCollapsed: {
@@ -916,12 +988,21 @@ function createStyles(colors: ThemeColors) {
       flex: 1,
       minHeight: 44,
       maxHeight: 120,
-      borderRadius: theme.radius.input,
-      borderWidth: theme.borderWidth.default,
-      borderColor: colors.borderSubtle,
-      backgroundColor: colors.surfaceSubtle,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
+      borderRadius: 22,
+      borderWidth: 0,
+      backgroundColor: colors.surface,
+      paddingHorizontal: 16,
+      paddingVertical: 11,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 4,
+        },
+        android: { elevation: 1 },
+        default: {},
+      }),
     },
     input: {
       fontFamily: theme.typography.regular,
@@ -935,16 +1016,24 @@ function createStyles(colors: ThemeColors) {
       width: 44,
       height: 44,
       borderRadius: 22,
-      borderWidth: 1,
-      borderColor: colors.buttonBorder,
+      borderWidth: 0,
       backgroundColor: colors.brand,
       alignItems: 'center',
       justifyContent: 'center',
     },
     sendBtnDisabled: {
-      borderWidth: 1,
-      borderColor: colors.borderSubtle,
-      backgroundColor: colors.borderSubtle,
+      borderWidth: 0,
+      backgroundColor: colors.surface,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 3,
+        },
+        android: { elevation: 0 },
+        default: {},
+      }),
     },
     sendBtnPressed: {
       opacity: 0.88,

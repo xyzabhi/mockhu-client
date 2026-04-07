@@ -41,7 +41,7 @@ import {
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
 import type { PostResponse } from '../../api/post/types';
-import { BrandLogo } from '../../shared/components/BrandLogo';
+import { BrandLogo, BRAND_LOGO_ASPECT } from '../../shared/components/BrandLogo';
 import { LevelBadge } from '../../shared/components/LevelBadge';
 import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
@@ -745,11 +745,11 @@ function createHomeStyles(colors: ThemeColors) {
       flex: 1,
     },
     listContent: {
-      paddingBottom: 24,
+      paddingHorizontal: 12,
+      paddingBottom: 28,
     },
     postSeparator: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors.footerLinkUnderline,
+      height: 10,
     },
     centered: {
       flex: 1,
@@ -849,7 +849,7 @@ function createHomeStyles(colors: ThemeColors) {
     },
     drawerBrandLogo: {
       height: 64,
-      width: 64,
+      aspectRatio: BRAND_LOGO_ASPECT,
       flexShrink: 0,
       borderRadius: theme.radius.card,
     },

@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -10,7 +11,7 @@ import { useUserSuggestions } from '../../api';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 import { navigationRef } from '../../navigation/navigationRef';
-import { SuggestedUserRow } from './SuggestedUserRow';
+import { SuggestedUserCard } from './SuggestedUserRow';
 
 const PREVIEW_COUNT = 5;
 
@@ -63,9 +64,17 @@ export function SuggestedForYouSection() {
           <Text style={styles.seeAll}>See all</Text>
         </Pressable>
       </View>
-      {preview.map((u) => (
-        <SuggestedUserRow key={u.id} item={u} />
-      ))}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.suggestionsScroll}
+        decelerationRate="fast"
+        accessibilityRole="list"
+      >
+        {preview.map((u) => (
+          <SuggestedUserCard key={u.id} item={u} />
+        ))}
+      </ScrollView>
     </View>
   );
 }
@@ -74,23 +83,31 @@ function createSectionStyles(colors: ThemeColors) {
   return StyleSheet.create({
     card: {
       marginTop: 20,
-      paddingVertical: 12,
+      paddingTop: 16,
+      paddingBottom: 14,
       paddingHorizontal: 16,
-      borderRadius: theme.radius.card,
+      borderRadius: 16,
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderSubtle,
     },
     sectionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 4,
+      marginBottom: 12,
     },
     sectionTitle: {
       fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.md,
+      fontSize: theme.fintSizes.lg,
       color: colors.textPrimary,
+      letterSpacing: -0.2,
+    },
+    suggestionsScroll: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      paddingBottom: 4,
+      paddingRight: 4,
     },
     seeAll: {
       fontFamily: theme.typography.medium,

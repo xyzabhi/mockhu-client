@@ -20,7 +20,7 @@ import { GradeScreen } from './presentation/screens/GradeScreen';
 import { OnboardingExamInterestsScreen } from './presentation/screens/OnboardingExamInterestsScreen';
 import { NameGenderScreen } from './presentation/screens/NameGenderScreen';
 import { PhotoUsernameScreen } from './presentation/screens/PhotoUsername';
-import { BrandLogo } from '../../shared/components/BrandLogo';
+import { BrandLogo, BRAND_LOGO_ASPECT } from '../../shared/components/BrandLogo';
 import { theme } from '../../presentation/theme/theme';
 import type { OnboardingStepScreenProps } from './onboardingStepTypes';
 
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   brandLogo: {
     height: 56,
-    width: 56,
+    aspectRatio: BRAND_LOGO_ASPECT,
     maxWidth: '100%',
     borderRadius: theme.radius.card,
   },

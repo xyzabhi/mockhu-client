@@ -387,7 +387,11 @@ export function PostCard({
       <View style={styles.cardFooter}>
         <View style={styles.footerLeft}>
           <Pressable
-            style={({ pressed }) => [styles.votePill, pressed && styles.pillPressed]}
+            style={({ pressed }) => [
+              styles.votePill,
+              starred && styles.votePillActive,
+              pressed && styles.pillPressed,
+            ]}
             onPress={() => void submitStar()}
             accessibilityRole="button"
             accessibilityLabel={starred ? 'Liked' : 'Like post'}
@@ -396,10 +400,13 @@ export function PostCard({
           >
             <Ionicons
               name={starred ? 'caret-up' : 'caret-up-outline'}
-              size={24}
+              size={22}
               color={starred ? colors.brand : likeInactiveColor}
             />
-            <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
+            <Text
+              style={[styles.voteScore, starred && styles.voteScoreActive]}
+              maxFontSizeMultiplier={1.4}
+            >
               {starCount}
             </Text>
           </Pressable>
@@ -409,7 +416,7 @@ export function PostCard({
             accessibilityRole="button"
             accessibilityLabel={`Comments, ${post.comment_count}`}
           >
-            <Octicons name="comment" size={24} color={colors.textPrimary} />
+            <Octicons name="comment" size={22} color={colors.textMuted} />
             <Text style={styles.replyCountText} maxFontSizeMultiplier={1.4}>
               {post.comment_count}
             </Text>
@@ -422,7 +429,7 @@ export function PostCard({
             accessibilityRole="button"
             accessibilityLabel="Save"
           >
-            <MaterialCommunityIcons name="bookmark-outline" size={22} color={colors.textPrimary} />
+            <MaterialCommunityIcons name="bookmark-outline" size={20} color={colors.textMuted} />
           </Pressable>
         </View>
       </View>
@@ -431,24 +438,39 @@ export function PostCard({
 }
 
 function createPostCardStyles(colors: ThemeColors) {
+  const cardShadow = Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+    },
+    android: {
+      elevation: 2,
+    },
+    default: {},
+  });
+
   return StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    paddingVertical: theme.spacing.cardPaddingV,
+    paddingVertical: 14,
     paddingHorizontal: theme.spacing.cardPaddingH,
-    borderWidth: theme.borderWidth.default,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderSubtle,
+    ...cardShadow,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 12,
   },
   avatarWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: colors.brandLight,
     alignItems: 'center',
@@ -540,20 +562,21 @@ function createPostCardStyles(colors: ThemeColors) {
     fontSize: theme.fintSizes.lg,
     color: colors.textPrimary,
     lineHeight: 26,
-    marginBottom: 6,
+    letterSpacing: -0.2,
+    marginBottom: 8,
   },
   content: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
     lineHeight: 24,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   singleImage: {
     width: '100%',
     aspectRatio: 16 / 10,
-    borderRadius: theme.radius.badge,
-    marginBottom: 10,
+    borderRadius: 12,
+    marginBottom: 12,
     backgroundColor: colors.surfaceSubtle,
   },
   imageStrip: {
@@ -563,16 +586,17 @@ function createPostCardStyles(colors: ThemeColors) {
   thumb: {
     width: 120,
     height: 120,
-    borderRadius: theme.radius.badge,
+    borderRadius: 12,
     marginRight: 8,
     backgroundColor: colors.surfaceSubtle,
   },
   linkCard: {
     flexDirection: 'row',
-    borderWidth: 1,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderSubtle,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: 12,
     backgroundColor: colors.surfaceSubtle,
   },
   linkCardPressed: {
@@ -581,14 +605,14 @@ function createPostCardStyles(colors: ThemeColors) {
   linkImg: {
     width: 88,
     height: 88,
-    backgroundColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkImgPlaceholder: {
     width: 88,
     height: 88,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: colors.brandLight,
   },
   linkText: {
     flex: 1,
@@ -618,8 +642,11 @@ function createPostCardStyles(colors: ThemeColors) {
     alignItems: 'center',
     alignSelf: 'stretch',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 4,
+    paddingTop: 12,
     gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
   },
   /** Like + comment pills — grouped on the left. */
   footerLeft: {
@@ -640,14 +667,16 @@ function createPostCardStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.pill,
-    borderWidth: theme.borderWidth.default,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
-    minHeight: 38,
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSubtle,
+    minHeight: 36,
+  },
+  votePillActive: {
+    backgroundColor: colors.brandLight,
   },
   pillPressed: {
     opacity: 0.82,
@@ -659,18 +688,20 @@ function createPostCardStyles(colors: ThemeColors) {
     minWidth: 28,
     textAlign: 'center',
   },
+  voteScoreActive: {
+    color: colors.brand,
+  },
   replyPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.pill,
-    borderWidth: theme.borderWidth.default,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSubtle,
     maxWidth: '100%',
-    minHeight: 38,
+    minHeight: 36,
   },
   replyCountText: {
     fontFamily: theme.typography.semiBold,
@@ -682,12 +713,11 @@ function createPostCardStyles(colors: ThemeColors) {
   bookmarkBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 38,
-    height: 38,
-    borderRadius: theme.radius.badge,
-    borderWidth: theme.borderWidth.default,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSubtle,
   },
   });
 }

@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
 import { isUsableAvatarDraftUri } from '../../onboardingDraft';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
@@ -18,10 +23,199 @@ import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 16;
 const AVATAR = 144;
+const INPUT_RADIUS = 24;
+
+function createPhotoUsernameStyles(colors: ThemeColors) {
+  const inputShadow = Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+    },
+    android: { elevation: 1 },
+    default: {},
+  });
+
+  const clearShadow = Platform.select({
+    ios: {
+      shadowOpacity: 0,
+      shadowRadius: 0,
+    },
+    android: { elevation: 0 },
+    default: {},
+  });
+
+  return StyleSheet.create({
+    scroll: {
+      flex: 1,
+      backgroundColor: colors.surface,
+    },
+    scrollContent: {
+      paddingHorizontal: theme.spacing.screenPaddingH,
+      paddingTop: 4,
+      paddingBottom: 32,
+    },
+    sectionLabel: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textMuted,
+      marginBottom: 12,
+      letterSpacing: 0.2,
+      textTransform: 'uppercase',
+    },
+    avatarBlock: {
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    avatarPressable: {
+      borderRadius: AVATAR / 2 + 8,
+    },
+    avatarPressablePressed: {
+      opacity: 0.92,
+      transform: [{ scale: 0.98 }],
+    },
+    avatarRing: {
+      width: AVATAR,
+      height: AVATAR,
+      borderRadius: AVATAR / 2,
+      overflow: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarRingDefault: {
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.brand,
+    },
+    avatarRingFilled: {
+      backgroundColor: colors.surfaceSubtle,
+      borderWidth: 3,
+      borderColor: colors.surface,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.12,
+      shadowRadius: 16,
+      elevation: 6,
+    },
+    avatarImage: {
+      width: '100%',
+      height: '100%',
+    },
+    editBadge: {
+      position: 'absolute',
+      bottom: 8,
+      right: 8,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    photoActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 20,
+      marginTop: 14,
+      minHeight: 24,
+    },
+    textLink: {
+      paddingVertical: 4,
+    },
+    textLinkPressed: {
+      opacity: 0.65,
+    },
+    textLinkLabel: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.sm,
+      color: colors.brand,
+    },
+    textLinkMuted: {
+      paddingVertical: 4,
+    },
+    textLinkMutedLabel: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textMuted,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.borderSubtle,
+      marginVertical: 24,
+    },
+    usernameShell: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 52,
+      borderRadius: INPUT_RADIUS,
+      paddingLeft: 4,
+      paddingRight: 12,
+      overflow: 'hidden',
+    },
+    usernameShellIdle: {
+      borderWidth: 0,
+      backgroundColor: colors.surface,
+      ...inputShadow,
+    },
+    usernameShellFocused: {
+      borderWidth: 2,
+      borderColor: colors.brand,
+      backgroundColor: colors.surface,
+      ...clearShadow,
+    },
+    usernamePrefix: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.lg,
+      color: colors.textMuted,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    usernamePrefixActive: {
+      color: colors.brand,
+    },
+    usernameInput: {
+      flex: 1,
+      minHeight: 48,
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+      paddingVertical: 12,
+      paddingRight: 6,
+    },
+    usernameInputTrail: {
+      minWidth: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    charMetaInline: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.xs,
+      color: colors.textMuted,
+      fontVariant: ['tabular-nums'],
+    },
+    usernameHint: {
+      marginTop: 8,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.xs,
+      color: colors.textMuted,
+    },
+  });
+}
 
 export function PhotoUsernameScreen({
   onStepValidityChange,
 }: OnboardingStepScreenProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createPhotoUsernameStyles(colors), [colors]);
   const { draft, updateDraft } = useOnboardingDraft();
   /** `null` = show default avatar; set when user picks a custom photo (file://, content://, https://, …). */
   const [photoUri, setPhotoUri] = useState<string | null>(() => {
@@ -102,7 +296,7 @@ export function PhotoUsernameScreen({
                   <MaterialCommunityIcons
                     name="camera-outline"
                     size={18}
-                    color={theme.colors.textPrimary}
+                    color={colors.textPrimary}
                   />
                 </View>
               </>
@@ -110,7 +304,7 @@ export function PhotoUsernameScreen({
               <MaterialCommunityIcons
                 name="account"
                 size={Math.round(AVATAR * 0.45)}
-                color={theme.colors.brand}
+                color={colors.brand}
               />
             )}
           </View>
@@ -141,11 +335,17 @@ export function PhotoUsernameScreen({
       <View
         style={[
           styles.usernameShell,
-          usernameFocused && styles.usernameShellFocused,
-          !usernameFocused && usernameLengthOk && styles.usernameShellValid,
+          usernameFocused ? styles.usernameShellFocused : styles.usernameShellIdle,
         ]}
       >
-        <Text style={styles.usernamePrefix}>@</Text>
+        <Text
+          style={[
+            styles.usernamePrefix,
+            usernameFocused && styles.usernamePrefixActive,
+          ]}
+        >
+          @
+        </Text>
         <TextInput
           style={styles.usernameInput}
           value={username}
@@ -153,7 +353,7 @@ export function PhotoUsernameScreen({
           onFocus={() => setUsernameFocused(true)}
           onBlur={() => setUsernameFocused(false)}
           placeholder="username"
-          placeholderTextColor={theme.colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={USERNAME_MAX}
@@ -165,7 +365,7 @@ export function PhotoUsernameScreen({
             <MaterialCommunityIcons
               name="check-circle"
               size={22}
-              color={theme.colors.brand}
+              color={colors.brand}
               accessibilityLabel="Username valid"
             />
           ) : (
@@ -176,171 +376,10 @@ export function PhotoUsernameScreen({
         </View>
       </View>
       {!usernameLengthOk && normalizedUsername.length > 0 ? (
-        <Text style={styles.usernameHint}>{USERNAME_MIN}–{USERNAME_MAX} characters</Text>
+        <Text style={styles.usernameHint}>
+          {USERNAME_MIN}–{USERNAME_MAX} characters
+        </Text>
       ) : null}
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  scrollContent: {
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 4,
-    paddingBottom: 32,
-  },
-  sectionLabel: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-    marginBottom: 12,
-    letterSpacing: 0.2,
-    textTransform: 'uppercase',
-  },
-  avatarBlock: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  avatarPressable: {
-    borderRadius: AVATAR / 2 + 8,
-  },
-  avatarPressablePressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.98 }],
-  },
-  avatarRing: {
-    width: AVATAR,
-    height: AVATAR,
-    borderRadius: AVATAR / 2,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarRingDefault: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 2,
-    borderColor: theme.colors.brand,
-  },
-  avatarRingFilled: {
-    backgroundColor: '#F3F4F6',
-    borderWidth: 3,
-    borderColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  photoActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 20,
-    marginTop: 14,
-    minHeight: 24,
-  },
-  textLink: {
-    paddingVertical: 4,
-  },
-  textLinkPressed: {
-    opacity: 0.65,
-  },
-  textLinkLabel: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
-  },
-  textLinkMuted: {
-    paddingVertical: 4,
-  },
-  textLinkMutedLabel: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: theme.colors.borderSubtle,
-    marginVertical: 24,
-  },
-  usernameShell: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 56,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    borderRadius: 14,
-    backgroundColor: '#FAFAFA',
-    paddingLeft: 4,
-    paddingRight: 10,
-    overflow: 'hidden',
-  },
-  usernameShellFocused: {
-    borderColor: theme.colors.brand,
-    borderWidth: 2,
-    backgroundColor: '#ffffff',
-  },
-  usernameShellValid: {
-    borderColor: theme.colors.brand,
-    borderWidth: 2,
-    backgroundColor: '#ffffff',
-  },
-  usernamePrefix: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.lg,
-    color: theme.colors.textMuted,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  usernameInput: {
-    flex: 1,
-    minHeight: 52,
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-    paddingVertical: 12,
-    paddingRight: 6,
-  },
-  usernameInputTrail: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  charMetaInline: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
-  usernameHint: {
-    marginTop: 8,
-    fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
-  },
-});

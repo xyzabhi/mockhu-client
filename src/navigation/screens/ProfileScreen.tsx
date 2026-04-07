@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -184,8 +185,8 @@ function createProfileStyles(colors: ThemeColors) {
     },
     avatarRow: {
       alignItems: 'center',
-      marginTop: 8,
-      marginBottom: 16,
+      marginTop: 4,
+      marginBottom: 18,
     },
     nameRow: {
       alignSelf: 'stretch',
@@ -226,13 +227,23 @@ function createProfileStyles(colors: ThemeColors) {
     countsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 20,
-      paddingVertical: 14,
+      marginTop: 22,
+      paddingVertical: 16,
       paddingHorizontal: 16,
-      borderRadius: theme.radius.card,
+      borderRadius: 16,
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderSubtle,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+        },
+        android: { elevation: 2 },
+        default: {},
+      }),
     },
     countBlock: {
       flex: 1,
@@ -256,13 +267,13 @@ function createProfileStyles(colors: ThemeColors) {
       backgroundColor: colors.borderSubtle,
     },
     logoutButton: {
-      marginTop: 16,
+      marginTop: 20,
       alignSelf: 'flex-start',
       minWidth: 140,
       paddingVertical: 12,
       paddingHorizontal: 20,
-      borderRadius: 24,
-      borderWidth: 1,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderSubtle,
       backgroundColor: colors.surface,
       alignItems: 'center',

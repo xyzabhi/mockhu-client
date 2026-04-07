@@ -592,7 +592,6 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
     </View>
   );
 }
-
 const CHIP_GAP = 10;
 
 const styles = StyleSheet.create({
@@ -911,3 +910,4 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
   },
 });
+
