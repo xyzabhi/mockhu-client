@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -313,9 +314,9 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                     accessibilityHint={`${c.star_count ?? 0} likes`}
                     accessibilityState={{ selected: c.starred_by_me === true }}
                   >
-                    <MaterialCommunityIcons
-                      name={c.starred_by_me ? 'thumb-up' : 'thumb-up-outline'}
-                      size={18}
+                    <Ionicons
+                      name={c.starred_by_me ? 'caret-up' : 'caret-up-outline'}
+                      size={24}
                       color={c.starred_by_me ? colors.brand : likeInactiveColor}
                     />
                     <Text style={styles.commentLikeCount} maxFontSizeMultiplier={1.4}>

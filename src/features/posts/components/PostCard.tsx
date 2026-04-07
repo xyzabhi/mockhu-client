@@ -1,4 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Octicons from '@expo/vector-icons/Octicons';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
@@ -392,9 +394,9 @@ export function PostCard({
             accessibilityHint={`${starCount} likes`}
             accessibilityState={{ selected: starred }}
           >
-            <MaterialCommunityIcons
-              name={starred ? 'thumb-up' : 'thumb-up-outline'}
-              size={20}
+            <Ionicons
+              name={starred ? 'caret-up' : 'caret-up-outline'}
+              size={24}
               color={starred ? colors.brand : likeInactiveColor}
             />
             <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
@@ -407,7 +409,7 @@ export function PostCard({
             accessibilityRole="button"
             accessibilityLabel={`Comments, ${post.comment_count}`}
           >
-            <MaterialCommunityIcons name="message-outline" size={20} color={colors.textPrimary} />
+            <Octicons name="comment" size={24} color={colors.textPrimary} />
             <Text style={styles.replyCountText} maxFontSizeMultiplier={1.4}>
               {post.comment_count}
             </Text>
