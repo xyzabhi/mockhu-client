@@ -27,6 +27,7 @@ export type AvatarImageCropPickerProps = {
 };
 
 const DEFAULT_DISPLAY = 144;
+type CropAsset = { uri: string; width?: number; height?: number };
 
 /**
  * Profile photo picker with a custom themed crop step (pan + zoom), then JPEG export.
@@ -41,7 +42,7 @@ export function AvatarImageCropPicker({
   const styles = useMemo(() => createStyles(colors, displaySize), [colors, displaySize]);
   const { width: windowW } = useWindowDimensions();
 
-  const [cropUri, setCropUri] = useState<string | null>(null);
+  const [cropAsset, setCropAsset] = useState<CropAsset | null>(null);
   const [cropVisible, setCropVisible] = useState(false);
 
   const cropViewportSize = useMemo(
@@ -71,22 +72,27 @@ export function AvatarImageCropPicker({
       quality: 1,
     });
 
-    if (result.canceled || !result.assets[0]?.uri) return;
-    setCropUri(result.assets[0].uri);
+    if (result.canceled || !result.assets?.[0]?.uri) return;
+    const asset = result.assets[0];
+    setCropAsset({
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+    });
     setCropVisible(true);
   }, []);
 
   const onCropped = useCallback(
     (uri: string) => {
       onChange(uri);
-      setCropUri(null);
+      setCropAsset(null);
       setCropVisible(false);
     },
     [onChange],
   );
 
   const closeCrop = useCallback(() => {
-    setCropUri(null);
+    setCropAsset(null);
     setCropVisible(false);
   }, []);
 
@@ -155,8 +161,10 @@ export function AvatarImageCropPicker({
       </View>
 
       <AvatarCropModal
-        visible={cropVisible && cropUri != null}
-        uri={cropUri}
+        visible={cropVisible && cropAsset != null}
+        uri={cropAsset?.uri ?? null}
+        initialWidth={cropAsset?.width}
+        initialHeight={cropAsset?.height}
         onClose={closeCrop}
         onConfirm={onCropped}
         cropViewportSize={cropViewportSize}

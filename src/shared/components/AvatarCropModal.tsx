@@ -25,6 +25,9 @@ const ZOOM_STEP = 0.15;
 type Props = {
   visible: boolean;
   uri: string | null;
+  /** Optional dimensions from picker result; avoids Android `Image.getSize` failures. */
+  initialWidth?: number;
+  initialHeight?: number;
   onClose: () => void;
   /** Called with JPEG file URI after crop */
   onConfirm: (croppedUri: string) => void;
@@ -35,6 +38,8 @@ type Props = {
 export function AvatarCropModal({
   visible,
   uri,
+  initialWidth,
+  initialHeight,
   onClose,
   onConfirm,
   cropViewportSize,
@@ -74,6 +79,19 @@ export function AvatarCropModal({
       setZoom(1);
       return;
     }
+    if (
+      typeof initialWidth === 'number' &&
+      Number.isFinite(initialWidth) &&
+      initialWidth > 0 &&
+      typeof initialHeight === 'number' &&
+      Number.isFinite(initialHeight) &&
+      initialHeight > 0
+    ) {
+      setNaturalW(initialWidth);
+      setNaturalH(initialHeight);
+      setLoadingMeta(false);
+      return;
+    }
     setLoadingMeta(true);
     setMetaError(null);
     Image.getSize(
@@ -88,7 +106,7 @@ export function AvatarCropModal({
         setLoadingMeta(false);
       },
     );
-  }, [visible, uri]);
+  }, [visible, uri, initialWidth, initialHeight]);
 
   useEffect(() => {
     if (!naturalW || !naturalH) return;

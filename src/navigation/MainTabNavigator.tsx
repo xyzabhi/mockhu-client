@@ -185,14 +185,15 @@ export function MainTabNavigator() {
           tabBarIcon: ({ color, size, focused }) => (
             <View
               style={{
-                width: (size ?? TAB_ICON_SIZE) + 10,
-                height: (size ?? TAB_ICON_SIZE) + 10,
-                borderRadius: ((size ?? TAB_ICON_SIZE) + 10) / 2,
+                width: (size ?? TAB_ICON_SIZE) + 8,
+                height: (size ?? TAB_ICON_SIZE) + 8,
+                borderRadius: ((size ?? TAB_ICON_SIZE) + 8) / 2,
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderWidth: focused ? 1.5 : 1,
-                borderColor: focused ? colors.brand : `${color}80`,
-                backgroundColor: focused ? `${colors.brand}1A` : `${color}0F`,
+                padding: 2,
+                borderWidth: 2,
+                borderColor: focused ? colors.brand : '#000000',
+                backgroundColor: colors.surface,
               }}
             >
               <UserAvatar
