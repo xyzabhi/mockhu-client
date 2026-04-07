@@ -24,6 +24,14 @@ export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   SuggestedUsers: undefined;
+  /** Job alerts matched to profile / exams (placeholder until API). */
+  JobNotifications: undefined;
+  /** Job listings matched to interests (placeholder until API). */
+  MatchingJobs: undefined;
+  /** Trending posts and topics (placeholder until API). */
+  Trending: undefined;
+  /** News, privacy, rules, or user agreement (static / placeholder content). */
+  LegalInfo: { kind: 'news' | 'privacy' | 'rules' | 'agreement' };
   /** Main tab shell (avoid naming this `Home` — tab stack also has a `Home` tab). */
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   /** Thread / composer for a post (opened from feed). */

@@ -26,14 +26,18 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  clearSession,
+  examCatalogApi,
   normalizeTokenUserProfile,
   useFollowList,
   useHomeFeed,
   useSession,
   useUserInterests,
+  type Exam,
 } from '../../api';
 import { resolveLevelBadgeFromUser } from '../../badge/progressionDisplay';
 import { PostCard } from '../../features/posts/components/PostCard';
+import { ThemeAppearanceToggle } from '../../presentation/theme/ThemeAppearanceToggle';
 import { theme } from '../../presentation/theme/theme';
 import {
   type ThemeColors,
@@ -43,7 +47,7 @@ import {
 import type { PostResponse } from '../../api/post/types';
 import { BrandLogo, BRAND_LOGO_ASPECT } from '../../shared/components/BrandLogo';
 import { LevelBadge } from '../../shared/components/LevelBadge';
-import { UserAvatar } from '../../shared/components/UserAvatar';
+import { resetToRoute } from '../navigationRef';
 import type { RootStackParamList } from '../types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -55,6 +59,9 @@ const FEED_CHIPS: { id: HomeFeedFilter; label: string }[] = [
   /** Posts whose `exam_id` is in `exam_ids` or in categories from `exam_category_ids`. */
   { id: 'topic', label: 'Topic' },
 ];
+
+/** Extra space between the floating search/chips header and the first post. */
+const FEED_BELOW_HEADER_GAP = 12;
 
 /** Rotating hint after “Search ” in the home search bar (fade animation). */
 const SEARCH_PLACEHOLDER_WORDS = [
@@ -122,6 +129,10 @@ export function HomeFeedScreen() {
   const searchHintTranslateY = useRef(new Animated.Value(0)).current;
   const skipSearchHintFadeInRef = useRef(true);
   const [feedFilter, setFeedFilter] = useState<HomeFeedFilter>('all');
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const logoutInFlightRef = useRef(false);
+  const [drawerFollowingOpen, setDrawerFollowingOpen] = useState(true);
+  const [drawerResourcesOpen, setDrawerResourcesOpen] = useState(true);
 
   const showAnimatedSearchHint = query.length === 0 && !searchFocused;
 
@@ -200,6 +211,51 @@ export function HomeFeedScreen() {
     loading: interestsLoading,
     error: interestsError,
   } = useUserInterests(currentUserId);
+
+  const uniqueExamIds = useMemo(
+    () => [...new Set(examIdsForFilter)].sort((a, b) => a - b),
+    [examIdsForFilter],
+  );
+
+  const [followedExamMeta, setFollowedExamMeta] = useState<Map<number, Exam>>(new Map());
+
+  useEffect(() => {
+    if (uniqueExamIds.length === 0) {
+      setFollowedExamMeta(new Map());
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const pairs = await Promise.all(
+        uniqueExamIds.map(async (id) => {
+          try {
+            const e = await examCatalogApi.getExam(id);
+            return [id, e] as const;
+          } catch {
+            return [id, null] as const;
+          }
+        }),
+      );
+      if (cancelled) return;
+      const next = new Map<number, Exam>();
+      for (const [id, e] of pairs) {
+        if (e) next.set(id, e);
+      }
+      setFollowedExamMeta(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [uniqueExamIds]);
+
+  const followingExamsList = useMemo(() => {
+    const rows = uniqueExamIds.map((id) => ({
+      id,
+      name: followedExamMeta.get(id)?.name?.trim() ?? `Exam #${id}`,
+    }));
+    rows.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    return rows;
+  }, [uniqueExamIds, followedExamMeta]);
 
   const {
     posts,
@@ -361,9 +417,46 @@ export function HomeFeedScreen() {
     closeDrawer(() => navigation.navigate('SuggestedUsers'));
   }, [closeDrawer, navigation]);
 
-  const firstName = profile?.first_name?.trim() ?? '';
-  const usernameDrawer = profile?.username?.trim() ?? '';
-  const drawerDisplayName = firstName || 'You';
+  const goTrending = useCallback(() => {
+    closeDrawer(() => navigation.navigate('Trending'));
+  }, [closeDrawer, navigation]);
+
+  const goJobNotifications = useCallback(() => {
+    closeDrawer(() => navigation.navigate('JobNotifications'));
+  }, [closeDrawer, navigation]);
+
+  const goMatchingJobs = useCallback(() => {
+    closeDrawer(() => navigation.navigate('MatchingJobs'));
+  }, [closeDrawer, navigation]);
+
+  const goLegalInfo = useCallback(
+    (kind: 'news' | 'privacy' | 'rules' | 'agreement') => {
+      closeDrawer(() => navigation.navigate('LegalInfo', { kind }));
+    },
+    [closeDrawer, navigation],
+  );
+
+  const goExamDetail = useCallback(
+    (examId: number) => {
+      closeDrawer(() => navigation.navigate('ExamDetail', { examId }));
+    },
+    [closeDrawer, navigation],
+  );
+
+  const handleLogout = useCallback(async () => {
+    if (logoutInFlightRef.current) return;
+    logoutInFlightRef.current = true;
+    setIsLoggingOut(true);
+    try {
+      closeDrawer();
+      await clearSession();
+      resetToRoute('Auth');
+    } finally {
+      logoutInFlightRef.current = false;
+      setIsLoggingOut(false);
+    }
+  }, [closeDrawer]);
+
   return (
     <View style={styles.root}>
       <Modal
@@ -400,58 +493,234 @@ export function HomeFeedScreen() {
               <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
-          <Pressable
-            style={({ pressed }) => [styles.drawerUserRow, pressed && styles.drawerUserRowPressed]}
-            onPress={goProfile}
-            accessibilityRole="button"
-            accessibilityLabel="Open profile"
-          >
-            <UserAvatar
-              seed={(currentUserId ?? usernameDrawer) || 'me'}
-              avatarUrl={profile?.avatar_url}
-              size={48}
-            />
-            <View style={styles.drawerUserTextCol}>
-              <Text style={styles.drawerUserName} numberOfLines={1}>
-                {drawerDisplayName}
-              </Text>
-              {usernameDrawer ? (
-                <Text style={styles.drawerUserMeta} numberOfLines={1}>
-                  @{usernameDrawer}
-                </Text>
-              ) : null}
-            </View>
-          </Pressable>
           <View style={styles.drawerBody}>
-            <View style={styles.drawerMenuList}>
-              <Pressable
-                style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
-                onPress={goProfile}
-                accessibilityRole="button"
-                accessibilityLabel="Open profile menu item"
-              >
-                <MaterialCommunityIcons name="account-circle-outline" size={22} color={colors.textPrimary} />
-                <Text style={styles.drawerItemLabel}>Profile</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
-                onPress={goExams}
-                accessibilityRole="button"
-                accessibilityLabel="Browse exams"
-              >
-                <MaterialCommunityIcons name="school-outline" size={22} color={colors.textPrimary} />
-                <Text style={styles.drawerItemLabel}>Exams</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
-                onPress={goSuggested}
-                accessibilityRole="button"
-                accessibilityLabel="Suggested people"
-              >
-                <MaterialCommunityIcons name="account-multiple-outline" size={22} color={colors.textPrimary} />
-                <Text style={styles.drawerItemLabel}>Suggested for you</Text>
-              </Pressable>
-            </View>
+            <ScrollView
+              style={styles.drawerScroll}
+              contentContainerStyle={styles.drawerScrollContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.drawerPrimarySection}>
+                <Pressable
+                  style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                  onPress={goProfile}
+                  accessibilityRole="button"
+                  accessibilityLabel="Profile"
+                >
+                  <MaterialCommunityIcons name="account-circle-outline" size={22} color={colors.textPrimary} />
+                  <Text style={styles.drawerItemLabel}>Profile</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                  onPress={goTrending}
+                  accessibilityRole="button"
+                  accessibilityLabel="Trending"
+                >
+                  <MaterialCommunityIcons name="trending-up" size={22} color={colors.textPrimary} />
+                  <Text style={styles.drawerItemLabel}>Trending</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                  onPress={() => goLegalInfo('news')}
+                  accessibilityRole="button"
+                  accessibilityLabel="News"
+                >
+                  <MaterialCommunityIcons name="newspaper-variant-outline" size={22} color={colors.textPrimary} />
+                  <Text style={styles.drawerItemLabel}>News</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                  onPress={goExams}
+                  accessibilityRole="button"
+                  accessibilityLabel="Browse exams"
+                >
+                  <MaterialCommunityIcons name="school-outline" size={22} color={colors.textPrimary} />
+                  <Text style={styles.drawerItemLabel}>Exams</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                  onPress={goSuggested}
+                  accessibilityRole="button"
+                  accessibilityLabel="Suggested people"
+                >
+                  <MaterialCommunityIcons name="account-multiple-outline" size={22} color={colors.textPrimary} />
+                  <Text style={styles.drawerItemLabel}>Suggested for you</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                  onPress={goJobNotifications}
+                  accessibilityRole="button"
+                  accessibilityLabel="Job notifications"
+                >
+                  <MaterialCommunityIcons name="bell-ring-outline" size={22} color={colors.textPrimary} />
+                  <Text style={styles.drawerItemLabel}>Job notifications</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
+                  onPress={goMatchingJobs}
+                  accessibilityRole="button"
+                  accessibilityLabel="Matching jobs"
+                >
+                  <MaterialCommunityIcons name="briefcase-outline" size={22} color={colors.textPrimary} />
+                  <Text style={styles.drawerItemLabel}>Matching jobs</Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.drawerSectionBlock}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.drawerCollapsibleHeader,
+                    pressed && styles.drawerCollapsibleHeaderPressed,
+                  ]}
+                  onPress={() => setDrawerFollowingOpen((o) => !o)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Following exams"
+                  accessibilityState={{ expanded: drawerFollowingOpen }}
+                >
+                  <Text style={styles.drawerSectionTitle}>Following exams</Text>
+                  <MaterialCommunityIcons
+                    name={drawerFollowingOpen ? 'chevron-down' : 'chevron-right'}
+                    size={22}
+                    color={colors.textMuted}
+                  />
+                </Pressable>
+                {drawerFollowingOpen ? (
+                  <View style={styles.drawerCollapsibleBody}>
+                    {!currentUserId ? (
+                      <Text style={styles.drawerHint}>Sign in to see exams you follow.</Text>
+                    ) : interestsLoading && uniqueExamIds.length === 0 ? (
+                      <View style={styles.drawerInlineLoading}>
+                        <ActivityIndicator size="small" color={colors.brand} />
+                        <Text style={styles.drawerHint}>Loading your exams…</Text>
+                      </View>
+                    ) : interestsError ? (
+                      <Text style={styles.drawerErrorHint}>{interestsError.message}</Text>
+                    ) : followingExamsList.length === 0 ? (
+                      <Text style={styles.drawerHint}>
+                        No exams followed yet. Add them from your profile or onboarding.
+                      </Text>
+                    ) : (
+                      followingExamsList.map(({ id, name }) => (
+                        <Pressable
+                          key={id}
+                          style={({ pressed }) => [
+                            styles.drawerExamRow,
+                            pressed && styles.drawerExamRowPressed,
+                          ]}
+                          onPress={() => goExamDetail(id)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Open exam ${name}`}
+                        >
+                          <View style={styles.drawerExamAvatar}>
+                            <MaterialCommunityIcons name="bookmark" size={18} color={colors.progress} />
+                          </View>
+                          <Text style={styles.drawerExamRowLabel} numberOfLines={2}>
+                            {name}
+                          </Text>
+                          <MaterialCommunityIcons name="star-outline" size={22} color={colors.textHint} />
+                        </Pressable>
+                      ))
+                    )}
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.drawerSectionBlock}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.drawerCollapsibleHeader,
+                    pressed && styles.drawerCollapsibleHeaderPressed,
+                  ]}
+                  onPress={() => setDrawerResourcesOpen((o) => !o)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Resources"
+                  accessibilityState={{ expanded: drawerResourcesOpen }}
+                >
+                  <Text style={styles.drawerSectionTitle}>Resources</Text>
+                  <MaterialCommunityIcons
+                    name={drawerResourcesOpen ? 'chevron-down' : 'chevron-right'}
+                    size={22}
+                    color={colors.textMuted}
+                  />
+                </Pressable>
+                {drawerResourcesOpen ? (
+                  <View style={styles.drawerCollapsibleBody}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.drawerItem,
+                        styles.drawerResourceItem,
+                        pressed && styles.drawerItemPressed,
+                      ]}
+                      onPress={() => goLegalInfo('privacy')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Privacy policy"
+                    >
+                      <MaterialCommunityIcons name="shield-lock-outline" size={22} color={colors.textPrimary} />
+                      <View style={styles.drawerItemTextCol}>
+                        <Text style={styles.drawerItemLabel}>Privacy Policy</Text>
+                        <Text style={styles.drawerItemSub}>How we use your data</Text>
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.drawerItem,
+                        styles.drawerResourceItem,
+                        pressed && styles.drawerItemPressed,
+                      ]}
+                      onPress={() => goLegalInfo('rules')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Community rules"
+                    >
+                      <MaterialCommunityIcons name="gavel" size={22} color={colors.textPrimary} />
+                      <View style={styles.drawerItemTextCol}>
+                        <Text style={styles.drawerItemLabel}>Rules</Text>
+                        <Text style={styles.drawerItemSub}>Community guidelines</Text>
+                      </View>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.drawerItem,
+                        styles.drawerResourceItem,
+                        pressed && styles.drawerItemPressed,
+                      ]}
+                      onPress={() => goLegalInfo('agreement')}
+                      accessibilityRole="button"
+                      accessibilityLabel="User agreement"
+                    >
+                      <MaterialCommunityIcons name="file-document-outline" size={22} color={colors.textPrimary} />
+                      <View style={styles.drawerItemTextCol}>
+                        <Text style={styles.drawerItemLabel}>User Agreement</Text>
+                        <Text style={styles.drawerItemSub}>Terms of use</Text>
+                      </View>
+                    </Pressable>
+                    <ThemeAppearanceToggle style={styles.drawerThemeInResources} />
+                  </View>
+                ) : null}
+              </View>
+
+              {user ? (
+                <View style={styles.drawerLogoutSection}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.drawerLogoutButton,
+                      pressed && !isLoggingOut && styles.drawerLogoutButtonPressed,
+                      isLoggingOut && styles.drawerLogoutButtonDisabled,
+                    ]}
+                    onPress={() => void handleLogout()}
+                    disabled={isLoggingOut}
+                    accessibilityRole="button"
+                    accessibilityLabel="Log out"
+                    android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
+                  >
+                    {isLoggingOut ? (
+                      <ActivityIndicator size="small" color={colors.danger} />
+                    ) : (
+                      <Text style={styles.drawerLogoutButtonText}>Log out</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+            </ScrollView>
           </View>
         </Animated.View>
       </Modal>
@@ -580,7 +849,10 @@ export function HomeFeedScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ItemSeparatorComponent={renderSeparator}
-          contentContainerStyle={[styles.listContent, { paddingTop: headerH }]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingTop: headerH + FEED_BELOW_HEADER_GAP },
+          ]}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -589,7 +861,7 @@ export function HomeFeedScreen() {
               tintColor={colors.brand}
               colors={[colors.brand]}
               /** Keep spinner below the absolute header (otherwise hidden behind search/chips). */
-              progressViewOffset={headerH}
+              progressViewOffset={headerH + FEED_BELOW_HEADER_GAP}
               {...(Platform.OS === 'android'
                 ? { progressBackgroundColor: colors.surface }
                 : {})}
@@ -795,7 +1067,7 @@ function createHomeStyles(colors: ThemeColors) {
     drawerPanelHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 24,
+      marginBottom: 12,
     },
     drawerHeaderSpacer: {
       width: 44,
@@ -812,40 +1084,111 @@ function createHomeStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    drawerUserRow: {
+    drawerBody: {
+      flex: 1,
+      minHeight: 0,
+      marginTop: 4,
+      flexDirection: 'column',
+    },
+    drawerScroll: {
+      flex: 1,
+      minHeight: 0,
+    },
+    drawerScrollContent: {
+      flexGrow: 1,
+      paddingBottom: 24,
+    },
+    drawerPrimarySection: {
+      alignSelf: 'stretch',
+      paddingTop: 4,
+    },
+    drawerSectionBlock: {
+      alignSelf: 'stretch',
+      marginTop: 4,
+      paddingTop: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderSubtle,
+    },
+    drawerCollapsibleHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      justifyContent: 'space-between',
       paddingVertical: 10,
       paddingHorizontal: 4,
-      marginBottom: 8,
-      borderRadius: 12,
+      borderRadius: 8,
     },
-    drawerUserRowPressed: {
+    drawerCollapsibleHeaderPressed: {
       backgroundColor: colors.surfaceSubtle,
     },
-    drawerUserTextCol: {
+    drawerSectionTitle: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+    },
+    drawerCollapsibleBody: {
+      alignSelf: 'stretch',
+      paddingBottom: 4,
+    },
+    drawerHint: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textMuted,
+      lineHeight: 20,
+      paddingHorizontal: 4,
+      paddingVertical: 6,
+    },
+    drawerErrorHint: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.danger,
+      lineHeight: 20,
+      paddingHorizontal: 4,
+      paddingVertical: 6,
+    },
+    drawerInlineLoading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 4,
+      paddingVertical: 8,
+    },
+    drawerExamRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 4,
+      borderRadius: 12,
+    },
+    drawerExamRowPressed: {
+      backgroundColor: colors.surfaceSubtle,
+    },
+    drawerExamAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.progressLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    drawerExamRowLabel: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textPrimary,
+      lineHeight: 20,
+    },
+    drawerItemTextCol: {
       flex: 1,
       minWidth: 0,
     },
-    drawerUserName: {
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.lg,
-      color: colors.textPrimary,
-    },
-    drawerUserMeta: {
+    drawerItemSub: {
       marginTop: 2,
       fontFamily: theme.typography.regular,
       fontSize: theme.fontSizes.meta,
       color: colors.textMuted,
-    },
-    drawerBody: {
-      flex: 1,
-      minHeight: 0,
-      marginTop: 8,
-    },
-    drawerMenuList: {
-      paddingTop: 4,
+      lineHeight: 16,
     },
     drawerBrandLogo: {
       height: 64,
@@ -859,18 +1202,55 @@ function createHomeStyles(colors: ThemeColors) {
     drawerItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
-      paddingVertical: 14,
+      gap: 12,
+      paddingVertical: 12,
       paddingHorizontal: 4,
       borderRadius: 12,
     },
     drawerItemPressed: {
       backgroundColor: colors.surfaceSubtle,
     },
+    drawerResourceItem: {
+      alignItems: 'flex-start',
+    },
     drawerItemLabel: {
       fontFamily: theme.typography.medium,
       fontSize: theme.fintSizes.md,
       color: colors.textPrimary,
+    },
+    drawerThemeInResources: {
+      marginTop: 8,
+      alignSelf: 'stretch',
+    },
+    drawerLogoutSection: {
+      alignSelf: 'stretch',
+      paddingTop: 16,
+      marginTop: 4,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderSubtle,
+    },
+    drawerLogoutButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'stretch',
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
+      backgroundColor: colors.surface,
+      minHeight: 48,
+    },
+    drawerLogoutButtonPressed: {
+      opacity: 0.88,
+    },
+    drawerLogoutButtonDisabled: {
+      opacity: 0.6,
+    },
+    drawerLogoutButtonText: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.danger,
     },
     headerLevelBadge: {
       flexShrink: 0,

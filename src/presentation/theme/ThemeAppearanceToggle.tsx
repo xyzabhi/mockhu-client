@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { theme } from './theme';
 import {
@@ -14,13 +15,22 @@ const OPTIONS: { id: ThemePreference; label: string }[] = [
   { id: 'system', label: 'System' },
 ];
 
-export function ThemeAppearanceToggle() {
+type ThemeAppearanceToggleProps = {
+  /** Merged with the outer container (e.g. drawer spacing). */
+  style?: StyleProp<ViewStyle>;
+};
+
+export function ThemeAppearanceToggle({ style }: ThemeAppearanceToggleProps = {}) {
   const colors = useThemeColors();
   const { preference, setPreference } = useThemePreference();
   const styles = useMemo(() => createToggleStyles(colors), [colors]);
 
   return (
-    <View style={styles.wrap} accessibilityRole="radiogroup" accessibilityLabel="App appearance">
+    <View
+      style={[styles.wrap, style]}
+      accessibilityRole="radiogroup"
+      accessibilityLabel="App appearance"
+    >
       <Text style={styles.title}>Appearance</Text>
       <View style={styles.row}>
         {OPTIONS.map(({ id, label }) => {

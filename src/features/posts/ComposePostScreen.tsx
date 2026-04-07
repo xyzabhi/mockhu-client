@@ -29,6 +29,10 @@ import { composeBreadcrumbSegments, TOPIC_OPTIONS, type TopicOption } from '../.
 import { resolvePostMediaUrl } from '../../api/post/mediaUrl';
 import type { TokenUser } from '../../api/types';
 import { BrandToggle } from '../../presentation/components/BrandToggle';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../presentation/theme/ThemeContext';
 import { theme } from '../../presentation/theme/theme';
 
 const CONTENT_MAX = 2000;
@@ -77,6 +81,8 @@ function userInitials(u: TokenUser | undefined | null): string {
 }
 
 export function ComposePostScreen() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createComposeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const linkInputRef = useRef<TextInput>(null);
@@ -269,7 +275,7 @@ export function ComposePostScreen() {
             accessibilityLabel="Close"
             style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
           >
-            <MaterialCommunityIcons name="close" size={24} color={theme.colors.textPrimary} />
+            <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
           </Pressable>
         </View>
         <View style={styles.headerCenter} pointerEvents="none">
@@ -285,7 +291,7 @@ export function ComposePostScreen() {
             accessibilityLabel="Preview post"
             style={({ pressed }) => [styles.headerPreviewBtn, pressed && styles.pressed]}
           >
-            <MaterialCommunityIcons name="eye-outline" size={20} color={theme.colors.brand} />
+            <MaterialCommunityIcons name="eye-outline" size={20} color={colors.brand} />
             <Text style={styles.headerPreviewText} numberOfLines={1}>
               Preview
             </Text>
@@ -305,7 +311,7 @@ export function ComposePostScreen() {
             {submitting ? (
               <ActivityIndicator
                 size="small"
-                color={canSubmit ? theme.colors.onBrand : theme.colors.textHint}
+                color={canSubmit ? colors.onBrand : colors.textHint}
               />
             ) : (
               <Text
@@ -353,7 +359,7 @@ export function ComposePostScreen() {
         <TextInput
           style={styles.titleInput}
           placeholder={TITLE_PLACEHOLDERS[postType]}
-          placeholderTextColor={theme.colors.textHint}
+          placeholderTextColor={colors.textHint}
           value={title}
           onChangeText={(txt) => {
             if (txt.length <= TITLE_MAX) setTitle(txt);
@@ -365,7 +371,7 @@ export function ComposePostScreen() {
             style={styles.bodyInput}
             multiline
             placeholder={BODY_PLACEHOLDERS[postType]}
-            placeholderTextColor={theme.colors.textHint}
+            placeholderTextColor={colors.textHint}
             value={body}
             onChangeText={(txt) => {
               if (txt.length <= CONTENT_MAX) setBody(txt);
@@ -381,14 +387,14 @@ export function ComposePostScreen() {
               ref={linkInputRef}
               style={styles.singleLine}
               placeholder="https://…"
-              placeholderTextColor={theme.colors.textHint}
+              placeholderTextColor={colors.textHint}
               value={linkUrl}
               onChangeText={onLinkChange}
               autoCapitalize="none"
               autoCorrect={false}
             />
             {previewLoading ? (
-              <ActivityIndicator style={styles.previewSpin} color={theme.colors.brand} />
+              <ActivityIndicator style={styles.previewSpin} color={colors.brand} />
             ) : null}
             {previewError ? <Text style={styles.previewErr}>{previewError.message}</Text> : null}
             {preview && linkUrl.trim().length > 0 ? (
@@ -423,17 +429,17 @@ export function ComposePostScreen() {
 
       <View style={[styles.bottomToolbar, { paddingBottom: Math.max(insets.bottom, 10) }]}>
         <Pressable style={styles.toolbarBtn} onPress={toggleLinkRow} accessibilityLabel="Add link">
-          <MaterialCommunityIcons name="link-variant" size={24} color={theme.colors.textPrimary} />
+          <MaterialCommunityIcons name="link-variant" size={24} color={colors.textPrimary} />
         </Pressable>
         <Pressable
           style={styles.toolbarBtn}
           onPress={() => Alert.alert('Video', 'Video posts are not supported yet.')}
           accessibilityLabel="Add video"
         >
-          <MaterialCommunityIcons name="play-box-outline" size={24} color={theme.colors.textMuted} />
+          <MaterialCommunityIcons name="play-box-outline" size={24} color={colors.textMuted} />
         </Pressable>
         <Pressable style={styles.toolbarBtn} onPress={insertBullet} accessibilityLabel="Bullet list">
-          <MaterialCommunityIcons name="format-list-bulleted" size={24} color={theme.colors.textPrimary} />
+          <MaterialCommunityIcons name="format-list-bulleted" size={24} color={colors.textPrimary} />
         </Pressable>
         <Pressable style={styles.toolbarBtn} onPress={openTagModal} accessibilityLabel="Add tags">
           <Text style={styles.toolbarHash}>#</Text>
@@ -446,7 +452,7 @@ export function ComposePostScreen() {
           }
           accessibilityLabel="Text formatting"
         >
-          <MaterialCommunityIcons name="format-font" size={24} color={theme.colors.textPrimary} />
+          <MaterialCommunityIcons name="format-font" size={24} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.toolbarSpacer} />
         <Text style={styles.toolbarCharCount} maxFontSizeMultiplier={1.2}>
@@ -476,7 +482,7 @@ export function ComposePostScreen() {
               <View key={t} style={styles.tagChipOn}>
                 <Text style={styles.tagChipOnText}>#{t}</Text>
                 <Pressable onPress={() => removeTag(t)} hitSlop={6} accessibilityLabel={`Remove ${t}`}>
-                  <MaterialCommunityIcons name="close" size={16} color={theme.colors.onBrand} />
+                  <MaterialCommunityIcons name="close" size={16} color={colors.onBrand} />
                 </Pressable>
               </View>
             ))}
@@ -486,7 +492,7 @@ export function ComposePostScreen() {
               ref={tagInputRef}
               style={styles.tagModalInput}
               placeholder="e.g. calculus"
-              placeholderTextColor={theme.colors.textHint}
+              placeholderTextColor={colors.textHint}
               value={tagDraft}
               onChangeText={setTagDraft}
               onSubmitEditing={() => addTagFromDraft()}
@@ -534,8 +540,8 @@ export function ComposePostScreen() {
                     </Text>
                     <Text style={styles.previewTimeMeta}> · Preview</Text>
                     <View style={styles.previewHeaderSpacer} />
-                    <View style={[styles.previewTypePill, { backgroundColor: theme.colors.brandLight }]}>
-                      <Text style={[styles.previewTypePillText, { color: theme.colors.brand }]}>
+                    <View style={[styles.previewTypePill, { backgroundColor: colors.brandLight }]}>
+                      <Text style={[styles.previewTypePillText, { color: colors.brand }]}>
                         {postType}
                       </Text>
                     </View>
@@ -579,7 +585,7 @@ export function ComposePostScreen() {
                     />
                   ) : (
                     <View style={styles.previewLinkPlaceholder}>
-                      <MaterialCommunityIcons name="link-variant" size={28} color={theme.colors.textMuted} />
+                      <MaterialCommunityIcons name="link-variant" size={28} color={colors.textMuted} />
                     </View>
                   )}
                   <View style={styles.previewLinkTextCol}>
@@ -605,10 +611,11 @@ export function ComposePostScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createComposeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
   },
   header: {
     flexDirection: 'row',
@@ -617,8 +624,8 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     minHeight: 48,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderBottomColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
   headerLeft: {
     width: 44,
@@ -639,60 +646,60 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fontSizes.screenTitle,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   headerRight: {
     flexShrink: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    maxWidth: '52%',
+    gap: 10,
   },
   headerPreviewBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 5,
     paddingVertical: 8,
-    paddingHorizontal: 4,
-    maxWidth: '48%',
+    paddingHorizontal: 6,
+    flexShrink: 0,
   },
   headerPreviewText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
-    flexShrink: 1,
+    color: colors.brand,
+    flexShrink: 0,
   },
   headerPostBtn: {
-    minWidth: 72,
+    minWidth: 88,
+    minHeight: 40,
     paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: theme.radius.button,
+    paddingHorizontal: 18,
+    borderRadius: 999,
     borderWidth: theme.borderWidth.cta,
-    borderColor: theme.colors.brand,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.brand,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerPostBtnPrimary: {
-    backgroundColor: theme.colors.brand,
+    backgroundColor: colors.brand,
     borderWidth: 1,
-    borderColor: theme.colors.buttonBorder,
+    borderColor: colors.buttonBorder,
   },
   headerPostBtnDisabled: {
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surfaceSubtle,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   headerPostText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   headerPostTextPrimary: {
-    color: theme.colors.onBrand,
+    color: colors.onBrand,
   },
   headerPostTextDisabled: {
-    color: theme.colors.textHint,
+    color: colors.textHint,
   },
   scroll: {
     flex: 1,
@@ -700,21 +707,23 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 16,
+    flexGrow: 1,
   },
   titleInput: {
     marginBottom: 10,
     paddingVertical: 4,
     paddingHorizontal: 0,
+    textAlign: 'left',
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xl,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   sectionLabelSmall: {
     marginTop: 8,
     marginBottom: 8,
     fontFamily: theme.typography.medium,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   pressed: {
     opacity: 0.88,
@@ -729,14 +738,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: theme.colors.brandLight,
+    backgroundColor: colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   authorTextCol: {
     flex: 1,
@@ -745,7 +754,7 @@ const styles = StyleSheet.create({
   authorName: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   anonRow: {
     flexDirection: 'row',
@@ -756,35 +765,38 @@ const styles = StyleSheet.create({
   anonLabel: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   bodyWrap: {
-    position: 'relative',
     marginBottom: 14,
+    flexGrow: 1,
+    minHeight: 200,
   },
   bodyInput: {
-    minHeight: 140,
-    padding: 14,
-    paddingBottom: 14,
-    borderRadius: theme.radius.input,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    minHeight: 240,
+    margin: 0,
+    paddingVertical: 6,
+    paddingHorizontal: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    textAlign: 'left',
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
-    lineHeight: 22,
+    fontSize: theme.fintSizes.md,
+    color: colors.textPrimary,
+    lineHeight: 24,
   },
   singleLine: {
     paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: theme.radius.input,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 0,
+    textAlign: 'left',
+    borderRadius: 0,
+    borderWidth: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle,
+    backgroundColor: 'transparent',
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   previewSpin: {
@@ -794,21 +806,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.danger,
+    color: colors.danger,
   },
   previewCard: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
+    borderColor: colors.borderSubtle,
     borderRadius: theme.radius.card,
     overflow: 'hidden',
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
     marginBottom: 12,
   },
   previewImg: {
     width: 96,
     height: 96,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   previewTextCol: {
     flex: 1,
@@ -819,25 +831,25 @@ const styles = StyleSheet.create({
   previewTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   previewDesc: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   previewSrc: {
     marginTop: 6,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   warn: {
     textAlign: 'center',
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.danger,
+    color: colors.danger,
     marginBottom: 16,
   },
   bottomToolbar: {
@@ -846,8 +858,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.screenPaddingH,
     paddingTop: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderTopColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
   },
   toolbarBtn: {
     flexDirection: 'row',
@@ -860,7 +872,7 @@ const styles = StyleSheet.create({
     width: 1,
     height: 24,
     marginHorizontal: 4,
-    backgroundColor: theme.colors.borderSubtle,
+    backgroundColor: colors.borderSubtle,
   },
   toolbarSpacer: {
     flex: 1,
@@ -868,7 +880,7 @@ const styles = StyleSheet.create({
   toolbarCharCount: {
     fontFamily: theme.typography.medium,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
     minWidth: 36,
     textAlign: 'right',
   },
@@ -876,11 +888,11 @@ const styles = StyleSheet.create({
     fontFamily: theme.typography.semiBold,
     fontSize: 22,
     lineHeight: 24,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   tagModalRoot: {
     flex: 1,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
     paddingHorizontal: theme.spacing.screenPaddingH,
   },
   tagModalHeader: {
@@ -892,23 +904,23 @@ const styles = StyleSheet.create({
   tagModalTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fontSizes.screenTitle,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   tagModalDone: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   tagModalHint: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
     marginBottom: 6,
   },
   tagModalCounter: {
     fontFamily: theme.typography.medium,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
     marginBottom: 12,
   },
   tagChipRow: {
@@ -924,12 +936,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: theme.radius.pill,
-    backgroundColor: theme.colors.brand,
+    backgroundColor: colors.brand,
   },
   tagChipOnText: {
     fontFamily: theme.typography.medium,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.onBrand,
+    color: colors.onBrand,
   },
   tagInputRow: {
     flexDirection: 'row',
@@ -942,28 +954,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: theme.radius.input,
     borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    backgroundColor: theme.colors.surface,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   tagModalAddBtn: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: theme.radius.badge,
-    backgroundColor: theme.colors.brandLight,
+    backgroundColor: colors.brandLight,
     borderWidth: 1,
-    borderColor: theme.colors.brandBorder,
+    borderColor: colors.brandBorder,
   },
   tagModalAddBtnText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   previewModalRoot: {
     flex: 1,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
     paddingHorizontal: theme.spacing.screenPaddingH,
   },
   previewModalHeader: {
@@ -975,12 +987,12 @@ const styles = StyleSheet.create({
   previewModalTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fontSizes.screenTitle,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   previewModalDone: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.md,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   previewModalScroll: {
     flex: 1,
@@ -989,12 +1001,12 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   previewFeedCard: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: colors.surface,
     paddingVertical: theme.spacing.cardPaddingV,
     paddingHorizontal: theme.spacing.cardPaddingH,
     borderRadius: theme.radius.card,
     borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
+    borderColor: colors.borderSubtle,
   },
   previewTopRow: {
     flexDirection: 'row',
@@ -1006,14 +1018,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: theme.colors.brandLight,
+    backgroundColor: colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   previewAvatarText: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   previewHeaderMain: {
     flex: 1,
@@ -1028,12 +1040,12 @@ const styles = StyleSheet.create({
   previewDisplayName: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   previewTimeMeta: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   previewHeaderSpacer: {
     flex: 1,
@@ -1059,22 +1071,22 @@ const styles = StyleSheet.create({
   previewTopicSep: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   previewTopicPart: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   previewTopicLast: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   previewContentText: {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 22,
   },
   previewTagsRow: {
@@ -1087,26 +1099,26 @@ const styles = StyleSheet.create({
   previewTagText: {
     fontFamily: theme.typography.medium,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
   previewLinkCard: {
     flexDirection: 'row',
     marginTop: 12,
     borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
+    borderColor: colors.borderSubtle,
     borderRadius: theme.radius.card,
     overflow: 'hidden',
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   previewLinkThumb: {
     width: 96,
     height: 96,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   previewLinkPlaceholder: {
     width: 96,
     height: 96,
-    backgroundColor: theme.colors.surfaceSubtle,
+    backgroundColor: colors.surfaceSubtle,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1119,18 +1131,19 @@ const styles = StyleSheet.create({
   previewLinkTitle: {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.sm,
-    color: theme.colors.textPrimary,
+    color: colors.textPrimary,
   },
   previewLinkDesc: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.textMuted,
+    color: colors.textMuted,
   },
   previewLinkUrl: {
     marginTop: 6,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
-    color: theme.colors.brand,
+    color: colors.brand,
   },
 });
+}

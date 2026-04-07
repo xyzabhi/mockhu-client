@@ -24,7 +24,11 @@ import { ExamCategoryExamsScreen } from '../features/exams/presentation/screens/
 import { ExamDetailScreen } from '../features/exams/presentation/screens/ExamDetailScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 import { PostCommentsScreen } from './screens/PostCommentsScreen';
+import { JobNotificationsScreen } from './screens/JobNotificationsScreen';
+import { MatchingJobsScreen } from './screens/MatchingJobsScreen';
 import { SuggestedUsersScreen } from './screens/SuggestedUsersScreen';
+import { LegalInfoScreen, legalInfoTitle } from './screens/LegalInfoScreen';
+import { TrendingScreen } from './screens/TrendingScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -148,6 +152,29 @@ export function RootNavigator() {
             headerShown: true,
             title: 'Suggested for you',
           }}
+        />
+        <Stack.Screen
+          name="JobNotifications"
+          component={JobNotificationsScreen}
+          options={{ headerShown: true, title: 'Job notifications' }}
+        />
+        <Stack.Screen
+          name="MatchingJobs"
+          component={MatchingJobsScreen}
+          options={{ headerShown: true, title: 'Matching jobs' }}
+        />
+        <Stack.Screen
+          name="Trending"
+          component={TrendingScreen}
+          options={{ headerShown: true, title: 'Trending' }}
+        />
+        <Stack.Screen
+          name="LegalInfo"
+          component={LegalInfoScreen}
+          options={({ route }) => ({
+            headerShown: true,
+            title: legalInfoTitle(route.params.kind),
+          })}
         />
         <Stack.Screen name="Main" component={MainTabNavigator} />
         <Stack.Screen

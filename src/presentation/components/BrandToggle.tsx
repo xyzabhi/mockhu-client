@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Pressable, StyleSheet } from 'react-native';
+import { useThemeColors } from '../theme/ThemeContext';
 import { theme } from '../theme/theme';
 
 /** Compact switch — touch area enlarged via `hitSlop` */
@@ -26,6 +27,7 @@ export function BrandToggle({
   disabled = false,
   accessibilityLabel,
 }: BrandToggleProps) {
+  const colors = useThemeColors();
   const progress = useRef(new Animated.Value(value ? 1 : 0)).current;
 
   useEffect(() => {
@@ -42,10 +44,14 @@ export function BrandToggle({
     outputRange: [0, TRAVEL],
   });
 
-  const trackColor = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.colors.borderSubtle, theme.colors.brand],
-  });
+  const trackColor = useMemo(
+    () =>
+      progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [colors.borderSubtle, colors.brand],
+      }),
+    [colors.borderSubtle, colors.brand, progress],
+  );
 
   return (
     <Pressable
@@ -65,6 +71,7 @@ export function BrandToggle({
         <Animated.View
           style={[
             styles.thumb,
+            { backgroundColor: colors.surface },
             {
               transform: [{ translateX }],
             },
@@ -101,7 +108,6 @@ const styles = StyleSheet.create({
     width: THUMB,
     height: THUMB,
     borderRadius: THUMB / 2,
-    backgroundColor: theme.colors.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 0.5 },
     shadowOpacity: 0.1,

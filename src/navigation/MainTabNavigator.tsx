@@ -1,10 +1,12 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useMemo } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
 import { theme } from '../presentation/theme/theme';
 import { useThemeColors } from '../presentation/theme/ThemeContext';
 import type { MainTabParamList } from './types';
@@ -19,6 +21,46 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 /** Default icon size when the navigator does not pass `size`. */
 const TAB_ICON_SIZE = 24;
+
+/** Matches header side slots so the title stays visually centered (esp. Android). */
+const HEADER_SIDE_SLOT = 48;
+
+type MainTabNav = BottomTabNavigationProp<MainTabParamList, keyof MainTabParamList>;
+
+function backToHomeHeaderOptions(
+  colors: { textPrimary: string },
+  navigation: MainTabNav,
+) {
+  return {
+    headerLeft: () => (
+      <View
+        style={{
+          width: HEADER_SIDE_SLOT,
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          marginLeft: Platform.OS === 'ios' ? 4 : 0,
+        }}
+      >
+        <Pressable
+          onPress={() => navigation.navigate('Home')}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back to home"
+        >
+          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.textPrimary} />
+        </Pressable>
+      </View>
+    ),
+    headerRight: () => (
+      <View
+        style={{ width: HEADER_SIDE_SLOT }}
+        pointerEvents="none"
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
+    ),
+  };
+}
 
 export function MainTabNavigator() {
   const colors = useThemeColors();
@@ -51,6 +93,10 @@ export function MainTabNavigator() {
       tabBar={(props) => <FloatingBottomTabBar {...props} />}
       screenOptions={{
         headerShown: true,
+        /** Android defaults to left; center matches iOS and balances with nav actions. */
+        headerTitleAlign: 'center',
+        /** Align native header chrome (title + icons) with body `textPrimary`. */
+        headerTintColor: colors.textPrimary,
         headerTitleStyle: {
           fontFamily: theme.typography.semiBold,
           fontSize: theme.fontSizes.screenTitle,
@@ -62,7 +108,8 @@ export function MainTabNavigator() {
         headerShadowVisible: false,
         tabBarShowLabel: false,
         tabBarActiveTintColor: colors.brand,
-        tabBarInactiveTintColor: colors.textMuted,
+        /** Inactive tab icons match body text; active uses brand (same as links/CTAs). */
+        tabBarInactiveTintColor: colors.textPrimary,
         tabBarIconStyle: {
           marginTop: 0,
         },
@@ -82,8 +129,6 @@ export function MainTabNavigator() {
         options={{
           title: 'Home',
           headerShown: false,
-          tabBarActiveTintColor: colors.brand,
-          tabBarInactiveTintColor: colors.textPrimary,
           tabBarIcon: ({ color, size }) => (
             <Octicons name="home-fill" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
@@ -92,14 +137,13 @@ export function MainTabNavigator() {
       <Tab.Screen
         name="Progress"
         component={ProgressScreen}
-        options={{
+        options={({ navigation }) => ({
           title: 'Progress',
-          tabBarActiveTintColor: colors.brand,
-          tabBarInactiveTintColor: colors.textPrimary,
+          ...backToHomeHeaderOptions(colors, navigation),
           tabBarIcon: ({ color, size }) => (
             <Octicons name="graph" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
-        }}
+        })}
       />
       <Tab.Screen
         name="Post"
@@ -107,8 +151,6 @@ export function MainTabNavigator() {
         options={{
           title: 'Post',
           headerShown: false,
-          tabBarActiveTintColor: colors.brand,
-          tabBarInactiveTintColor: colors.textPrimary,
           tabBarIcon: () => (
             <View style={postFabStyle}>
               <MaterialIcons name="add" size={26} color={colors.onBrand} />
@@ -119,26 +161,24 @@ export function MainTabNavigator() {
       <Tab.Screen
         name="Inbox"
         component={InboxScreen}
-        options={{
+        options={({ navigation }) => ({
           title: 'Inbox',
-          tabBarActiveTintColor: colors.brand,
-          tabBarInactiveTintColor: colors.textPrimary,
+          ...backToHomeHeaderOptions(colors, navigation),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="notifications" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
-        }}
+        })}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{
-          title: 'You',
-          tabBarActiveTintColor: colors.brand,
-          tabBarInactiveTintColor: colors.textPrimary,
+        options={({ navigation }) => ({
+          title: 'Profile',
+          ...backToHomeHeaderOptions(colors, navigation),
           tabBarIcon: ({ color, size }) => (
             <FontAwesome name="user-circle-o" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
-        }}
+        })}
       />
     </Tab.Navigator>
   );
