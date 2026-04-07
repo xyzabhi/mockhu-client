@@ -36,8 +36,6 @@ import {
 import { theme } from '../../presentation/theme/theme';
 
 const CONTENT_MAX = 2000;
-/** Align title + body with name column (avatar 44 + gap 12). */
-const AUTHOR_CONTENT_INSET = 56;
 const TITLE_MAX = 255;
 
 const TITLE_PLACEHOLDERS: Record<PostType, string> = {
@@ -712,16 +710,15 @@ function createComposeStyles(colors: ThemeColors) {
     flexGrow: 1,
   },
   titleInput: {
-    marginLeft: AUTHOR_CONTENT_INSET,
     marginBottom: 10,
     paddingVertical: 4,
     paddingHorizontal: 0,
+    textAlign: 'left',
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xl,
     color: colors.textPrimary,
   },
   sectionLabelSmall: {
-    marginLeft: AUTHOR_CONTENT_INSET,
     marginTop: 8,
     marginBottom: 8,
     fontFamily: theme.typography.medium,
@@ -771,7 +768,6 @@ function createComposeStyles(colors: ThemeColors) {
     color: colors.textMuted,
   },
   bodyWrap: {
-    marginLeft: AUTHOR_CONTENT_INSET,
     marginBottom: 14,
     flexGrow: 1,
     minHeight: 200,
@@ -783,15 +779,16 @@ function createComposeStyles(colors: ThemeColors) {
     paddingHorizontal: 0,
     borderWidth: 0,
     backgroundColor: 'transparent',
+    textAlign: 'left',
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
     lineHeight: 24,
   },
   singleLine: {
-    marginLeft: AUTHOR_CONTENT_INSET,
     paddingVertical: 12,
     paddingHorizontal: 0,
+    textAlign: 'left',
     borderRadius: 0,
     borderWidth: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -803,18 +800,15 @@ function createComposeStyles(colors: ThemeColors) {
     marginBottom: 8,
   },
   previewSpin: {
-    marginLeft: AUTHOR_CONTENT_INSET,
     marginVertical: 8,
   },
   previewErr: {
-    marginLeft: AUTHOR_CONTENT_INSET,
     marginBottom: 8,
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
     color: colors.danger,
   },
   previewCard: {
-    marginLeft: AUTHOR_CONTENT_INSET,
     flexDirection: 'row',
     borderWidth: 1,
     borderColor: colors.borderSubtle,
