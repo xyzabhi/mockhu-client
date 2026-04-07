@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type {
   LayoutChangeEvent,
   NativeScrollEvent,
@@ -13,7 +13,6 @@ import {
   Dimensions,
   Easing,
   FlatList,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -33,6 +32,7 @@ import {
   useSession,
   useUserInterests,
 } from '../../api';
+import { resolveLevelBadgeFromUser } from '../../badge/progressionDisplay';
 import { PostCard } from '../../features/posts/components/PostCard';
 import { theme } from '../../presentation/theme/theme';
 import {
@@ -41,6 +41,9 @@ import {
   useThemePreference,
 } from '../../presentation/theme/ThemeContext';
 import type { PostResponse } from '../../api/post/types';
+import { BrandLogo, BRAND_LOGO_ASPECT } from '../../shared/components/BrandLogo';
+import { LevelBadge } from '../../shared/components/LevelBadge';
+import { UserAvatar } from '../../shared/components/UserAvatar';
 import type { RootStackParamList } from '../types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
@@ -52,6 +55,20 @@ const FEED_CHIPS: { id: HomeFeedFilter; label: string }[] = [
   /** Posts whose `exam_id` is in `exam_ids` or in categories from `exam_category_ids`. */
   { id: 'topic', label: 'Topic' },
 ];
+
+/** Rotating hint after “Search ” in the home search bar (fade animation). */
+const SEARCH_PLACEHOLDER_WORDS = [
+  'people',
+  'aspirants',
+  'mentors',
+  'teachers',
+  'notes',
+  'jobs',
+  'room',
+  'school',
+  'college',
+  'test',
+] as const;
 
 export function HomeFeedScreen() {
   const colors = useThemeColors();
@@ -99,12 +116,75 @@ export function HomeFeedScreen() {
   const lastScrollY = useRef<number | null>(null);
   const [headerH, setHeaderH] = useState(0);
   const [query, setQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchHintIndex, setSearchHintIndex] = useState(0);
+  const searchHintOpacity = useRef(new Animated.Value(1)).current;
+  const searchHintTranslateY = useRef(new Animated.Value(0)).current;
+  const skipSearchHintFadeInRef = useRef(true);
   const [feedFilter, setFeedFilter] = useState<HomeFeedFilter>('all');
+
+  const showAnimatedSearchHint = query.length === 0 && !searchFocused;
+
+  useEffect(() => {
+    if (!showAnimatedSearchHint) {
+      searchHintOpacity.setValue(1);
+      searchHintTranslateY.setValue(0);
+      return;
+    }
+    const id = setInterval(() => {
+      Animated.parallel([
+        Animated.timing(searchHintOpacity, {
+          toValue: 0,
+          duration: 240,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(searchHintTranslateY, {
+          toValue: -10,
+          duration: 240,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (!finished) return;
+        setSearchHintIndex((i) => (i + 1) % SEARCH_PLACEHOLDER_WORDS.length);
+      });
+    }, 3000);
+    return () => clearInterval(id);
+  }, [showAnimatedSearchHint, searchHintOpacity, searchHintTranslateY]);
+
+  useLayoutEffect(() => {
+    if (!showAnimatedSearchHint) return;
+    if (skipSearchHintFadeInRef.current) {
+      skipSearchHintFadeInRef.current = false;
+      return;
+    }
+    searchHintTranslateY.setValue(14);
+    searchHintOpacity.setValue(0);
+    Animated.parallel([
+      Animated.timing(searchHintOpacity, {
+        toValue: 1,
+        duration: 340,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(searchHintTranslateY, {
+        toValue: 0,
+        duration: 340,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [searchHintIndex, showAnimatedSearchHint, searchHintOpacity, searchHintTranslateY]);
   const { user } = useSession();
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const currentUserId = profile?.id?.trim();
+  const headerLevelBadge = useMemo(
+    () => (user ? resolveLevelBadgeFromUser(user) : null),
+    [user],
+  );
 
-  const { users: followingUsers } = useFollowList({
+  const { users: followingUsers, refresh: refreshFollowingList } = useFollowList({
     userId: currentUserId,
     kind: 'following',
   });
@@ -176,11 +256,13 @@ export function HomeFeedScreen() {
       <PostCard
         post={item}
         currentUserId={currentUserId}
+        followingIds={followingIds}
+        onFollowListChanged={refreshFollowingList}
         onDeleted={removePost}
         onPostUpdated={updatePost}
       />
     ),
-    [currentUserId, removePost, updatePost],
+    [currentUserId, followingIds, refreshFollowingList, removePost, updatePost],
   );
 
   const listEmpty = !loading && filtered.length === 0;
@@ -279,6 +361,9 @@ export function HomeFeedScreen() {
     closeDrawer(() => navigation.navigate('SuggestedUsers'));
   }, [closeDrawer, navigation]);
 
+  const firstName = profile?.first_name?.trim() ?? '';
+  const usernameDrawer = profile?.username?.trim() ?? '';
+  const drawerDisplayName = firstName || 'You';
   return (
     <View style={styles.root}>
       <Modal
@@ -303,12 +388,7 @@ export function HomeFeedScreen() {
           <View style={styles.drawerPanelHeader}>
             <View style={styles.drawerHeaderSpacer} />
             <View style={styles.drawerHeaderLogoWrap}>
-              <Image
-                source={require('../../../assets/brand_logo.png')}
-                style={styles.drawerBrandLogo}
-                resizeMode="contain"
-                accessibilityLabel="Mockhu"
-              />
+              <BrandLogo style={styles.drawerBrandLogo} />
             </View>
             <Pressable
               onPress={() => closeDrawer()}
@@ -320,13 +400,35 @@ export function HomeFeedScreen() {
               <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
             </Pressable>
           </View>
+          <Pressable
+            style={({ pressed }) => [styles.drawerUserRow, pressed && styles.drawerUserRowPressed]}
+            onPress={goProfile}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
+          >
+            <UserAvatar
+              seed={(currentUserId ?? usernameDrawer) || 'me'}
+              avatarUrl={profile?.avatar_url}
+              size={48}
+            />
+            <View style={styles.drawerUserTextCol}>
+              <Text style={styles.drawerUserName} numberOfLines={1}>
+                {drawerDisplayName}
+              </Text>
+              {usernameDrawer ? (
+                <Text style={styles.drawerUserMeta} numberOfLines={1}>
+                  @{usernameDrawer}
+                </Text>
+              ) : null}
+            </View>
+          </Pressable>
           <View style={styles.drawerBody}>
             <View style={styles.drawerMenuList}>
               <Pressable
                 style={({ pressed }) => [styles.drawerItem, pressed && styles.drawerItemPressed]}
                 onPress={goProfile}
                 accessibilityRole="button"
-                accessibilityLabel="Open profile"
+                accessibilityLabel="Open profile menu item"
               >
                 <MaterialCommunityIcons name="account-circle-outline" size={22} color={colors.textPrimary} />
                 <Text style={styles.drawerItemLabel}>Profile</Text>
@@ -368,12 +470,7 @@ export function HomeFeedScreen() {
         onLayout={onHeaderLayout}
       >
         <View style={styles.headerRow}>
-          <Image
-            source={require('../../../assets/brand_logo.png')}
-            style={styles.brandLogo}
-            resizeMode="contain"
-            accessibilityLabel="Mockhu"
-          />
+          {/* <BrandLogo style={styles.brandLogo} /> */}
           <View style={styles.searchRow}>
             <MaterialCommunityIcons
               name="magnify"
@@ -381,17 +478,52 @@ export function HomeFeedScreen() {
               color={colors.textMuted}
               style={styles.searchIcon}
             />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search Mockhu"
-              placeholderTextColor={colors.textHint}
-              value={query}
-              onChangeText={setQuery}
-              returnKeyType="search"
-              clearButtonMode="while-editing"
-              accessibilityLabel="Search feed"
-            />
+            <View style={styles.searchInputWrap}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder=""
+                placeholderTextColor={colors.textHint}
+                value={query}
+                onChangeText={setQuery}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                returnKeyType="search"
+                clearButtonMode="while-editing"
+                accessibilityLabel="Search feed"
+                accessibilityHint="Search posts; hint cycles through topics when empty"
+              />
+              {showAnimatedSearchHint ? (
+                <View pointerEvents="none" style={styles.searchHintOverlay}>
+                  <View style={styles.searchHintRow}>
+                    <Text style={styles.searchHintPrefix} numberOfLines={1}>
+                      Search{' '}
+                    </Text>
+                    <Animated.Text
+                      numberOfLines={1}
+                      style={[
+                        styles.searchHintWord,
+                        {
+                          opacity: searchHintOpacity,
+                          transform: [{ translateY: searchHintTranslateY }],
+                        },
+                      ]}
+                    >
+                      {SEARCH_PLACEHOLDER_WORDS[searchHintIndex]}
+                    </Animated.Text>
+                  </View>
+                </View>
+              ) : null}
+            </View>
           </View>
+          {headerLevelBadge && currentUserId ? (
+            <LevelBadge
+              compact
+              level={headerLevelBadge.level}
+              tier={headerLevelBadge.tierLabel}
+              tierColorHint={profile?.tier_color_hint}
+              style={styles.headerLevelBadge}
+            />
+          ) : null}
           <Pressable
             onPress={() => setDrawerOpen(true)}
             style={({ pressed }) => [styles.drawerIconBtn, pressed && styles.drawerIconBtnPressed]}
@@ -522,9 +654,17 @@ function createHomeStyles(colors: ThemeColors) {
       backgroundColor: colors.surfaceSubtle,
       borderWidth: theme.borderWidth.hairline,
       borderColor: colors.borderSubtle,
+      overflow: 'visible',
     },
     searchIcon: {
       marginRight: 8,
+    },
+    searchInputWrap: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 44,
+      justifyContent: 'center',
+      overflow: 'visible',
     },
     searchInput: {
       flex: 1,
@@ -532,6 +672,31 @@ function createHomeStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.md,
       color: colors.textPrimary,
       paddingVertical: 10,
+      paddingRight: 4,
+    },
+    searchHintOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'center',
+      paddingVertical: 10,
+    },
+    searchHintRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexShrink: 1,
+      minWidth: 0,
+    },
+    searchHintPrefix: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.md,
+      color: colors.textHint,
+      flexShrink: 0,
+    },
+    searchHintWord: {
+      flexShrink: 1,
+      minWidth: 0,
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.brand,
     },
     chipScroll: {
       marginTop: 10,
@@ -580,11 +745,11 @@ function createHomeStyles(colors: ThemeColors) {
       flex: 1,
     },
     listContent: {
-      paddingBottom: 24,
+      paddingHorizontal: 12,
+      paddingBottom: 28,
     },
     postSeparator: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors.footerLinkUnderline,
+      height: 10,
     },
     centered: {
       flex: 1,
@@ -647,6 +812,33 @@ function createHomeStyles(colors: ThemeColors) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    drawerUserRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 4,
+      marginBottom: 8,
+      borderRadius: 12,
+    },
+    drawerUserRowPressed: {
+      backgroundColor: colors.surfaceSubtle,
+    },
+    drawerUserTextCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    drawerUserName: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.lg,
+      color: colors.textPrimary,
+    },
+    drawerUserMeta: {
+      marginTop: 2,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textMuted,
+    },
     drawerBody: {
       flex: 1,
       minHeight: 0,
@@ -657,10 +849,9 @@ function createHomeStyles(colors: ThemeColors) {
     },
     drawerBrandLogo: {
       height: 64,
-      width: 64,
+      aspectRatio: BRAND_LOGO_ASPECT,
       flexShrink: 0,
       borderRadius: theme.radius.card,
-      overflow: 'hidden',
     },
     drawerClosePressed: {
       opacity: 0.65,
@@ -680,6 +871,10 @@ function createHomeStyles(colors: ThemeColors) {
       fontFamily: theme.typography.medium,
       fontSize: theme.fintSizes.md,
       color: colors.textPrimary,
+    },
+    headerLevelBadge: {
+      flexShrink: 0,
+      marginRight: 2,
     },
     drawerIconBtn: {
       padding: 4,

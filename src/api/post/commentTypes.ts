@@ -3,12 +3,18 @@
  * Per-comment stars: `POST|DELETE /posts/:postId/comments/:commentId/star`.
  */
 
+import type { AuthorBadge } from '../user/types';
+
 export type CommentAuthor = {
   username: string;
   first_name?: string | null;
   last_name?: string | null;
   avatar_url?: string | null;
+  /** Same shape as `/me` progression; omitted when not loaded. */
+  badge?: AuthorBadge | null;
 };
+
+export type { AuthorBadge };
 
 export type CommentResponse = {
   id: string;

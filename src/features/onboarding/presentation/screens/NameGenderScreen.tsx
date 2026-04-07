@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
@@ -17,14 +22,81 @@ const GENDER_OPTIONS = [
   { label: 'Prefer not to say', value: 'prefer_not_to_say' },
 ] as const;
 
+const INPUT_RADIUS = 24;
+
+function createNameGenderStyles(colors: ThemeColors) {
+  const inputShadow = Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+    },
+    android: { elevation: 1 },
+    default: {},
+  });
+
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      paddingHorizontal: theme.spacing.screenPaddingH,
+      paddingTop: 4,
+      gap: 20,
+    },
+    field: {
+      width: '100%',
+      gap: 8,
+      zIndex: 1,
+    },
+    fieldRaised: {
+      zIndex: 40,
+    },
+    label: {
+      fontSize: theme.fintSizes.sm,
+      fontFamily: theme.typography.semiBold,
+      color: colors.textPrimary,
+      letterSpacing: -0.1,
+    },
+    input: {
+      minHeight: 52,
+      borderRadius: INPUT_RADIUS,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+    },
+    inputIdle: {
+      borderWidth: 0,
+      backgroundColor: colors.surface,
+      ...inputShadow,
+    },
+    inputFocused: {
+      borderWidth: 2,
+      borderColor: colors.brand,
+      backgroundColor: colors.surface,
+    },
+    inputPlaceholderTypography: {
+      fontFamily: theme.typography.regular,
+    },
+    inputFilled: {
+      fontFamily: theme.typography.semiBold,
+    },
+  });
+}
+
 export function NameGenderScreen({
   onStepValidityChange,
 }: OnboardingStepScreenProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createNameGenderStyles(colors), [colors]);
   const { draft, updateDraft } = useOnboardingDraft();
   const [firstName, setFirstName] = useState(draft.first_name);
   const [lastName, setLastName] = useState(draft.last_name);
   const [gender, setGender] = useState(draft.gender);
-  const [focusedField, setFocusedField] = useState<'firstName' | 'lastName' | null>(null);
+  const [focusedField, setFocusedField] = useState<'firstName' | 'lastName' | null>(
+    null,
+  );
   const [openField, setOpenField] = useState<'gender' | null>(null);
 
   useEffect(() => {
@@ -50,11 +122,12 @@ export function NameGenderScreen({
         <TextInput
           style={[
             styles.input,
-            firstName.length > 0 ? styles.inputFilled : styles.inputPlaceholderTypography,
+            styles.inputIdle,
             focusedField === 'firstName' && styles.inputFocused,
+            firstName.length > 0 ? styles.inputFilled : styles.inputPlaceholderTypography,
           ]}
           placeholder="First"
-          placeholderTextColor={theme.colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           autoCapitalize="words"
           value={firstName}
           onChangeText={setFirstName}
@@ -69,11 +142,12 @@ export function NameGenderScreen({
         <TextInput
           style={[
             styles.input,
-            lastName.length > 0 ? styles.inputFilled : styles.inputPlaceholderTypography,
+            styles.inputIdle,
             focusedField === 'lastName' && styles.inputFocused,
+            lastName.length > 0 ? styles.inputFilled : styles.inputPlaceholderTypography,
           ]}
           placeholder="Last"
-          placeholderTextColor={theme.colors.textMuted}
+          placeholderTextColor={colors.textMuted}
           autoCapitalize="words"
           value={lastName}
           onChangeText={setLastName}
@@ -97,47 +171,3 @@ export function NameGenderScreen({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 4,
-    gap: 20,
-  },
-  field: {
-    width: '100%',
-    gap: 6,
-    zIndex: 1,
-  },
-  fieldRaised: {
-    zIndex: 40,
-  },
-  label: {
-    fontSize: theme.fintSizes.sm,
-    fontFamily: theme.typography.medium,
-    color: theme.colors.textPrimary,
-  },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: theme.colors.borderSubtle,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: theme.fintSizes.md,
-    color: theme.colors.textPrimary,
-    backgroundColor: '#ffffff',
-  },
-  inputPlaceholderTypography: {
-    fontFamily: theme.typography.regular,
-  },
-  inputFilled: {
-    fontFamily: theme.typography.semiBold,
-  },
-  inputFocused: {
-    borderColor: theme.colors.brand,
-    borderWidth: 2,
-  },
-});

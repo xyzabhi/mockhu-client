@@ -1,4 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Octicons from '@expo/vector-icons/Octicons';
 import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
@@ -26,6 +28,7 @@ import {
   useThemeColors,
   useThemePreference,
 } from '../../../presentation/theme/ThemeContext';
+import { FollowAuthorLink } from '../../../shared/components/FollowAuthorLink';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
 
 function displayName(post: PostResponse): string {
@@ -75,12 +78,22 @@ function typeBadgeColors(
 type PostCardProps = {
   post: PostResponse;
   currentUserId?: string;
+  /** Signed-in user’s following ids (for Follow on post author). */
+  followingIds?: Set<string>;
+  onFollowListChanged?: () => void;
   onDeleted?: (postId: string) => void;
   /** Merge server post after vote (and other updates). */
   onPostUpdated?: (post: PostResponse) => void;
 };
 
-export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: PostCardProps) {
+export function PostCard({
+  post,
+  currentUserId,
+  followingIds,
+  onFollowListChanged,
+  onDeleted,
+  onPostUpdated,
+}: PostCardProps) {
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
   const isDark = effectiveScheme === 'dark';
@@ -251,18 +264,29 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
         </View>
         <View style={styles.headerMain}>
           <View style={styles.nameRow}>
-            <Animated.Text
-              style={[
-                styles.displayName,
-                {
-                  transform: [{ scale: authorNameScale }],
-                  color: authorNameColor,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {displayName(post)}
-            </Animated.Text>
+            <View style={styles.authorNameRow}>
+              <Animated.Text
+                style={[
+                  styles.displayName,
+                  styles.displayNameFlex,
+                  {
+                    transform: [{ scale: authorNameScale }],
+                    color: authorNameColor,
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {displayName(post)}
+              </Animated.Text>
+              {!post.is_anonymous ? (
+                <FollowAuthorLink
+                  targetUserId={post.user_id}
+                  currentUserId={currentUserId}
+                  followingIds={followingIds}
+                  onFollowListChanged={onFollowListChanged}
+                />
+              ) : null}
+            </View>
             {timeLabel ? <Text style={styles.timeMeta}> · {timeLabel}</Text> : null}
             <View style={styles.headerSpacer} />
             <View style={[styles.typePill, { backgroundColor: badge.bg }]}>
@@ -363,19 +387,26 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
       <View style={styles.cardFooter}>
         <View style={styles.footerLeft}>
           <Pressable
-            style={({ pressed }) => [styles.votePill, pressed && styles.pillPressed]}
+            style={({ pressed }) => [
+              styles.votePill,
+              starred && styles.votePillActive,
+              pressed && styles.pillPressed,
+            ]}
             onPress={() => void submitStar()}
             accessibilityRole="button"
             accessibilityLabel={starred ? 'Liked' : 'Like post'}
             accessibilityHint={`${starCount} likes`}
             accessibilityState={{ selected: starred }}
           >
-            <MaterialCommunityIcons
-              name={starred ? 'thumb-up' : 'thumb-up-outline'}
-              size={20}
+            <Ionicons
+              name={starred ? 'caret-up' : 'caret-up-outline'}
+              size={22}
               color={starred ? colors.brand : likeInactiveColor}
             />
-            <Text style={styles.voteScore} maxFontSizeMultiplier={1.4}>
+            <Text
+              style={[styles.voteScore, starred && styles.voteScoreActive]}
+              maxFontSizeMultiplier={1.4}
+            >
               {starCount}
             </Text>
           </Pressable>
@@ -385,7 +416,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             accessibilityRole="button"
             accessibilityLabel={`Comments, ${post.comment_count}`}
           >
-            <MaterialCommunityIcons name="message-outline" size={20} color={colors.textPrimary} />
+            <Octicons name="comment" size={22} color={colors.textMuted} />
             <Text style={styles.replyCountText} maxFontSizeMultiplier={1.4}>
               {post.comment_count}
             </Text>
@@ -398,7 +429,7 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
             accessibilityRole="button"
             accessibilityLabel="Save"
           >
-            <MaterialCommunityIcons name="bookmark-outline" size={22} color={colors.textPrimary} />
+            <MaterialCommunityIcons name="bookmark-outline" size={20} color={colors.textMuted} />
           </Pressable>
         </View>
       </View>
@@ -407,24 +438,39 @@ export function PostCard({ post, currentUserId, onDeleted, onPostUpdated }: Post
 }
 
 function createPostCardStyles(colors: ThemeColors) {
+  const cardShadow = Platform.select({
+    ios: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+    },
+    android: {
+      elevation: 2,
+    },
+    default: {},
+  });
+
   return StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    paddingVertical: theme.spacing.cardPaddingV,
+    paddingVertical: 14,
     paddingHorizontal: theme.spacing.cardPaddingH,
-    borderWidth: theme.borderWidth.default,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderSubtle,
+    ...cardShadow,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
+    gap: 12,
+    marginBottom: 12,
   },
   avatarWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     overflow: 'hidden',
     backgroundColor: colors.brandLight,
     alignItems: 'center',
@@ -449,10 +495,22 @@ function createPostCardStyles(colors: ThemeColors) {
     flexWrap: 'wrap',
     gap: 4,
   },
+  authorNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '100%',
+    gap: 6,
+  },
   displayName: {
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
+  },
+  displayNameFlex: {
+    flexShrink: 1,
+    minWidth: 0,
   },
   timeMeta: {
     fontFamily: theme.typography.regular,
@@ -501,23 +559,24 @@ function createPostCardStyles(colors: ThemeColors) {
   },
   postTitle: {
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.md,
+    fontSize: theme.fintSizes.lg,
     color: colors.textPrimary,
-    lineHeight: 24,
-    marginBottom: 6,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+    marginBottom: 8,
   },
   content: {
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
-    lineHeight: 22,
-    marginBottom: 8,
+    lineHeight: 24,
+    marginBottom: 10,
   },
   singleImage: {
     width: '100%',
     aspectRatio: 16 / 10,
-    borderRadius: theme.radius.badge,
-    marginBottom: 10,
+    borderRadius: 12,
+    marginBottom: 12,
     backgroundColor: colors.surfaceSubtle,
   },
   imageStrip: {
@@ -527,16 +586,17 @@ function createPostCardStyles(colors: ThemeColors) {
   thumb: {
     width: 120,
     height: 120,
-    borderRadius: theme.radius.badge,
+    borderRadius: 12,
     marginRight: 8,
     backgroundColor: colors.surfaceSubtle,
   },
   linkCard: {
     flexDirection: 'row',
-    borderWidth: 1,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderSubtle,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: 12,
     backgroundColor: colors.surfaceSubtle,
   },
   linkCardPressed: {
@@ -545,14 +605,14 @@ function createPostCardStyles(colors: ThemeColors) {
   linkImg: {
     width: 88,
     height: 88,
-    backgroundColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSubtle,
   },
   linkImgPlaceholder: {
     width: 88,
     height: 88,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceSubtle,
+    backgroundColor: colors.brandLight,
   },
   linkText: {
     flex: 1,
@@ -562,19 +622,19 @@ function createPostCardStyles(colors: ThemeColors) {
   },
   linkTitle: {
     fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
+    fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
   },
   linkDesc: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
+    fontSize: theme.fintSizes.sm,
     color: colors.textMuted,
   },
   linkUrl: {
     marginTop: 4,
     fontFamily: theme.typography.regular,
-    fontSize: theme.fintSizes.xs,
+    fontSize: theme.fintSizes.sm,
     color: colors.brand,
   },
   cardFooter: {
@@ -582,8 +642,11 @@ function createPostCardStyles(colors: ThemeColors) {
     alignItems: 'center',
     alignSelf: 'stretch',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 4,
+    paddingTop: 12,
     gap: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle,
   },
   /** Like + comment pills — grouped on the left. */
   footerLeft: {
@@ -604,14 +667,16 @@ function createPostCardStyles(colors: ThemeColors) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.pill,
-    borderWidth: theme.borderWidth.default,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
-    minHeight: 38,
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSubtle,
+    minHeight: 36,
+  },
+  votePillActive: {
+    backgroundColor: colors.brandLight,
   },
   pillPressed: {
     opacity: 0.82,
@@ -623,18 +688,20 @@ function createPostCardStyles(colors: ThemeColors) {
     minWidth: 28,
     textAlign: 'center',
   },
+  voteScoreActive: {
+    color: colors.brand,
+  },
   replyPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: theme.radius.pill,
-    borderWidth: theme.borderWidth.default,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    gap: 4,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSubtle,
     maxWidth: '100%',
-    minHeight: 38,
+    minHeight: 36,
   },
   replyCountText: {
     fontFamily: theme.typography.semiBold,
@@ -646,12 +713,11 @@ function createPostCardStyles(colors: ThemeColors) {
   bookmarkBox: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 38,
-    height: 38,
-    borderRadius: theme.radius.badge,
-    borderWidth: theme.borderWidth.default,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    borderWidth: 0,
+    backgroundColor: colors.surfaceSubtle,
   },
   });
 }

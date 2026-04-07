@@ -1,4 +1,22 @@
 /**
+ * Legacy nested `level_info` on `/me` — level / tier for LevelBadge.
+ */
+export type LevelInfo = {
+  level: number;
+  tier: string;
+  tier_color_hint?: string | null;
+};
+
+/**
+ * Nested under post/comment `author.badge` — level / tier for optional future use.
+ */
+export type AuthorBadge = {
+  level: number;
+  tier: string;
+  tier_color_hint?: string;
+};
+
+/**
  * `GET /api/v1/me` — `data` shape (envelope). Fields may be JSON null when unset in DB.
  */
 export type MeResponse = {
@@ -13,8 +31,13 @@ export type MeResponse = {
   grade: string | null;
   /** `null` or `YYYY-MM-DD` */
   dob: string | null;
-  /** Total XP when returned by `/me` (omit or `null` if not tracked). */
-  xp?: number | null;
+  level?: number | null;
+  tier?: string | null;
+  tier_color_hint?: string | null;
+  /** Milestone codes (`user_special_badges`). */
+  special_badges?: string[] | null;
+  /** Legacy nested DTO — still supported if the server sends it. */
+  level_info?: LevelInfo | null;
   created_at: string;
   updated_at: string;
 };

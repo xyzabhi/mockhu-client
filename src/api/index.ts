@@ -17,6 +17,7 @@ export {
 } from './config';
 export {
   hydrateSessionUserFromMe,
+  refreshSessionProfile,
   type HydrateSessionOptions,
 } from './hydrateSessionProfile';
 export { getHealth } from './health';
@@ -52,9 +53,11 @@ export type * from './auth/types';
 
 export { userApi } from './user/userApi';
 export type {
+  AuthorBadge,
   FollowListQuery,
   FollowListResponse,
   FollowResponse,
+  LevelInfo,
   MeResponse,
   UserInterestsResponse,
   UserSuggestionsResponse,
@@ -72,6 +75,7 @@ export {
   postApi,
   normalizePost,
   normalizeComment,
+  normalizeAuthorBadge,
   mergeStarResponse,
   mergeUnstarResponse,
   mergeCommentStarResponse,

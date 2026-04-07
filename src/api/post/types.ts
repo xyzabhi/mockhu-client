@@ -1,3 +1,5 @@
+import type { AuthorBadge } from '../user/types';
+
 /** Server: `DOUBT` | `TIP` | `WIN` | `EXPERIENCE` */
 export type PostType = 'DOUBT' | 'TIP' | 'WIN' | 'EXPERIENCE';
 
@@ -6,7 +8,11 @@ export type PostAuthor = {
   first_name?: string | null;
   last_name?: string | null;
   avatar_url?: string | null;
+  /** Same shape as `/me` progression; omitted for anonymous or when not loaded. */
+  badge?: AuthorBadge | null;
 };
+
+export type { AuthorBadge };
 
 export type PostResponse = {
   id: string;

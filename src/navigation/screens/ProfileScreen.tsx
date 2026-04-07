@@ -1,31 +1,58 @@
-import { useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {
   clearSession,
+  hydrateSessionUserFromMe,
   normalizeTokenUserProfile,
   useFollowCounts,
   useSession,
 } from '../../api';
+import { resolveLevelBadgeFromUser } from '../../badge/progressionDisplay';
 import { theme } from '../../presentation/theme/theme';
 import { ThemeAppearanceToggle } from '../../presentation/theme/ThemeAppearanceToggle';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
+import { LevelBadge } from '../../shared/components/LevelBadge';
+import { SpecialBadgesRow } from '../../shared/components/SpecialBadgesRow';
 import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
 import { UserAvatar } from '../../shared/components/UserAvatar';
-import { formatCompactCount } from '../../shared/utils/formatCompactCount';
 import { resetToRoute } from '../navigationRef';
+
+/** Matches ~`lineFontSize` × 1.38 cap on `LevelBadge` + row gap. */
+const LEVEL_BADGE_WIDTH_APPROX = 40;
 
 export function ProfileScreen() {
   const colors = useThemeColors();
+  const { width: windowWidth } = useWindowDimensions();
   const styles = useMemo(() => createProfileStyles(colors), [colors]);
   const { user } = useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        try {
+          await hydrateSessionUserFromMe({ includeInterests: false });
+        } catch {
+          /* offline / 401 */
+        }
+        if (cancelled) return;
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const userId = profile?.id?.trim();
@@ -35,8 +62,17 @@ export function ProfileScreen() {
   const lastName = profile?.last_name?.trim() ?? '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ');
   const username = profile?.username?.trim() ?? '';
-  const xp =
-    typeof profile?.xp === 'number' && Number.isFinite(profile.xp) ? profile.xp : 0;
+
+  const levelBadge = profile ? resolveLevelBadgeFromUser(profile) : null;
+  const hasLevelBadge = levelBadge != null;
+  const nameMaxWidth = useMemo(() => {
+    const pad = theme.spacing.screenPaddingH * 2;
+    if (!hasLevelBadge) {
+      return Math.max(120, windowWidth - pad);
+    }
+    return Math.max(120, windowWidth - pad - LEVEL_BADGE_WIDTH_APPROX - 8);
+  }, [windowWidth, hasLevelBadge]);
+  const specialBadges = profile?.special_badges ?? [];
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -62,9 +98,27 @@ export function ProfileScreen() {
           size={88}
         />
       </View>
-      <Text style={styles.welcomeHeadline} accessibilityRole="header">
-        {fullName ? fullName : 'Profile'}
-      </Text>
+      <View style={styles.nameRow}>
+        <View style={styles.nameRowLeft}>
+          <Text
+            style={[styles.welcomeHeadline, { maxWidth: nameMaxWidth }]}
+            accessibilityRole="header"
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {fullName ? fullName : 'Profile'}
+          </Text>
+          {hasLevelBadge && levelBadge ? (
+            <LevelBadge
+              level={levelBadge.level}
+              tier={levelBadge.tierLabel}
+              tierColorHint={profile?.tier_color_hint}
+              lineFontSize={theme.fontSizes.screenTitle}
+              style={styles.levelBadgeInline}
+            />
+          ) : null}
+        </View>
+      </View>
       {username ? (
         <Text style={styles.usernameLine} accessibilityLabel={`Username ${username}`}>
           @{username}
@@ -88,18 +142,10 @@ export function ProfileScreen() {
             </Text>
             <Text style={styles.countLabel}>Following</Text>
           </View>
-          <View style={styles.countDivider} />
-          <View style={styles.countBlock}>
-            <Text
-              style={styles.countValueXp}
-              accessibilityLabel={`Experience points ${xp}`}
-            >
-              {formatCompactCount(xp)}
-            </Text>
-            <Text style={styles.countLabel}>XP</Text>
-          </View>
         </View>
       ) : null}
+
+      {specialBadges.length > 0 ? <SpecialBadgesRow codes={specialBadges} /> : null}
 
       <ThemeAppearanceToggle />
 
@@ -139,15 +185,32 @@ function createProfileStyles(colors: ThemeColors) {
     },
     avatarRow: {
       alignItems: 'center',
-      marginTop: 8,
-      marginBottom: 16,
+      marginTop: 4,
+      marginBottom: 18,
+    },
+    nameRow: {
+      alignSelf: 'stretch',
+    },
+    nameRowLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'nowrap',
+      gap: 8,
+      alignSelf: 'flex-start',
+      maxWidth: '100%',
     },
     welcomeHeadline: {
+      flexShrink: 1,
+      minWidth: 0,
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fontSizes.screenTitle,
       color: colors.textPrimary,
       letterSpacing: -0.3,
       lineHeight: 28,
+    },
+    levelBadgeInline: {
+      marginLeft: 0,
+      flexShrink: 0,
     },
     usernameLine: {
       marginTop: 6,
@@ -164,13 +227,23 @@ function createProfileStyles(colors: ThemeColors) {
     countsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 20,
-      paddingVertical: 14,
+      marginTop: 22,
+      paddingVertical: 16,
       paddingHorizontal: 16,
-      borderRadius: theme.radius.card,
+      borderRadius: 16,
       backgroundColor: colors.surface,
-      borderWidth: 1,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderSubtle,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+        },
+        android: { elevation: 2 },
+        default: {},
+      }),
     },
     countBlock: {
       flex: 1,
@@ -181,12 +254,6 @@ function createProfileStyles(colors: ThemeColors) {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.xl,
       color: colors.textPrimary,
-      fontVariant: ['tabular-nums'],
-    },
-    countValueXp: {
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.xl,
-      color: colors.progress,
       fontVariant: ['tabular-nums'],
     },
     countLabel: {
@@ -200,13 +267,13 @@ function createProfileStyles(colors: ThemeColors) {
       backgroundColor: colors.borderSubtle,
     },
     logoutButton: {
-      marginTop: 16,
+      marginTop: 20,
       alignSelf: 'flex-start',
       minWidth: 140,
       paddingVertical: 12,
       paddingHorizontal: 20,
-      borderRadius: 24,
-      borderWidth: 1,
+      borderRadius: 999,
+      borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderSubtle,
       backgroundColor: colors.surface,
       alignItems: 'center',

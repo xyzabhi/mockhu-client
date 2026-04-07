@@ -1,8 +1,10 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Octicons from '@expo/vector-icons/Octicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useMemo } from 'react';
-import { View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, View } from 'react-native';
 import { theme } from '../presentation/theme/theme';
 import { useThemeColors } from '../presentation/theme/ThemeContext';
 import type { MainTabParamList } from './types';
@@ -11,27 +13,43 @@ import { InboxScreen } from './screens/InboxScreen';
 import { ComposePostScreen } from '../features/posts/ComposePostScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
+import { FloatingBottomTabBar } from './FloatingBottomTabBar';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+/** Default icon size when the navigator does not pass `size`. */
+const TAB_ICON_SIZE = 24;
+
 export function MainTabNavigator() {
   const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
-  const tabBarBottomPad = Math.max(insets.bottom, 4);
-  const tabBarVisibleStyle = useMemo(
+
+  const postFabStyle = useMemo(
     () => ({
-      backgroundColor: colors.surface,
-      borderTopColor: colors.borderSubtle,
-      paddingTop: 2,
-      paddingBottom: tabBarBottomPad,
-      minHeight: 48 + tabBarBottomPad,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      backgroundColor: colors.brand,
+      alignItems: 'center' as const,
+      justifyContent: 'center' as const,
+      marginTop: -18,
+      ...Platform.select({
+        ios: {
+          shadowColor: colors.brand,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.38,
+          shadowRadius: 12,
+        },
+        android: { elevation: 12 },
+        default: {},
+      }),
     }),
-    [colors.borderSubtle, colors.surface, tabBarBottomPad],
+    [colors.brand],
   );
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      tabBar={(props) => <FloatingBottomTabBar {...props} />}
+      screenOptions={{
         headerShown: true,
         headerTitleStyle: {
           fontFamily: theme.typography.semiBold,
@@ -42,38 +60,32 @@ export function MainTabNavigator() {
           backgroundColor: colors.surface,
         },
         headerShadowVisible: false,
+        tabBarShowLabel: false,
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: {
-          fontFamily: theme.typography.medium,
-          fontSize: theme.fontSizes.navLabel,
-          marginBottom: 0,
-        },
         tabBarIconStyle: {
           marginTop: 0,
         },
         tabBarItemStyle: {
-          paddingVertical: 2,
+          paddingVertical: 4,
         },
-        /** Hide tab bar on Post (compose) only; restore when switching tabs */
-        tabBarStyle:
-          route.name === 'Post' ? { display: 'none' as const, height: 0 } : tabBarVisibleStyle,
-      })}
+        tabBarStyle: {
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
+        },
+      }}
     >
       <Tab.Screen
         name="Home"
         component={HomeFeedScreen}
         options={{
           title: 'Home',
-          tabBarLabel: 'Home',
           headerShown: false,
-          /** Reddit-style: outline inactive, filled active */
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? 'home' : 'home-outline'}
-              color={color}
-              size={size}
-            />
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: colors.textPrimary,
+          tabBarIcon: ({ color, size }) => (
+            <Octicons name="home-fill" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
@@ -82,12 +94,10 @@ export function MainTabNavigator() {
         component={ProgressScreen}
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? 'chart-timeline' : 'chart-timeline-variant'}
-              color={color}
-              size={size}
-            />
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: colors.textPrimary,
+          tabBarIcon: ({ color, size }) => (
+            <Octicons name="graph" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
@@ -97,30 +107,13 @@ export function MainTabNavigator() {
         options={{
           title: 'Post',
           headerShown: false,
-          /** Center create: circular hit target (50% → full circle) */
-          tabBarIcon: ({ focused }) => {
-            const size = 40;
-            return (
-              <View
-                style={{
-                  width: size,
-                  height: size,
-                  borderRadius: size / 2,
-                  backgroundColor: focused ? colors.brand : 'transparent',
-                  borderWidth: focused ? 0 : 1.5,
-                  borderColor: colors.borderSubtle,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <MaterialCommunityIcons
-                  name="plus"
-                  size={22}
-                  color={focused ? colors.onBrand : colors.textMuted}
-                />
-              </View>
-            );
-          },
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: colors.textPrimary,
+          tabBarIcon: () => (
+            <View style={postFabStyle}>
+              <MaterialIcons name="add" size={26} color={colors.onBrand} />
+            </View>
+          ),
         }}
       />
       <Tab.Screen
@@ -128,12 +121,10 @@ export function MainTabNavigator() {
         component={InboxScreen}
         options={{
           title: 'Inbox',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? 'bell' : 'bell-outline'}
-              color={color}
-              size={size}
-            />
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: colors.textPrimary,
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="notifications" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
@@ -142,12 +133,10 @@ export function MainTabNavigator() {
         component={ProfileScreen}
         options={{
           title: 'You',
-          tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? 'account-circle' : 'account-circle-outline'}
-              color={color}
-              size={size}
-            />
+          tabBarActiveTintColor: colors.brand,
+          tabBarInactiveTintColor: colors.textPrimary,
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome name="user-circle-o" size={size ?? TAB_ICON_SIZE} color={color} />
           ),
         }}
       />

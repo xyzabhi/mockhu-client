@@ -3,7 +3,6 @@ import type { ComponentType } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
-  Image,
   KeyboardAvoidingView,
   Pressable,
   StyleSheet,
@@ -21,6 +20,7 @@ import { GradeScreen } from './presentation/screens/GradeScreen';
 import { OnboardingExamInterestsScreen } from './presentation/screens/OnboardingExamInterestsScreen';
 import { NameGenderScreen } from './presentation/screens/NameGenderScreen';
 import { PhotoUsernameScreen } from './presentation/screens/PhotoUsername';
+import { BrandLogo, BRAND_LOGO_ASPECT } from '../../shared/components/BrandLogo';
 import { theme } from '../../presentation/theme/theme';
 import type { OnboardingStepScreenProps } from './onboardingStepTypes';
 
@@ -162,11 +162,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
       <View style={[styles.body, { paddingBottom: insets.bottom }]}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.brandRow}>
-          <Image
-            source={require('../../../assets/brand_logo.png')}
-            style={styles.brandLogo}
-            accessibilityLabel="Mockhu"
-          />
+          <BrandLogo style={styles.brandLogo} />
         </View>
         <View style={styles.headerTopRow}>
           {step > 0 ? (
@@ -263,9 +259,9 @@ const styles = StyleSheet.create({
   },
   brandLogo: {
     height: 56,
-    width: 56,
+    aspectRatio: BRAND_LOGO_ASPECT,
     maxWidth: '100%',
-    resizeMode: 'contain',
+    borderRadius: theme.radius.card,
   },
   headerTopRow: {
     flexDirection: 'row',
