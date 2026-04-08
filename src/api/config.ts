@@ -5,6 +5,34 @@ const DEFAULT_DEV_PORT = 8080;
 const EXPO_METRO_DEFAULT_PORT = 8081;
 const MAX_DEV_NETWORK_DELAY_MS = 30_000;
 
+/**
+ * Android emulator: `localhost` / `127.0.0.1` are the emulator itself, not your dev machine.
+ * `10.0.2.2` is the host loopback (where the API usually runs). Physical devices: put your PC’s
+ * LAN IP in `.env` (this rewrite does not apply to real devices using another host).
+ */
+function rewriteLocalhostForAndroidEmulator(baseUrl: string): string {
+  if (Platform.OS !== 'android') {
+    return baseUrl;
+  }
+  try {
+    const u = new URL(baseUrl);
+    if (u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') {
+      return baseUrl.replace(/\/$/, '');
+    }
+    u.hostname = '10.0.2.2';
+    const next = u.toString().replace(/\/$/, '');
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+      console.warn(
+        '[mockhu-api] Android emulator: API host was localhost — using 10.0.2.2 to reach your machine. ' +
+          'On a physical device, set EXPO_PUBLIC_MOCKHU_API_BASE_URL to your computer LAN IP.',
+      );
+    }
+    return next;
+  } catch {
+    return baseUrl.replace(/\/$/, '');
+  }
+}
+
 function warnIfBaseUrlLooksLikeMetroBundler(baseUrl: string): void {
   if (typeof __DEV__ === 'undefined' || !__DEV__) {
     return;
@@ -56,7 +84,7 @@ export function getApiBaseUrl(): string {
   if (fromEnv) {
     const base = fromEnv.replace(/\/$/, '');
     warnIfBaseUrlLooksLikeMetroBundler(base);
-    return base;
+    return rewriteLocalhostForAndroidEmulator(base);
   }
   // Android emulator: localhost is the emulator itself; 10.0.2.2 is the host machine.
   if (typeof __DEV__ !== 'undefined' && __DEV__ && Platform.OS === 'android') {

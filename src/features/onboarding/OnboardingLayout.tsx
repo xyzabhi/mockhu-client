@@ -5,9 +5,11 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -177,13 +179,14 @@ function createOnboardingLayoutStyles(colors: ThemeColors) {
       marginHorizontal: theme.spacing.screenPaddingH,
       marginBottom: 24,
       borderRadius: theme.radius.button,
-      borderWidth: 1,
-      borderColor: colors.buttonBorder,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.brand,
       backgroundColor: colors.brand,
       paddingVertical: 14,
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: 48,
+      overflow: 'hidden',
     },
     primaryButtonDisabled: {
       backgroundColor: colors.ctaDisabledBackground,
@@ -195,9 +198,11 @@ function createOnboardingLayoutStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.md,
       color: colors.onBrand,
       textAlign: 'center',
+      ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
     },
     primaryButtonTextDisabled: {
       color: colors.brand,
+      ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
     },
   });
 }
@@ -340,16 +345,14 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
         <Step onStepValidityChange={handleStepValidityChange} />
       </View>
 
-      <Pressable
+      <TouchableOpacity
         style={[
           styles.primaryButton,
           primaryDisabled && styles.primaryButtonDisabled,
         ]}
         onPress={handlePrimary}
         disabled={primaryDisabled}
-        android_ripple={{
-          color: !primaryDisabled ? 'rgba(255,255,255,0.2)' : 'rgba(79,70,229,0.12)',
-        }}
+        activeOpacity={primaryDisabled ? 1 : 0.88}
         accessibilityRole="button"
         accessibilityLabel={isLast ? 'Finish onboarding' : 'Continue to next step'}
         accessibilityState={{ disabled: primaryDisabled, busy: isLast && isFinishing }}
@@ -366,7 +369,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
             {isLast ? 'Finish' : 'Continue'}
           </Text>
         )}
-      </Pressable>
+      </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );

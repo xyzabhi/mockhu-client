@@ -86,6 +86,12 @@ export function useGoogleSignIn(): GoogleSignInState {
     try {
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+        // Without this, Android often reuses the last account and skips the account picker UI.
+        try {
+          await GoogleSignin.signOut();
+        } catch {
+          /* no prior Google session */
+        }
       }
 
       const response = await GoogleSignin.signIn();
