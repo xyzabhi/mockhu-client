@@ -28,6 +28,24 @@ export type PhoneVerifyBody = {
   otp: string;
 };
 
+export type EmailOtpRequestBody = {
+  email: string;
+};
+
+/** `data` from POST /auth/email/request (dev may include `otp` when Resend is off). */
+export type EmailOtpRequestData = {
+  message: string;
+  email: string;
+  expires_in: number;
+  /** Dev/local only — never surface in production UI. */
+  otp?: string;
+};
+
+export type EmailOtpVerifyBody = {
+  email: string;
+  otp: string;
+};
+
 export type GoogleAuthBody = {
   id_token: string;
 };

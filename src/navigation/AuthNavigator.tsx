@@ -1,6 +1,7 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { AuthWithEmail } from '../features/auth/presentation/screens/AuthWithEmail';
+import { EmailOtpRequestScreen } from '../features/auth/presentation/screens/EmailOtpRequestScreen';
+import { EmailOtpVerificationScreen } from '../features/auth/presentation/screens/EmailOtpVerificationScreen';
 import { AuthWithPhone } from '../features/auth/presentation/screens/AuthWithPhone';
 import { LoginScreen } from '../features/auth/presentation/screens/LoginScreen';
 import { PhoneVerificationScreen } from '../features/auth/presentation/screens/PhoneVerificationScreen';
@@ -54,11 +55,27 @@ function AuthEmailNav({
   navigation,
   route,
 }: NativeStackScreenProps<AuthStackParamList, 'AuthEmail'>) {
+  const { mode } = route.params;
   return (
-    <AuthWithEmail
-      mode={route.params.mode}
+    <EmailOtpRequestScreen
+      mode={mode}
       onBack={() => navigation.goBack()}
-      onAuthSuccess={(tokens) => resetToRootAfterAuth(tokens)}
+      onCodeSent={(email) => navigation.navigate('AuthEmailVerify', { mode, email })}
+    />
+  );
+}
+
+function AuthEmailVerifyNav({
+  navigation,
+  route,
+}: NativeStackScreenProps<AuthStackParamList, 'AuthEmailVerify'>) {
+  const { mode, email } = route.params;
+  return (
+    <EmailOtpVerificationScreen
+      mode={mode}
+      email={email}
+      onBack={() => navigation.goBack()}
+      onVerified={(tokens) => resetToRootAfterAuth(tokens)}
     />
   );
 }
@@ -88,6 +105,7 @@ export function AuthNavigator() {
       <Stack.Screen name="AuthLogin" component={LoginScreenNav} />
       <Stack.Screen name="AuthPhone" component={AuthPhoneNav} />
       <Stack.Screen name="AuthEmail" component={AuthEmailNav} />
+      <Stack.Screen name="AuthEmailVerify" component={AuthEmailVerifyNav} />
       <Stack.Screen name="AuthPhoneVerify" component={AuthPhoneVerifyNav} />
     </Stack.Navigator>
   );

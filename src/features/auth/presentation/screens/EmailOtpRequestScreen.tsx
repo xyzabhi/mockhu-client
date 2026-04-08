@@ -13,71 +13,61 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppError, authApi } from '../../../../api';
-import type { TokenResponse } from '../../../../api/types';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
-import { type ThemeColors, useThemeColors } from '../../../../presentation/theme/ThemeContext';
-
-type AuthWithEmailProps = {
-  mode: 'signup' | 'login';
-  onBack: () => void;
-  /** Called after tokens + user are persisted (navigate using `is_onboarded`). */
-  onAuthSuccess?: (tokens: TokenResponse) => void;
-};
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 const INPUT_RADIUS = 24;
 
-export function AuthWithEmail({ mode, onBack, onAuthSuccess }: AuthWithEmailProps) {
+type EmailOtpRequestScreenProps = {
+  mode: 'signup' | 'login';
+  onBack: () => void;
+  onCodeSent: (email: string) => void;
+};
+
+export function EmailOtpRequestScreen({ mode, onBack, onCodeSent }: EmailOtpRequestScreenProps) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createAuthEmailStyles(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
 
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [focusedField, setFocusedField] = useState<'email' | 'password' | null>(null);
+  const [focusedField, setFocusedField] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const emailValid = useMemo(() => {
-    const t = email.trim();
+    const t = email.trim().toLowerCase();
     return t.length > 0 && EMAIL_RE.test(t);
   }, [email]);
-
-  const passwordChecks = useMemo(() => {
-    const p = password;
-    return {
-      minLen: p.length >= 8,
-    };
-  }, [password]);
-
-  /** Matches API: password min 8 (no extra client-only rules). */
-  const signupPasswordValid = passwordChecks.minLen;
-
-  const isFormValid =
-    emailValid && (mode === 'login' ? password.length > 0 : signupPasswordValid);
 
   const title = mode === 'login' ? 'Login with Email' : 'Sign up with Email';
   const subtitle =
     mode === 'login'
-      ? 'Sign in with your email and password.'
-      : 'Create your account with your email and password.\nWe use your email for your account and recovery.';
-  const primaryCta = mode === 'login' ? 'Login' : 'Continue';
-  const primaryCtaDescription =
-    mode === 'login' ? '' : 'We will send a link to your email to verify your account.';
+      ? 'We will email you a one-time code to sign in — no password needed.'
+      : 'Enter your email. We will send a 6-digit code to verify it.';
+  const primaryCta = mode === 'login' ? 'Continue' : 'Send code';
 
   const handlePrimaryAction = async () => {
-    if (!isFormValid || isSubmitting) return;
+    if (!emailValid || isSubmitting) return;
+    const normalized = email.trim().toLowerCase();
     setSubmitError(null);
     setIsSubmitting(true);
     try {
-      const body = { email: email.trim(), password };
-      const tokens =
-        mode === 'login' ? await authApi.login(body) : await authApi.signup(body);
-      onAuthSuccess?.(tokens);
+      const res = await authApi.requestEmailOtp({ email: normalized });
+      if (__DEV__ && res.otp != null && res.otp !== '') {
+        console.log('[Mockhu dev] Email OTP (from API):', res.otp);
+      }
+      onCodeSent(normalized);
     } catch (e) {
       const message =
-        e instanceof AppError ? e.message : 'Something went wrong. Try again.';
+        e instanceof AppError && e.status != null && e.status >= 500
+          ? 'Could not send the code. Try again in a moment.'
+          : e instanceof AppError
+            ? e.message
+            : 'Something went wrong. Try again.';
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
@@ -105,11 +95,7 @@ export function AuthWithEmail({ mode, onBack, onAuthSuccess }: AuthWithEmailProp
             accessibilityLabel="Go back"
             android_ripple={{ color: 'rgba(0,0,0,0.08)' }}
           >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={26}
-              color={colors.textPrimary}
-            />
+            <MaterialCommunityIcons name="arrow-left" size={26} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.headerContent}>
             <Text style={styles.title}>{title}</Text>
@@ -123,93 +109,36 @@ export function AuthWithEmail({ mode, onBack, onAuthSuccess }: AuthWithEmailProp
             style={[
               styles.input,
               email.length > 0 ? styles.inputFilled : styles.inputDefault,
-              focusedField === 'email' ? styles.inputFocused : styles.inputIdle,
+              focusedField ? styles.inputFocused : styles.inputIdle,
             ]}
-            placeholder="Enter your email"
+            placeholder="you@example.com"
             placeholderTextColor={colors.textHint}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
             value={email}
-            onChangeText={(text) => setEmail(text.toLowerCase())}
-            onFocus={() => setFocusedField('email')}
-            onBlur={() => setFocusedField(null)}
+            onChangeText={(t) => setEmail(t.toLowerCase())}
+            onFocus={() => setFocusedField(true)}
+            onBlur={() => setFocusedField(false)}
             accessibilityLabel="Email address"
             textContentType="emailAddress"
             autoComplete="email"
           />
-
-          <Text style={[styles.label, styles.labelSpaced]}>Password</Text>
-          <TextInput
-            style={[
-              styles.input,
-              password.length > 0 ? styles.inputFilled : styles.inputDefault,
-              focusedField === 'password' ? styles.inputFocused : styles.inputIdle,
-            ]}
-            placeholder="Enter your password"
-            placeholderTextColor={colors.textHint}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
-            spellCheck={false}
-            value={password}
-            onChangeText={setPassword}
-            onFocus={() => setFocusedField('password')}
-            onBlur={() => setFocusedField(null)}
-            accessibilityLabel="Password"
-            textContentType={mode === 'login' ? 'password' : 'newPassword'}
-            autoComplete={mode === 'login' ? 'password' : 'password-new'}
-          />
-
-          {mode === 'signup' ? (
-            <View style={styles.passwordHintCard}>
-              <RequirementRow
-                met={passwordChecks.minLen}
-                text="At least 8 characters"
-                colors={colors}
-              />
-              <Text style={styles.fieldHint}>
-                You can use any mix of letters, numbers, and symbols. For a stronger password,
-                include upper and lower case.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.forgotPasswordContainer}>
-              <Pressable
-                onPress={() => {}}
-                accessibilityRole="button"
-                accessibilityLabel="Forgot password"
-                android_ripple={{ color: 'rgba(0,0,0,0.06)' }}
-              >
-                <Text style={styles.forgotPasswordText}>Forgot your password?</Text>
-              </Pressable>
-            </View>
-          )}
         </View>
       </ScrollView>
 
       <View style={[styles.primaryButtonContainer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-        {primaryCtaDescription ? (
-          <View style={styles.primaryCtaDescRow}>
-            <MaterialCommunityIcons
-              name="information-outline"
-              size={18}
-              color={colors.textMuted}
-            />
-            <Text style={styles.primaryCtaDesc}>{primaryCtaDescription}</Text>
-          </View>
-        ) : null}
         {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
         <Pressable
           style={[
             styles.primaryButton,
-            (!isFormValid || isSubmitting) && styles.primaryButtonDisabled,
+            (!emailValid || isSubmitting) && styles.primaryButtonDisabled,
           ]}
           onPress={() => void handlePrimaryAction()}
-          disabled={!isFormValid || isSubmitting}
+          disabled={!emailValid || isSubmitting}
           android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
           accessibilityRole="button"
-          accessibilityState={{ disabled: !isFormValid || isSubmitting }}
+          accessibilityState={{ disabled: !emailValid || isSubmitting }}
           accessibilityLabel={primaryCta}
         >
           {isSubmitting ? (
@@ -223,43 +152,7 @@ export function AuthWithEmail({ mode, onBack, onAuthSuccess }: AuthWithEmailProp
   );
 }
 
-function RequirementRow({
-  met,
-  text,
-  colors,
-}: {
-  met: boolean;
-  text: string;
-  colors: ThemeColors;
-}) {
-  return (
-    <View style={requirementStyles.row}>
-      <MaterialCommunityIcons
-        name={met ? 'check-circle' : 'information-outline'}
-        size={18}
-        color={met ? colors.brand : colors.textMuted}
-      />
-      <Text style={[requirementStyles.text, { color: met ? colors.textPrimary : colors.textMuted }]}>
-        {text}
-      </Text>
-    </View>
-  );
-}
-
-const requirementStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  text: {
-    flex: 1,
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-  },
-});
-
-function createAuthEmailStyles(colors: ThemeColors) {
+function createStyles(colors: ThemeColors) {
   const inputShadow = Platform.select({
     ios: {
       shadowColor: '#000',
@@ -325,16 +218,6 @@ function createAuthEmailStyles(colors: ThemeColors) {
       color: colors.textPrimary,
       letterSpacing: -0.1,
     },
-    labelSpaced: {
-      marginTop: 18,
-    },
-    fieldHint: {
-      marginTop: 4,
-      fontFamily: theme.typography.regular,
-      fontSize: theme.fintSizes.xs,
-      color: colors.textMuted,
-      lineHeight: 18,
-    },
     input: {
       minHeight: 52,
       marginTop: 8,
@@ -361,15 +244,6 @@ function createAuthEmailStyles(colors: ThemeColors) {
     inputFilled: {
       fontFamily: theme.typography.semiBold,
     },
-    passwordHintCard: {
-      marginTop: 14,
-      padding: 14,
-      borderRadius: 16,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.borderSubtle,
-      gap: 10,
-    },
     primaryButton: {
       borderRadius: 999,
       backgroundColor: colors.brand,
@@ -388,19 +262,6 @@ function createAuthEmailStyles(colors: ThemeColors) {
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: colors.borderSubtle,
     },
-    primaryCtaDescRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      columnGap: 8,
-      marginBottom: 14,
-    },
-    primaryCtaDesc: {
-      flex: 1,
-      fontFamily: theme.typography.regular,
-      fontSize: theme.fintSizes.sm,
-      color: colors.textMuted,
-      lineHeight: 20,
-    },
     errorText: {
       fontFamily: theme.typography.regular,
       fontSize: theme.fintSizes.sm,
@@ -411,15 +272,6 @@ function createAuthEmailStyles(colors: ThemeColors) {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.md,
       color: colors.onBrand,
-    },
-    forgotPasswordContainer: {
-      marginTop: 16,
-      alignItems: 'flex-end',
-    },
-    forgotPasswordText: {
-      fontFamily: theme.typography.medium,
-      fontSize: theme.fintSizes.sm,
-      color: colors.brand,
     },
   });
 }

@@ -3,6 +3,9 @@ import { hydrateSessionUserFromMe } from '../hydrateSessionProfile';
 import * as sessionStore from '../sessionStore';
 import type { TokenResponse } from '../types';
 import type {
+  EmailOtpRequestBody,
+  EmailOtpRequestData,
+  EmailOtpVerifyBody,
   GoogleAuthBody,
   LoginBody,
   PhoneOtpRequestData,
@@ -44,6 +47,15 @@ export async function verifyPhoneOtp(body: PhoneVerifyBody): Promise<TokenRespon
   return persistTokens(data);
 }
 
+export async function requestEmailOtp(body: EmailOtpRequestBody): Promise<EmailOtpRequestData> {
+  return apiPost<EmailOtpRequestData>('/auth/email/request', body, authOpts);
+}
+
+export async function verifyEmailOtp(body: EmailOtpVerifyBody): Promise<TokenResponse> {
+  const data = await apiPost<TokenResponse>('/auth/email/verify', body, authOpts);
+  return persistTokens(data);
+}
+
 export async function google(body: GoogleAuthBody): Promise<TokenResponse> {
   const data = await apiPost<TokenResponse>('/auth/google', body, authOpts);
   return persistTokens(data);
@@ -67,6 +79,8 @@ export const authApi = {
   login,
   requestPhoneOtp,
   verifyPhoneOtp,
+  requestEmailOtp,
+  verifyEmailOtp,
   google,
   refresh,
 };

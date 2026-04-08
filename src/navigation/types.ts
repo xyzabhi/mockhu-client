@@ -9,6 +9,7 @@ export type AuthStackParamList = {
   AuthLogin: undefined;
   AuthPhone: { mode: 'signup' | 'login' };
   AuthEmail: { mode: 'signup' | 'login' };
+  AuthEmailVerify: { mode: 'signup' | 'login'; email: string };
   AuthPhoneVerify: { mode: 'signup' | 'login'; phoneE164: string };
 };
 
