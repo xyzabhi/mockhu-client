@@ -162,8 +162,10 @@ Useful exports:
 | `verifyPhoneOtp` | `/auth/phone/verify` | `{ phone, otp }` (6 digits) | Saves tokens |
 | `forgotPassword` | `/auth/password/forgot` | `{ email }` | Returns `{ message }` (same public copy always); dev may include `otp` |
 | `resetPassword` | `/auth/password/reset` | `{ email, otp, new_password }` | Saves tokens (same as login) |
-| `google` | `/auth/google` | `{ id_token }` | Saves tokens |
+| `google` | `/auth/google` | `{ code, redirect_uri, code_verifier? }` | Saves tokens |
 | `refresh` | `/auth/refresh` | `{ refresh_token }` | Saves tokens (also used internally by `refreshCoordinator`) |
+
+The native app completes Google in `ASWebAuthenticationSession` via `expo-auth-session` (`useAuthRequest` from `expo-auth-session/providers/google`) with `shouldAutoExchangeCode: false`, so the app receives an authorization `code` on redirect and sends `{ code, redirect_uri, code_verifier? }` to `POST /auth/google` (backend exchanges with Google and issues JWTs). OAuth client IDs live in `.env` (`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, iOS, Android). The app scheme is `com.mockhu.oauthios` (`app.json`: `scheme`, `ios.bundleIdentifier`, `android.package`); `useGoogleSignIn` builds `makeRedirectUri({ path: 'oauth2redirect', native: '<bundleId>:/oauth2redirect' })` so the redirect matches Google Cloud **Web client** Authorized redirect URIs (log the exact string in dev). Rebuild native after changing identifiers (`npx expo prebuild --clean` or `npx expo run:ios`). `App.tsx` calls `WebBrowser.maybeCompleteAuthSession()`.
 
 Example:
 

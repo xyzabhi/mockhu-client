@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GoogleLogo } from '../../../../presentation/components/GoogleLogo';
 import { theme } from '../../../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../../../presentation/theme/ThemeContext';
@@ -11,6 +11,9 @@ type SocialAuthButtonsProps = {
   onSwitchMode: () => void;
   onPressPhone: () => void;
   onPressEmail: () => void;
+  /** Google OAuth — `expo-auth-session` + `POST /auth/google`. */
+  onPressGoogle?: () => void | Promise<void>;
+  googleBusy?: boolean;
 };
 
 function SocialButton({
@@ -46,6 +49,8 @@ export function SocialAuthButtons({
   onSwitchMode,
   onPressPhone,
   onPressEmail,
+  onPressGoogle,
+  googleBusy = false,
 }: SocialAuthButtonsProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createSocialStyles(colors), [colors]);
@@ -73,12 +78,32 @@ export function SocialAuthButtons({
           label="Email"
           onPress={onPressEmail}
         />
-        <SocialButton
-          styles={styles}
-          leading={<GoogleLogo size={22} />}
-          label="Google"
-          onPress={() => {}}
-        />
+        <Pressable
+          onPress={() => void onPressGoogle?.()}
+          disabled={googleBusy || !onPressGoogle}
+          android_ripple={{ color: 'rgba(17, 24, 39, 0.08)' }}
+          style={({ pressed }) => [
+            styles.socialButton,
+            pressed && !googleBusy && onPressGoogle && styles.socialButtonPressed,
+            (googleBusy || !onPressGoogle) && styles.socialButtonDisabled,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+          accessibilityState={{ disabled: googleBusy || !onPressGoogle }}
+        >
+          <View style={styles.socialIconSlot}>
+            <GoogleLogo size={22} />
+          </View>
+          {googleBusy ? (
+            <View style={styles.googleBusySlot}>
+              <ActivityIndicator size="small" color={colors.textPrimary} />
+            </View>
+          ) : (
+            <Text style={styles.socialLabel} numberOfLines={1}>
+              Google
+            </Text>
+          )}
+        </Pressable>
         <Pressable
           onPress={onSwitchMode}
           android_ripple={{ color: 'rgba(124, 58, 237, 0.12)' }}
@@ -136,6 +161,16 @@ function createSocialStyles(colors: ThemeColors) {
     socialButtonPressed: {
       opacity: 0.92,
       backgroundColor: colors.brandLight,
+    },
+    socialButtonDisabled: {
+      opacity: 0.55,
+    },
+    googleBusySlot: {
+      flex: 1,
+      marginRight: ICON_SLOT,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 24,
     },
     socialIconSlot: {
       width: ICON_SLOT,

@@ -5,9 +5,17 @@ type LoginScreenProps = {
   onSwitchToSignUp: () => void;
   onPressPhone: () => void;
   onPressEmail: () => void;
+  onPressGoogle?: () => void | Promise<void>;
+  googleBusy?: boolean;
 };
 
-export function LoginScreen({ onSwitchToSignUp, onPressPhone, onPressEmail }: LoginScreenProps) {
+export function LoginScreen({
+  onSwitchToSignUp,
+  onPressPhone,
+  onPressEmail,
+  onPressGoogle,
+  googleBusy,
+}: LoginScreenProps) {
   return (
     <AuthLayout
       title="Welcome back"
@@ -18,6 +26,8 @@ export function LoginScreen({ onSwitchToSignUp, onPressPhone, onPressEmail }: Lo
         onSwitchMode={onSwitchToSignUp}
         onPressPhone={onPressPhone}
         onPressEmail={onPressEmail}
+        onPressGoogle={onPressGoogle}
+        googleBusy={googleBusy}
       />
     </AuthLayout>
   );

@@ -9,5 +9,9 @@ declare namespace NodeJS {
      * the server uses the same asset via `EMAIL_OTP_LOGO_URL`. Optional; falls back to bundled asset.
      */
     EXPO_PUBLIC_BRAND_LOGO_URL?: string;
+    /** Google OAuth (public client IDs from Google Cloud Console). */
+    EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?: string;
+    EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?: string;
+    EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?: string;
   }
 }
