@@ -154,9 +154,14 @@ Useful exports:
 | Method (on `authApi`) | Path | Body | After success |
 |------------------------|------|------|----------------|
 | `signup` | `/auth/signup` | `{ email, password }` (min 8) | Saves tokens |
+| `registerSignup` | `/auth/signup` | Same | No tokens (then `requestEmailOtp`) |
 | `login` | `/auth/login` | `{ email, password }` | Saves tokens |
+| `requestEmailOtp` | `/auth/email/request` | `{ email }` | Returns message + expiry; dev may include `otp` in JSON |
+| `verifyEmailOtp` | `/auth/email/verify` | `{ email, otp }` (6 digits) | Saves tokens |
 | `requestPhoneOtp` | `/auth/phone/request` | `{ phone }` E.164 | Returns message + expiry; dev may include `otp` in JSON |
 | `verifyPhoneOtp` | `/auth/phone/verify` | `{ phone, otp }` (6 digits) | Saves tokens |
+| `forgotPassword` | `/auth/password/forgot` | `{ email }` | Returns `{ message }` (same public copy always); dev may include `otp` |
+| `resetPassword` | `/auth/password/reset` | `{ email, otp, new_password }` | Saves tokens (same as login) |
 | `google` | `/auth/google` | `{ id_token }` | Saves tokens |
 | `refresh` | `/auth/refresh` | `{ refresh_token }` | Saves tokens (also used internally by `refreshCoordinator`) |
 
