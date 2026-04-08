@@ -22,6 +22,22 @@ function isSuccessEnvelope(body: unknown): body is { success: true; data: unknow
   return isRecord(body) && body.success === true && 'data' in body;
 }
 
+/** User-facing hint when the body is not JSON (often HTML, plain text, or wrong route despite HTTP 200). */
+function messageForNonJsonBody(status: number): string {
+  if (status >= 500) {
+    return 'Invalid server response.';
+  }
+  if (status === 200) {
+    return (
+      'HTTP 200 but the response was not JSON. The URL may point at a web page or proxy instead of the Mockhu API ' +
+      '(expect /api/v1/... with a JSON body). Check EXPO_PUBLIC_MOCKHU_API_BASE_URL and the request path.'
+    );
+  }
+  return (
+    'Not JSON (HTTP ' + status + '). Set EXPO_PUBLIC_MOCKHU_API_BASE_URL and ensure the API returns JSON.'
+  );
+}
+
 /**
  * Parse JSON API responses: envelope success/failure, plus unwrapped 401 middleware bodies.
  */
@@ -30,12 +46,9 @@ export async function parseApiResponse<T>(response: Response): Promise<T> {
   let body: unknown;
   const text = await response.text();
   try {
-    body = text ? JSON.parse(text) : null;
+    body = text.trim() ? JSON.parse(text.trim()) : null;
   } catch {
-    throw AppError.fromHttpStatus(
-      status,
-      status >= 500 ? 'Invalid server response.' : 'Invalid response.',
-    );
+    throw AppError.fromHttpStatus(status, messageForNonJsonBody(status));
   }
 
   if (status === 401 && isRawAuthMiddlewareBody(body)) {

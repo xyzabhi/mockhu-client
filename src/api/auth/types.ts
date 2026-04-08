@@ -65,12 +65,13 @@ export type ResetPasswordBody = {
   new_password: string;
 };
 
-export type GoogleAuthBody = {
-  id_token: string;
-};
-
 export type RefreshBody = {
   refresh_token: string;
+};
+
+/** `POST /auth/google` — Google ID token from native sign-in (validated server-side). */
+export type GoogleSignInBody = {
+  id_token: string;
 };
 
 export type { TokenResponse };

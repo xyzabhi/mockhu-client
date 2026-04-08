@@ -1,16 +1,22 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { GoogleLogo } from '../../../../presentation/components/GoogleLogo';
 import { theme } from '../../../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../../../presentation/theme/ThemeContext';
+
+/** No Android ripple — matches iOS pressed state (opacity + fill) on flat bordered buttons. */
+const ANDROID_FLAT_PRESSABLE = { android_ripple: null };
 
 type SocialAuthButtonsProps = {
   switchCtaLabel: string;
   onSwitchMode: () => void;
   onPressPhone: () => void;
   onPressEmail: () => void;
+  onPressGoogle?: () => void | Promise<void>;
+  googleBusy?: boolean;
+  googleErrorText?: string | null;
 };
 
 function SocialButton({
@@ -27,14 +33,14 @@ function SocialButton({
   return (
     <Pressable
       onPress={onPress}
-      android_ripple={{ color: 'rgba(17, 24, 39, 0.08)' }}
+      {...ANDROID_FLAT_PRESSABLE}
       style={({ pressed }) => [
         styles.socialButton,
         pressed && styles.socialButtonPressed,
       ]}
     >
       <View style={styles.socialIconSlot}>{leading}</View>
-      <Text style={styles.socialLabel} numberOfLines={1}>
+      <Text style={[styles.socialLabel, textAndroid]} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>
@@ -46,6 +52,9 @@ export function SocialAuthButtons({
   onSwitchMode,
   onPressPhone,
   onPressEmail,
+  onPressGoogle,
+  googleBusy = false,
+  googleErrorText,
 }: SocialAuthButtonsProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createSocialStyles(colors), [colors]);
@@ -73,19 +82,44 @@ export function SocialAuthButtons({
           label="Email"
           onPress={onPressEmail}
         />
-        <SocialButton
-          styles={styles}
-          leading={<GoogleLogo size={22} />}
-          label="Google"
-          onPress={() => {}}
-        />
+        <Pressable
+          onPress={() => void onPressGoogle?.()}
+          disabled={googleBusy || !onPressGoogle}
+          {...ANDROID_FLAT_PRESSABLE}
+          style={({ pressed }) => [
+            styles.socialButton,
+            pressed && !googleBusy && styles.socialButtonPressed,
+            googleBusy && styles.socialButtonDisabled,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+          accessibilityState={{ disabled: googleBusy || !onPressGoogle }}
+        >
+          <View style={styles.socialIconSlot}>
+            <GoogleLogo size={22} />
+          </View>
+          {googleBusy ? (
+            <View style={styles.googleBusySlot}>
+              <ActivityIndicator size="small" color={colors.textPrimary} />
+            </View>
+          ) : (
+            <Text style={[styles.socialLabel, textAndroid]} numberOfLines={1}>
+              Google
+            </Text>
+          )}
+        </Pressable>
         <Pressable
           onPress={onSwitchMode}
-          android_ripple={{ color: 'rgba(124, 58, 237, 0.12)' }}
+          {...ANDROID_FLAT_PRESSABLE}
           style={({ pressed }) => [styles.switchCta, pressed && styles.switchCtaPressed]}
         >
-          <Text style={styles.switchCtaText}>{switchCtaLabel}</Text>
+          <Text style={[styles.switchCtaText, textAndroid]}>{switchCtaLabel}</Text>
         </Pressable>
+        {googleErrorText != null && googleErrorText !== '' ? (
+          <View style={styles.googleErrorBox}>
+            <Text style={styles.googleErrorText}>{googleErrorText}</Text>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -93,18 +127,9 @@ export function SocialAuthButtons({
 
 const ICON_SLOT = 48;
 
-function createSocialStyles(colors: ThemeColors) {
-  const cardShadow = Platform.select({
-    ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-    },
-    android: { elevation: 2 },
-    default: {},
-  });
+const textAndroid = Platform.OS === 'android' ? { includeFontPadding: false } : {};
 
+function createSocialStyles(colors: ThemeColors) {
   return StyleSheet.create({
     sheetBodyScroll: {
       flex: 1,
@@ -125,17 +150,31 @@ function createSocialStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       borderRadius: 24,
-      borderWidth: 0,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
       backgroundColor: colors.surfaceSubtle,
       paddingVertical: 14,
       paddingHorizontal: 4,
       minHeight: 54,
       overflow: 'hidden',
-      ...cardShadow,
+      ...Platform.select({
+        android: { elevation: 0 },
+        default: {},
+      }),
     },
     socialButtonPressed: {
       opacity: 0.92,
       backgroundColor: colors.brandLight,
+    },
+    socialButtonDisabled: {
+      opacity: 0.55,
+    },
+    googleBusySlot: {
+      flex: 1,
+      marginRight: ICON_SLOT,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 24,
     },
     socialIconSlot: {
       width: ICON_SLOT,
@@ -150,7 +189,6 @@ function createSocialStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.md,
       color: colors.textPrimary,
     },
-    /** Secondary — outline (sign-up options stay visually primary). */
     switchCta: {
       borderRadius: 999,
       borderWidth: 2,
@@ -162,6 +200,10 @@ function createSocialStyles(colors: ThemeColors) {
       justifyContent: 'center',
       marginTop: 8,
       overflow: 'hidden',
+      ...Platform.select({
+        android: { elevation: 0 },
+        default: {},
+      }),
     },
     switchCtaPressed: {
       opacity: 0.9,
@@ -172,6 +214,20 @@ function createSocialStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.md,
       color: colors.brand,
       textAlign: 'center',
+    },
+    googleErrorBox: {
+      marginTop: 8,
+      padding: 10,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
+      backgroundColor: colors.surfaceSubtle,
+    },
+    googleErrorText: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      lineHeight: 20,
+      color: colors.textPrimary,
     },
   });
 }

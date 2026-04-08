@@ -1,5 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useGoogleSignIn } from '../features/auth/google';
 import { EmailOtpRequestScreen } from '../features/auth/presentation/screens/EmailOtpRequestScreen';
 import { EmailOtpVerificationScreen } from '../features/auth/presentation/screens/EmailOtpVerificationScreen';
 import { ForgotPasswordEmailScreen } from '../features/auth/presentation/screens/ForgotPasswordEmailScreen';
@@ -16,11 +17,15 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
 function SignUpScreenNav({
   navigation,
 }: NativeStackScreenProps<AuthStackParamList, 'AuthSignUp'>) {
+  const { signInWithGoogle, busy: googleBusy, errorText: googleErrorText } = useGoogleSignIn();
   return (
     <SignUpScreen
       onSwitchToLogin={() => navigation.navigate('AuthLogin')}
       onPressPhone={() => navigation.navigate('AuthPhone', { mode: 'signup' })}
       onPressEmail={() => navigation.navigate('AuthEmail', { mode: 'signup' })}
+      onPressGoogle={signInWithGoogle}
+      googleBusy={googleBusy}
+      googleErrorText={googleErrorText}
     />
   );
 }
@@ -28,11 +33,15 @@ function SignUpScreenNav({
 function LoginScreenNav({
   navigation,
 }: NativeStackScreenProps<AuthStackParamList, 'AuthLogin'>) {
+  const { signInWithGoogle, busy: googleBusy, errorText: googleErrorText } = useGoogleSignIn();
   return (
     <LoginScreen
       onSwitchToSignUp={() => navigation.navigate('AuthSignUp')}
       onPressPhone={() => navigation.navigate('AuthPhone', { mode: 'login' })}
       onPressEmail={() => navigation.navigate('AuthEmail', { mode: 'login' })}
+      onPressGoogle={signInWithGoogle}
+      googleBusy={googleBusy}
+      googleErrorText={googleErrorText}
     />
   );
 }

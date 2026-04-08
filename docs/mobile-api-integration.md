@@ -49,7 +49,7 @@ Helpers (from `src/api/config.ts`):
 | `sessionStore.ts` | Persist tokens + user, in-memory snapshot, subscribers |
 | `storage/stringStorage.ts` | SecureStore (iOS/Android); sessionStorage on web for dev |
 | `reauth.ts` | `setReauthHandler` — e.g. reset navigation to login |
-| `auth/authApi.ts` | Signup, login, phone OTP, Google, refresh |
+| `auth/authApi.ts` | Signup, login, phone OTP, refresh |
 | `auth/types.ts` | Request/response shapes for auth |
 | `health.ts` | `GET /health` (plain JSON, not the standard envelope) |
 | `user/userApi.ts` | Example feature module using `apiGet` |
@@ -162,8 +162,22 @@ Useful exports:
 | `verifyPhoneOtp` | `/auth/phone/verify` | `{ phone, otp }` (6 digits) | Saves tokens |
 | `forgotPassword` | `/auth/password/forgot` | `{ email }` | Returns `{ message }` (same public copy always); dev may include `otp` |
 | `resetPassword` | `/auth/password/reset` | `{ email, otp, new_password }` | Saves tokens (same as login) |
-| `google` | `/auth/google` | `{ id_token }` | Saves tokens |
+| `signInWithGoogle` | `/auth/google` | `{ id_token }` | Saves tokens (same as login); native Google Sign-In supplies JWT |
 | `refresh` | `/auth/refresh` | `{ refresh_token }` | Saves tokens (also used internally by `refreshCoordinator`) |
+
+### Google OAuth (`POST /auth/google`)
+
+Public route — **no** `Authorization` header.
+
+**Request body:** `{ "id_token": "<Google ID token JWT>" }` only. The server verifies the JWT (JWKS) and reads `sub`, email, names, `picture` from claims — **do not** send profile fields in the body.
+
+**Success (200):** Same envelope as login/signup: `{ "success": true, "data": { access_token, refresh_token, token_type, expires_in, user: { id, is_onboarded } } }`. The client unwraps `data` in `parseApiResponse`, persists tokens, runs `hydrateSessionUserFromMe()` (`GET /me`), then `resetToRootAfterAuth()` → **Main** if `is_onboarded`, else **Onboarding**. Google-only users get profile fields pre-filled from the server on `/me`; onboarding UI should treat them as editable defaults.
+
+**Errors (JSON):** e.g. 400 invalid body, 401 invalid/expired token or `aud` mismatch, 503 Google auth not configured on server, 500 unexpected — see backend `error.message` strings.
+
+**Mobile implementation note:** This app uses **native** `@react-native-google-signin/google-signin` (not Expo AuthSession). It still produces a valid **`id_token`** whose `aud` must match a client ID the backend allows (configure **Web** client ID in `.env` for Android ID token; iOS uses web + iOS client IDs per Google’s setup). Alternative stacks can use **Expo AuthSession + PKCE** and the same `POST /auth/google` body.
+
+**Env:** `EXPO_PUBLIC_MOCKHU_API_BASE_URL` (e.g. local API `http://localhost:8080` on simulator), and `EXPO_PUBLIC_MOCKHU_GOOGLE_AUTH=1` to call the backend after Google sign-in (omit for debug-only console logging).
 
 Example:
 

@@ -2,6 +2,7 @@
   "expo": {
     "name": "mockhu",
     "slug": "mockhu",
+    "scheme": "com.mockhu.oauth",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,9 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.mockhu"
+      "bundleIdentifier": "com.mockhu.oauth"
     },
     "android": {
+      "package": "com.mockhu.oauth",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -5,9 +5,19 @@ type SignUpScreenProps = {
   onSwitchToLogin: () => void;
   onPressPhone: () => void;
   onPressEmail: () => void;
+  onPressGoogle?: () => void | Promise<void>;
+  googleBusy?: boolean;
+  googleErrorText?: string | null;
 };
 
-export function SignUpScreen({ onSwitchToLogin, onPressPhone, onPressEmail }: SignUpScreenProps) {
+export function SignUpScreen({
+  onSwitchToLogin,
+  onPressPhone,
+  onPressEmail,
+  onPressGoogle,
+  googleBusy,
+  googleErrorText,
+}: SignUpScreenProps) {
   return (
     <AuthLayout
       title="Create your account"
@@ -18,6 +28,9 @@ export function SignUpScreen({ onSwitchToLogin, onPressPhone, onPressEmail }: Si
         onSwitchMode={onSwitchToLogin}
         onPressPhone={onPressPhone}
         onPressEmail={onPressEmail}
+        onPressGoogle={onPressGoogle}
+        googleBusy={googleBusy}
+        googleErrorText={googleErrorText}
       />
     </AuthLayout>
   );
