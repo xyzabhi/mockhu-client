@@ -1,21 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Image,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   type ThemeColors,
   useThemeColors,
 } from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
+import { AvatarImageCropPicker } from '../../../../shared/components/AvatarImageCropPicker';
 import { isUsableAvatarDraftUri } from '../../onboardingDraft';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
@@ -64,89 +55,6 @@ function createPhotoUsernameStyles(colors: ThemeColors) {
       letterSpacing: 0.2,
       textTransform: 'uppercase',
     },
-    avatarBlock: {
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    avatarPressable: {
-      borderRadius: AVATAR / 2 + 8,
-    },
-    avatarPressablePressed: {
-      opacity: 0.92,
-      transform: [{ scale: 0.98 }],
-    },
-    avatarRing: {
-      width: AVATAR,
-      height: AVATAR,
-      borderRadius: AVATAR / 2,
-      overflow: 'hidden',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    avatarRingDefault: {
-      backgroundColor: colors.surface,
-      borderWidth: 2,
-      borderColor: colors.brand,
-    },
-    avatarRingFilled: {
-      backgroundColor: colors.surfaceSubtle,
-      borderWidth: 3,
-      borderColor: colors.surface,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.12,
-      shadowRadius: 16,
-      elevation: 6,
-    },
-    avatarImage: {
-      width: '100%',
-      height: '100%',
-    },
-    editBadge: {
-      position: 'absolute',
-      bottom: 8,
-      right: 8,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: colors.surface,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.borderSubtle,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 6,
-      elevation: 4,
-    },
-    photoActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 20,
-      marginTop: 14,
-      minHeight: 24,
-    },
-    textLink: {
-      paddingVertical: 4,
-    },
-    textLinkPressed: {
-      opacity: 0.65,
-    },
-    textLinkLabel: {
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.sm,
-      color: colors.brand,
-    },
-    textLinkMuted: {
-      paddingVertical: 4,
-    },
-    textLinkMutedLabel: {
-      fontFamily: theme.typography.medium,
-      fontSize: theme.fintSizes.sm,
-      color: colors.textMuted,
-    },
     divider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: colors.borderSubtle,
@@ -162,7 +70,8 @@ function createPhotoUsernameStyles(colors: ThemeColors) {
       overflow: 'hidden',
     },
     usernameShellIdle: {
-      borderWidth: 0,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
       backgroundColor: colors.surface,
       ...inputShadow,
     },
@@ -243,22 +152,6 @@ export function PhotoUsernameScreen({
     onStepValidityChange?.(usernameLengthOk);
   }, [usernameLengthOk, onStepValidityChange]);
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
-    if (!result.canceled && result.assets[0]?.uri) {
-      setPhotoUri(result.assets[0].uri);
-    }
-  };
-
   const handleUsernameChange = (text: string) => {
     const next = text.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsername(next.slice(0, USERNAME_MAX));
@@ -273,62 +166,12 @@ export function PhotoUsernameScreen({
     >
       <Text style={styles.sectionLabel}>Photo</Text>
 
-      <View style={styles.avatarBlock}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.avatarPressable,
-            pressed && styles.avatarPressablePressed,
-          ]}
-          onPress={pickImage}
-          accessibilityRole="button"
-          accessibilityLabel={photoUri ? 'Change profile photo' : 'Choose profile photo'}
-        >
-          <View
-            style={[
-              styles.avatarRing,
-              photoUri ? styles.avatarRingFilled : styles.avatarRingDefault,
-            ]}
-          >
-            {photoUri ? (
-              <>
-                <Image source={{ uri: photoUri }} style={styles.avatarImage} />
-                <View style={styles.editBadge}>
-                  <MaterialCommunityIcons
-                    name="camera-outline"
-                    size={18}
-                    color={colors.textPrimary}
-                  />
-                </View>
-              </>
-            ) : (
-              <MaterialCommunityIcons
-                name="account"
-                size={Math.round(AVATAR * 0.45)}
-                color={colors.brand}
-              />
-            )}
-          </View>
-        </Pressable>
-
-        <View style={styles.photoActions}>
-          <Pressable
-            onPress={pickImage}
-            style={({ pressed }) => [styles.textLink, pressed && styles.textLinkPressed]}
-            hitSlop={8}
-          >
-            <Text style={styles.textLinkLabel}>{photoUri ? 'Change' : 'Upload'}</Text>
-          </Pressable>
-          {photoUri ? (
-            <Pressable
-              onPress={() => setPhotoUri(null)}
-              style={({ pressed }) => [styles.textLinkMuted, pressed && styles.textLinkPressed]}
-              hitSlop={8}
-            >
-              <Text style={styles.textLinkMutedLabel}>Reset</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      </View>
+      <AvatarImageCropPicker
+        value={photoUri}
+        onChange={setPhotoUri}
+        displaySize={AVATAR}
+        showReset
+      />
 
       <View style={styles.divider} />
 

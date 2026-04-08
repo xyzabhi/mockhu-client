@@ -11,6 +11,7 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'INTERNAL_ERROR'
+  | 'SERVICE_UNAVAILABLE'
   | string;
 
 export type ApiErrorBody = {
@@ -41,6 +42,10 @@ export type TokenUser = {
   grade?: string;
   bio?: string;
   avatar_url?: string;
+  /** R2 CDN sizes (`400`, `100`, `40`, `24`); each URL includes `?v=` cache-bust. */
+  avatar_urls?: Record<string, string>;
+  /** RFC3339; omit when no avatar. */
+  avatar_updated_at?: string;
   /** From `/me` for LevelBadge. */
   level?: number;
   tier?: string;

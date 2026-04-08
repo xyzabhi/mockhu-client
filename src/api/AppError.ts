@@ -45,6 +45,7 @@ export class AppError extends Error {
 
 function mapCodeToKind(code: ApiErrorCode, status: number): AppErrorKind {
   if (code === 'UNAUTHORIZED' || status === 401) return 'reauth';
+  if (code === 'SERVICE_UNAVAILABLE') return 'user';
   if (code === 'INTERNAL_ERROR' || status >= 500) return 'retry';
   return 'user';
 }

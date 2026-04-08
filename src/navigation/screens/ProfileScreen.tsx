@@ -1,7 +1,9 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useCallback, useMemo } from 'react';
 import {
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,10 +19,11 @@ import {
 import { resolveLevelBadgeFromUser } from '../../badge/progressionDisplay';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
+import { ProfileAvatarUploader } from '../../features/profile/components/ProfileAvatarUploader';
 import { LevelBadge } from '../../shared/components/LevelBadge';
 import { SpecialBadgesRow } from '../../shared/components/SpecialBadgesRow';
 import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
-import { UserAvatar } from '../../shared/components/UserAvatar';
+import type { RootStackParamList } from '../types';
 /** Matches ~`lineFontSize` × 1.38 cap on `LevelBadge` + row gap. */
 const LEVEL_BADGE_WIDTH_APPROX = 40;
 
@@ -29,6 +32,8 @@ export function ProfileScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const styles = useMemo(() => createProfileStyles(colors), [colors]);
   const { user } = useSession();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute();
 
   useFocusEffect(
     useCallback(() => {
@@ -49,7 +54,7 @@ export function ProfileScreen() {
 
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const userId = profile?.id?.trim();
-  const { followersCount, followingCount, loading: countsLoading } =
+  const { followersCount, followingCount, loading: countsLoading, refresh: refreshCounts } =
     useFollowCounts(userId);
   const firstName = profile?.first_name?.trim() ?? '';
   const lastName = profile?.last_name?.trim() ?? '';
@@ -66,6 +71,34 @@ export function ProfileScreen() {
     return Math.max(120, windowWidth - pad - LEVEL_BADGE_WIDTH_APPROX - 8);
   }, [windowWidth, hasLevelBadge]);
   const specialBadges = profile?.special_badges ?? [];
+  const openFollowList = useCallback(
+    (kind: 'followers' | 'following') => {
+      if (!userId) return;
+      navigation.navigate('FollowList', { userId, kind });
+    },
+    [navigation, userId],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshCounts();
+    }, [refreshCounts]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const parent = navigation.getParent();
+      if (!parent) return undefined;
+      const tabParent = parent as unknown as {
+        addListener: (event: 'tabPress', cb: (e: { target?: string }) => void) => () => void;
+      };
+      return tabParent.addListener('tabPress', (e) => {
+        if (e.target === route.key) {
+          refreshCounts();
+        }
+      });
+    }, [navigation, route.key, refreshCounts]),
+  );
 
   return (
     <ScrollView
@@ -74,10 +107,11 @@ export function ProfileScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.avatarRow}>
-        <UserAvatar
+        <ProfileAvatarUploader
           seed={userId ?? (username || 'profile')}
           avatarUrl={profile?.avatar_url}
-          size={88}
+          avatarUrls={profile?.avatar_urls}
+          uploadEnabled
         />
       </View>
       <View style={styles.nameRow}>
@@ -111,19 +145,29 @@ export function ProfileScreen() {
 
       {userId ? (
         <View style={styles.countsRow} accessibilityRole="summary">
-          <View style={styles.countBlock}>
+          <Pressable
+            style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
+            onPress={() => openFollowList('followers')}
+            accessibilityRole="button"
+            accessibilityLabel={`Open followers list, ${followersCount ?? 0}`}
+          >
             <Text style={styles.countValue} accessibilityLabel={`Followers ${followersCount ?? 0}`}>
               {countsLoading ? '—' : String(followersCount ?? 0)}
             </Text>
             <Text style={styles.countLabel}>Followers</Text>
-          </View>
+          </Pressable>
           <View style={styles.countDivider} />
-          <View style={styles.countBlock}>
+          <Pressable
+            style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
+            onPress={() => openFollowList('following')}
+            accessibilityRole="button"
+            accessibilityLabel={`Open following list, ${followingCount ?? 0}`}
+          >
             <Text style={styles.countValue} accessibilityLabel={`Following ${followingCount ?? 0}`}>
               {countsLoading ? '—' : String(followingCount ?? 0)}
             </Text>
             <Text style={styles.countLabel}>Following</Text>
-          </View>
+          </Pressable>
         </View>
       ) : null}
 
@@ -210,6 +254,11 @@ function createProfileStyles(colors: ThemeColors) {
       flex: 1,
       alignItems: 'center',
       gap: 4,
+      paddingVertical: 4,
+      borderRadius: 12,
+    },
+    countBlockPressed: {
+      opacity: 0.72,
     },
     countValue: {
       fontFamily: theme.typography.semiBold,

@@ -54,7 +54,8 @@ function createDropDownStyles(colors: ThemeColors) {
     },
     trigger: {
       minHeight: 52,
-      borderWidth: 0,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
       borderRadius: INPUT_RADIUS,
       backgroundColor: colors.surface,
       paddingHorizontal: 16,

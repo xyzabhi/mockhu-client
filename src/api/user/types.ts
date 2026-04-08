@@ -26,6 +26,9 @@ export type MeResponse = {
   first_name: string | null;
   last_name: string | null;
   avatar_url: string | null;
+  /** When using R2: size key → full URL (each with `?v=`). */
+  avatar_urls?: Record<string, string> | null;
+  avatar_updated_at?: string | null;
   bio: string | null;
   gender: string | null;
   grade: string | null;
@@ -83,4 +86,11 @@ export type FollowListResponse = {
 export type UserSuggestionsResponse = {
   items: UserSummary[];
   total: number;
+};
+
+/** `POST /me/avatar` success `data` — R2 URLs + cache-bust query. */
+export type MeAvatarUploadResponse = {
+  avatar_url: string;
+  avatar_urls: Record<string, string>;
+  avatar_updated_at: string;
 };

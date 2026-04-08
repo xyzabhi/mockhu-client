@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
@@ -24,7 +28,34 @@ const GRADE_OPTIONS = [
   { label: 'Other', value: 'other' },
 ] as const;
 
+function createGradeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      paddingHorizontal: theme.spacing.screenPaddingH,
+      paddingTop: 4,
+      gap: 20,
+    },
+    field: {
+      width: '100%',
+      gap: 6,
+      zIndex: 1,
+    },
+    fieldRaised: {
+      zIndex: 40,
+    },
+    label: {
+      fontSize: theme.fintSizes.sm,
+      fontFamily: theme.typography.medium,
+      color: colors.textPrimary,
+    },
+  });
+}
+
 export function GradeScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createGradeStyles(colors), [colors]);
   const { draft, updateDraft } = useOnboardingDraft();
   const [grade, setGrade] = useState(draft.grade);
   const [open, setOpen] = useState(false);
@@ -53,26 +84,3 @@ export function GradeScreen({ onStepValidityChange }: OnboardingStepScreenProps)
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 4,
-    gap: 20,
-  },
-  field: {
-    width: '100%',
-    gap: 6,
-    zIndex: 1,
-  },
-  fieldRaised: {
-    zIndex: 40,
-  },
-  label: {
-    fontSize: theme.fintSizes.sm,
-    fontFamily: theme.typography.medium,
-    color: theme.colors.textPrimary,
-  },
-});

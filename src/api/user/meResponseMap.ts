@@ -1,5 +1,5 @@
 import type { TokenUser } from '../types';
-import type { MeResponse } from './types';
+import type { MeAvatarUploadResponse, MeResponse } from './types';
 
 function nullToUndef<T>(v: T | null | undefined): T | undefined {
   if (v === null || v === undefined) return undefined;
@@ -42,6 +42,15 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
       ? hintRaw.trim()
       : undefined;
 
+  const urls =
+    me.avatar_urls != null && typeof me.avatar_urls === 'object'
+      ? Object.fromEntries(
+          Object.entries(me.avatar_urls).filter(
+            ([k, v]) => typeof k === 'string' && typeof v === 'string' && v.trim() !== '',
+          ),
+        )
+      : undefined;
+
   const patch: Partial<TokenUser> = {
     id: me.id,
     is_onboarded: me.is_onboarded,
@@ -49,6 +58,10 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
     first_name: nullToUndef(me.first_name),
     last_name: nullToUndef(me.last_name),
     avatar_url: nullToUndef(me.avatar_url),
+    ...(urls && Object.keys(urls).length > 0 ? { avatar_urls: urls } : {}),
+    ...(typeof me.avatar_updated_at === 'string' && me.avatar_updated_at.trim()
+      ? { avatar_updated_at: me.avatar_updated_at.trim() }
+      : {}),
     bio: nullToUndef(me.bio),
     gender: nullToUndef(me.gender),
     grade: nullToUndef(me.grade),
@@ -73,4 +86,28 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
   }
 
   return patch;
+}
+
+/**
+ * Maps `POST /me/avatar` success payload into `TokenUser` avatar fields.
+ */
+export function meAvatarUploadToTokenUserPatch(
+  data: MeAvatarUploadResponse,
+): Partial<TokenUser> {
+  const urls =
+    data.avatar_urls != null && typeof data.avatar_urls === 'object'
+      ? Object.fromEntries(
+          Object.entries(data.avatar_urls).filter(
+            ([k, v]) => typeof k === 'string' && typeof v === 'string' && v.trim() !== '',
+          ),
+        )
+      : undefined;
+
+  return {
+    avatar_url: data.avatar_url,
+    ...(urls && Object.keys(urls).length > 0 ? { avatar_urls: urls } : {}),
+    ...(typeof data.avatar_updated_at === 'string' && data.avatar_updated_at.trim()
+      ? { avatar_updated_at: data.avatar_updated_at.trim() }
+      : {}),
+  };
 }

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { AppError } from '../AppError';
 import { userApi } from '../user/userApi';
 import type { FollowListQuery } from '../user/types';
+import { subscribeFollowMutations } from './followMutationSignal';
 import { mapUnknownToAppError } from './mapUnknownToAppError';
 
 const PAGE_SIZE = 50;
@@ -32,6 +33,7 @@ export function useFollowCounts(userId: string | undefined) {
   const [followingCount, setFollowingCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!userId) {
@@ -72,7 +74,13 @@ export function useFollowCounts(userId: string | undefined) {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, reloadKey]);
 
-  return { followersCount, followingCount, loading, error };
+  const refresh = useCallback(() => {
+    setReloadKey((k) => k + 1);
+  }, []);
+
+  useEffect(() => subscribeFollowMutations(refresh), [refresh]);
+
+  return { followersCount, followingCount, loading, error, refresh };
 }

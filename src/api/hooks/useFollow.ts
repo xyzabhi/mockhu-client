@@ -3,6 +3,7 @@ import type { AppError } from '../AppError';
 import { refreshSessionProfile } from '../hydrateSessionProfile';
 import { userApi } from '../user/userApi';
 import type { FollowResponse } from '../user/types';
+import { emitFollowMutation } from './followMutationSignal';
 import { mapUnknownToAppError } from './mapUnknownToAppError';
 
 /**
@@ -19,6 +20,7 @@ export function useFollow() {
     try {
       const res = await userApi.followUser(userId);
       void refreshSessionProfile();
+      emitFollowMutation();
       return res;
     } catch (e) {
       const err = mapUnknownToAppError(e);
@@ -35,6 +37,7 @@ export function useFollow() {
     try {
       const res = await userApi.unfollowUser(userId);
       void refreshSessionProfile();
+      emitFollowMutation();
       return res;
     } catch (e) {
       const err = mapUnknownToAppError(e);

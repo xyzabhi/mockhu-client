@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import {
+  type ThemeColors,
+  useThemeColors,
+} from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
+import { DropDown } from '../../../../shared/components/DropDown';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 
@@ -9,9 +14,39 @@ function splitDob(iso: string): { day: string; month: string; year: string } {
   if (!m) return { day: '', month: '', year: '' };
   return { year: m[1], month: m[2], day: m[3] };
 }
-import { DropDown } from '../../../../shared/components/DropDown';
+
+function createDobStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      paddingHorizontal: theme.spacing.screenPaddingH,
+      paddingTop: 4,
+    },
+    row: {
+      flexDirection: 'row',
+      columnGap: 10,
+      alignItems: 'flex-start',
+    },
+    colSm: {
+      flex: 1,
+      gap: 6,
+    },
+    colLg: {
+      flex: 1.4,
+      gap: 6,
+    },
+    label: {
+      fontSize: theme.fintSizes.sm,
+      fontFamily: theme.typography.medium,
+      color: colors.textPrimary,
+    },
+  });
+}
 
 export function DOBScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => createDobStyles(colors), [colors]);
   const { draft, updateDraft } = useOnboardingDraft();
   const initial = splitDob(draft.dob);
   const [day, setDay] = useState(initial.day);
@@ -102,30 +137,3 @@ export function DOBScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 4,
-  },
-  row: {
-    flexDirection: 'row',
-    columnGap: 10,
-    alignItems: 'flex-start',
-  },
-  colSm: {
-    flex: 1,
-    gap: 6,
-  },
-  colLg: {
-    flex: 1.4,
-    gap: 6,
-  },
-  label: {
-    fontSize: theme.fintSizes.sm,
-    fontFamily: theme.typography.medium,
-    color: theme.colors.textPrimary,
-  },
-});

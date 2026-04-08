@@ -24,6 +24,7 @@ export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
   SuggestedUsers: undefined;
+  FollowList: { userId: string; kind: 'followers' | 'following' };
   /** Job alerts matched to profile / exams (placeholder until API). */
   JobNotifications: undefined;
   /** Job listings matched to interests (placeholder until API). */

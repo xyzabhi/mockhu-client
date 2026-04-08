@@ -924,8 +924,8 @@ function createHomeStyles(colors: ThemeColors) {
       minHeight: 44,
       borderRadius: theme.radius.pill,
       backgroundColor: colors.surfaceSubtle,
-      borderWidth: theme.borderWidth.hairline,
-      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderColor: colors.inputBorder,
       overflow: 'visible',
     },
     searchIcon: {

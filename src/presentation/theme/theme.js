@@ -20,6 +20,8 @@ export const theme = {
     surface: '#ffffff',
     surfaceSubtle: '#F9FAFB',
     borderSubtle: '#E5E7EB',
+    /** 1px outline around text fields / search / dropdown triggers */
+    inputBorder: '#E5E7EB',
     /** 1px outline on **brand-filled** controls only (light: black) */
     buttonBorder: '#000000',
     /** Outer app frame only */
@@ -54,6 +56,7 @@ export const theme = {
     surface: '#121214',
     surfaceSubtle: '#0a0a0b',
     borderSubtle: '#27272a',
+    inputBorder: 'rgba(255, 255, 255, 0.28)',
     buttonBorder: '#52525b',
     borderStrong: '#fafafa',
     danger: '#f87171',
