@@ -6,6 +6,9 @@ import { GoogleLogo } from '../../../../presentation/components/GoogleLogo';
 import { theme } from '../../../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../../../presentation/theme/ThemeContext';
 
+/** No Android ripple — matches iOS pressed state (opacity + fill) on flat bordered buttons. */
+const ANDROID_FLAT_PRESSABLE = { android_ripple: null };
+
 type SocialAuthButtonsProps = {
   switchCtaLabel: string;
   onSwitchMode: () => void;
@@ -30,14 +33,14 @@ function SocialButton({
   return (
     <Pressable
       onPress={onPress}
-      android_ripple={{ color: 'rgba(17, 24, 39, 0.08)' }}
+      {...ANDROID_FLAT_PRESSABLE}
       style={({ pressed }) => [
         styles.socialButton,
         pressed && styles.socialButtonPressed,
       ]}
     >
       <View style={styles.socialIconSlot}>{leading}</View>
-      <Text style={styles.socialLabel} numberOfLines={1}>
+      <Text style={[styles.socialLabel, textAndroid]} numberOfLines={1}>
         {label}
       </Text>
     </Pressable>
@@ -81,7 +84,7 @@ export function SocialAuthButtons({
         <Pressable
           onPress={() => void onPressGoogle?.()}
           disabled={googleBusy || !onPressGoogle}
-          android_ripple={{ color: 'rgba(17, 24, 39, 0.08)' }}
+          {...ANDROID_FLAT_PRESSABLE}
           style={({ pressed }) => [
             styles.socialButton,
             pressed && !googleBusy && onPressGoogle && styles.socialButtonPressed,
@@ -99,17 +102,17 @@ export function SocialAuthButtons({
               <ActivityIndicator size="small" color={colors.textPrimary} />
             </View>
           ) : (
-            <Text style={styles.socialLabel} numberOfLines={1}>
+            <Text style={[styles.socialLabel, textAndroid]} numberOfLines={1}>
               Google
             </Text>
           )}
         </Pressable>
         <Pressable
           onPress={onSwitchMode}
-          android_ripple={{ color: 'rgba(124, 58, 237, 0.12)' }}
+          {...ANDROID_FLAT_PRESSABLE}
           style={({ pressed }) => [styles.switchCta, pressed && styles.switchCtaPressed]}
         >
-          <Text style={styles.switchCtaText}>{switchCtaLabel}</Text>
+          <Text style={[styles.switchCtaText, textAndroid]}>{switchCtaLabel}</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -118,18 +121,9 @@ export function SocialAuthButtons({
 
 const ICON_SLOT = 48;
 
-function createSocialStyles(colors: ThemeColors) {
-  const cardShadow = Platform.select({
-    ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.05,
-      shadowRadius: 8,
-    },
-    android: { elevation: 2 },
-    default: {},
-  });
+const textAndroid = Platform.OS === 'android' ? ({ includeFontPadding: false } as const) : {};
 
+function createSocialStyles(colors: ThemeColors) {
   return StyleSheet.create({
     sheetBodyScroll: {
       flex: 1,
@@ -150,13 +144,17 @@ function createSocialStyles(colors: ThemeColors) {
       flexDirection: 'row',
       alignItems: 'center',
       borderRadius: 24,
-      borderWidth: 0,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
       backgroundColor: colors.surfaceSubtle,
       paddingVertical: 14,
       paddingHorizontal: 4,
       minHeight: 54,
       overflow: 'hidden',
-      ...cardShadow,
+      ...Platform.select({
+        android: { elevation: 0 },
+        default: {},
+      }),
     },
     socialButtonPressed: {
       opacity: 0.92,
@@ -197,6 +195,10 @@ function createSocialStyles(colors: ThemeColors) {
       justifyContent: 'center',
       marginTop: 8,
       overflow: 'hidden',
+      ...Platform.select({
+        android: { elevation: 0 },
+        default: {},
+      }),
     },
     switchCtaPressed: {
       opacity: 0.9,

@@ -15,6 +15,9 @@ type AuthLayoutProps = {
 const HERO_FLEX = 3;
 const SHEET_FLEX = 7;
 
+/** Aligns Android text metrics with iOS (Roboto extra padding). */
+const textAndroid = Platform.OS === 'android' ? ({ includeFontPadding: false } as const) : {};
+
 export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createAuthLayoutStyles(colors), [colors]);
@@ -29,20 +32,20 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
 
       <View style={[styles.sheet, { paddingBottom: bottomPad }]}>
         <View style={styles.titleBlock}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>{subtitle}</Text>
+          <Text style={[styles.title, textAndroid]}>{title}</Text>
+          <Text style={[styles.description, textAndroid]}>{subtitle}</Text>
         </View>
 
         <View style={styles.sheetCenterSlot}>{children}</View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, textAndroid]}>
             By continuing, you agree to our{' '}
-            <Text style={styles.footerTextLink}>Terms of Service</Text>
+            <Text style={[styles.footerTextLink, textAndroid]}>Terms of Service</Text>
             {', '}
-            <Text style={styles.footerTextLink}>Privacy Policy</Text>
+            <Text style={[styles.footerTextLink, textAndroid]}>Privacy Policy</Text>
             {', and '}
-            <Text style={styles.footerTextLink}>Cookies Policy</Text>.
+            <Text style={[styles.footerTextLink, textAndroid]}>Cookies Policy</Text>.
           </Text>
         </View>
       </View>
@@ -78,17 +81,19 @@ function createAuthLayoutStyles(colors: ThemeColors) {
       backgroundColor: colors.surface,
       borderTopLeftRadius: 28,
       borderTopRightRadius: 28,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.borderSubtle,
       paddingHorizontal: theme.spacing.screenPaddingH,
       paddingTop: 26,
       ...Platform.select({
         ios: {
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 20,
+          shadowOffset: { width: 0, height: -3 },
+          shadowOpacity: 0.07,
+          shadowRadius: 14,
         },
         android: {
-          elevation: 12,
+          elevation: 5,
         },
         default: {},
       }),
