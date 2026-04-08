@@ -2,7 +2,7 @@
   "expo": {
     "name": "mockhu",
     "slug": "mockhu",
-    "scheme": "com.mockhu.oauthios",
+    "scheme": "com.mockhu.oauth",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -15,10 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mockhu.oauthios"
+      "bundleIdentifier": "com.mockhu.oauth"
     },
     "android": {
-      "package": "com.mockhu.oauthios",
+      "package": "com.mockhu.oauth",
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -37,8 +38,7 @@
         {
           "photosPermission": "Allow access to your photos to set a profile picture."
         }
-      ],
-      "expo-web-browser"
+      ]
     ]
   }
 }

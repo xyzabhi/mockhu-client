@@ -1,8 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useCallback } from 'react';
-import { Alert } from 'react-native';
-import { isGoogleAuthConfigured, useGoogleSignIn } from '../features/auth/google';
+import { useGoogleSignIn } from '../features/auth/google';
 import { EmailOtpRequestScreen } from '../features/auth/presentation/screens/EmailOtpRequestScreen';
 import { EmailOtpVerificationScreen } from '../features/auth/presentation/screens/EmailOtpVerificationScreen';
 import { ForgotPasswordEmailScreen } from '../features/auth/presentation/screens/ForgotPasswordEmailScreen';
@@ -19,31 +17,15 @@ const Stack = createNativeStackNavigator<AuthStackParamList>();
 function SignUpScreenNav({
   navigation,
 }: NativeStackScreenProps<AuthStackParamList, 'AuthSignUp'>) {
-  const { signInWithGoogle, busy: googleBusy } = useGoogleSignIn();
-  const onPressGoogle = useCallback(async () => {
-    if (!isGoogleAuthConfigured()) {
-      Alert.alert(
-        'Google Sign-In',
-        'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and the iOS/Android client IDs to your .env file.',
-      );
-      return;
-    }
-    try {
-      const tokens = await signInWithGoogle();
-      resetToRootAfterAuth(tokens);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Google sign-in failed.';
-      Alert.alert('Google Sign-In', msg);
-    }
-  }, [signInWithGoogle]);
-
+  const { signInWithGoogle, busy: googleBusy, errorText: googleErrorText } = useGoogleSignIn();
   return (
     <SignUpScreen
       onSwitchToLogin={() => navigation.navigate('AuthLogin')}
       onPressPhone={() => navigation.navigate('AuthPhone', { mode: 'signup' })}
       onPressEmail={() => navigation.navigate('AuthEmail', { mode: 'signup' })}
-      onPressGoogle={onPressGoogle}
+      onPressGoogle={signInWithGoogle}
       googleBusy={googleBusy}
+      googleErrorText={googleErrorText}
     />
   );
 }
@@ -51,31 +33,15 @@ function SignUpScreenNav({
 function LoginScreenNav({
   navigation,
 }: NativeStackScreenProps<AuthStackParamList, 'AuthLogin'>) {
-  const { signInWithGoogle, busy: googleBusy } = useGoogleSignIn();
-  const onPressGoogle = useCallback(async () => {
-    if (!isGoogleAuthConfigured()) {
-      Alert.alert(
-        'Google Sign-In',
-        'Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID and the iOS/Android client IDs to your .env file.',
-      );
-      return;
-    }
-    try {
-      const tokens = await signInWithGoogle();
-      resetToRootAfterAuth(tokens);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Google sign-in failed.';
-      Alert.alert('Google Sign-In', msg);
-    }
-  }, [signInWithGoogle]);
-
+  const { signInWithGoogle, busy: googleBusy, errorText: googleErrorText } = useGoogleSignIn();
   return (
     <LoginScreen
       onSwitchToSignUp={() => navigation.navigate('AuthSignUp')}
       onPressPhone={() => navigation.navigate('AuthPhone', { mode: 'login' })}
       onPressEmail={() => navigation.navigate('AuthEmail', { mode: 'login' })}
-      onPressGoogle={onPressGoogle}
+      onPressGoogle={signInWithGoogle}
       googleBusy={googleBusy}
+      googleErrorText={googleErrorText}
     />
   );
 }

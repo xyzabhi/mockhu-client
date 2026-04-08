@@ -8,7 +8,7 @@ import type {
   EmailOtpVerifyBody,
   ForgotPasswordBody,
   ForgotPasswordData,
-  GoogleAuthBody,
+  GoogleSignInBody,
   LoginBody,
   PhoneOtpRequestData,
   PhoneRequestBody,
@@ -68,6 +68,12 @@ export async function verifyEmailOtp(body: EmailOtpVerifyBody): Promise<TokenRes
   return persistTokens(data);
 }
 
+/** `POST /auth/google` — server verifies `id_token` with Google and returns Mockhu session tokens. */
+export async function signInWithGoogle(body: GoogleSignInBody): Promise<TokenResponse> {
+  const data = await apiPost<TokenResponse>('/auth/google', body, authOpts);
+  return persistTokens(data);
+}
+
 /** `POST /auth/password/forgot` — triggers email with 6-digit code (public message in response). */
 export async function forgotPassword(body: ForgotPasswordBody): Promise<ForgotPasswordData> {
   return apiPost<ForgotPasswordData>('/auth/password/forgot', body, authOpts);
@@ -76,11 +82,6 @@ export async function forgotPassword(body: ForgotPasswordBody): Promise<ForgotPa
 /** `POST /auth/password/reset` — `{ email, otp, new_password }`; persists session on success. */
 export async function resetPassword(body: ResetPasswordBody): Promise<TokenResponse> {
   const data = await apiPost<TokenResponse>('/auth/password/reset', body, authOpts);
-  return persistTokens(data);
-}
-
-export async function google(body: GoogleAuthBody): Promise<TokenResponse> {
-  const data = await apiPost<TokenResponse>('/auth/google', body, authOpts);
   return persistTokens(data);
 }
 
@@ -105,8 +106,8 @@ export const authApi = {
   verifyPhoneOtp,
   requestEmailOtp,
   verifyEmailOtp,
+  signInWithGoogle,
   forgotPassword,
   resetPassword,
-  google,
   refresh,
 };

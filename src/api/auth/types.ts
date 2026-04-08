@@ -65,20 +65,13 @@ export type ResetPasswordBody = {
   new_password: string;
 };
 
-/**
- * `POST /auth/google` — authorization code from Google (`ASWebAuthenticationSession` / `useAuthRequest`);
- * backend exchanges the code (and PKCE verifier when applicable) for session JWTs.
- */
-export type GoogleAuthBody = {
-  code: string;
-  /** Must match the redirect URI registered for your Web client and used in the auth request. */
-  redirect_uri: string;
-  /** Present when the auth request used PKCE (default for `useAuthRequest` code flow). */
-  code_verifier?: string;
-};
-
 export type RefreshBody = {
   refresh_token: string;
+};
+
+/** `POST /auth/google` — Google ID token from native sign-in (validated server-side). */
+export type GoogleSignInBody = {
+  id_token: string;
 };
 
 export type { TokenResponse };

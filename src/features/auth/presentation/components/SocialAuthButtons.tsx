@@ -14,9 +14,9 @@ type SocialAuthButtonsProps = {
   onSwitchMode: () => void;
   onPressPhone: () => void;
   onPressEmail: () => void;
-  /** Google OAuth — `expo-auth-session` + `POST /auth/google`. */
   onPressGoogle?: () => void | Promise<void>;
   googleBusy?: boolean;
+  googleErrorText?: string | null;
 };
 
 function SocialButton({
@@ -54,6 +54,7 @@ export function SocialAuthButtons({
   onPressEmail,
   onPressGoogle,
   googleBusy = false,
+  googleErrorText,
 }: SocialAuthButtonsProps) {
   const colors = useThemeColors();
   const styles = useMemo(() => createSocialStyles(colors), [colors]);
@@ -87,8 +88,8 @@ export function SocialAuthButtons({
           {...ANDROID_FLAT_PRESSABLE}
           style={({ pressed }) => [
             styles.socialButton,
-            pressed && !googleBusy && onPressGoogle && styles.socialButtonPressed,
-            (googleBusy || !onPressGoogle) && styles.socialButtonDisabled,
+            pressed && !googleBusy && styles.socialButtonPressed,
+            googleBusy && styles.socialButtonDisabled,
           ]}
           accessibilityRole="button"
           accessibilityLabel="Continue with Google"
@@ -114,6 +115,11 @@ export function SocialAuthButtons({
         >
           <Text style={[styles.switchCtaText, textAndroid]}>{switchCtaLabel}</Text>
         </Pressable>
+        {googleErrorText != null && googleErrorText !== '' ? (
+          <View style={styles.googleErrorBox}>
+            <Text style={styles.googleErrorText}>{googleErrorText}</Text>
+          </View>
+        ) : null}
       </View>
     </ScrollView>
   );
@@ -121,7 +127,7 @@ export function SocialAuthButtons({
 
 const ICON_SLOT = 48;
 
-const textAndroid = Platform.OS === 'android' ? ({ includeFontPadding: false } as const) : {};
+const textAndroid = Platform.OS === 'android' ? { includeFontPadding: false } : {};
 
 function createSocialStyles(colors: ThemeColors) {
   return StyleSheet.create({
@@ -183,7 +189,6 @@ function createSocialStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.md,
       color: colors.textPrimary,
     },
-    /** Secondary — outline (sign-up options stay visually primary). */
     switchCta: {
       borderRadius: 999,
       borderWidth: 2,
@@ -209,6 +214,20 @@ function createSocialStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.md,
       color: colors.brand,
       textAlign: 'center',
+    },
+    googleErrorBox: {
+      marginTop: 8,
+      padding: 10,
+      borderRadius: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
+      backgroundColor: colors.surfaceSubtle,
+    },
+    googleErrorText: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      lineHeight: 20,
+      color: colors.textPrimary,
     },
   });
 }

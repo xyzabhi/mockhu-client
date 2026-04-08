@@ -7,6 +7,7 @@ type LoginScreenProps = {
   onPressEmail: () => void;
   onPressGoogle?: () => void | Promise<void>;
   googleBusy?: boolean;
+  googleErrorText?: string | null;
 };
 
 export function LoginScreen({
@@ -15,6 +16,7 @@ export function LoginScreen({
   onPressEmail,
   onPressGoogle,
   googleBusy,
+  googleErrorText,
 }: LoginScreenProps) {
   return (
     <AuthLayout
@@ -28,6 +30,7 @@ export function LoginScreen({
         onPressEmail={onPressEmail}
         onPressGoogle={onPressGoogle}
         googleBusy={googleBusy}
+        googleErrorText={googleErrorText}
       />
     </AuthLayout>
   );
