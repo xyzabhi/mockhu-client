@@ -50,6 +50,12 @@ export type {
 
 export { authApi } from './auth/authApi';
 export type * from './auth/types';
+export {
+  EMAIL_ALREADY_REGISTERED_MESSAGE,
+  EMAIL_ALREADY_REGISTERED_MODAL_BODY,
+  isEmailAlreadyRegisteredError,
+} from './auth/emailSignupErrors';
+export { FORGOT_PASSWORD_PUBLIC_MESSAGE } from './auth/forgotPasswordCopy';
 
 export { userApi } from './user/userApi';
 export type {

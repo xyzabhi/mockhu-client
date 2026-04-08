@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
+import { getBrandLogoUrl } from '../../presentation/brandEnv';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 
@@ -42,6 +43,42 @@ export function BrandLogo({
       />
     </View>
   );
+}
+
+/**
+ * Uses `EXPO_PUBLIC_BRAND_LOGO_URL` when set (same public asset as server `EMAIL_OTP_LOGO_URL`),
+ * otherwise the bundled mark. Falls back to bundled if the remote image fails to load.
+ */
+export function BrandLogoAppOrRemote({
+  style,
+  imageStyle,
+  accessibilityLabel = 'Mockhu',
+}: BrandLogoProps) {
+  const uri = getBrandLogoUrl();
+  const [remoteFailed, setRemoteFailed] = useState(false);
+  const colors = useThemeColors();
+  const frameStyles = useMemo(() => createFrameStyles(colors), [colors]);
+  const useRemote = Boolean(uri) && !remoteFailed;
+
+  if (useRemote && uri) {
+    return (
+      <View
+        accessibilityRole="image"
+        accessibilityLabel={accessibilityLabel}
+        style={[frameStyles.frame, styles.defaultSize, style]}
+      >
+        <Image
+          source={{ uri }}
+          style={[styles.image, imageStyle]}
+          resizeMode="contain"
+          accessibilityIgnoresInvertColors
+          onError={() => setRemoteFailed(true)}
+        />
+      </View>
+    );
+  }
+
+  return <BrandLogo style={style} imageStyle={imageStyle} accessibilityLabel={accessibilityLabel} />;
 }
 
 function createFrameStyles(colors: ThemeColors) {

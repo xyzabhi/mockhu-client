@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useMemo } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BrandLogo, BRAND_LOGO_ASPECT } from '../../../../shared/components/BrandLogo';
+import { BrandLogoAppOrRemote, BRAND_LOGO_ASPECT } from '../../../../shared/components/BrandLogo';
 import { theme } from '../../../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../../../presentation/theme/ThemeContext';
 
@@ -24,7 +24,7 @@ export function AuthLayout({ title, subtitle, children }: AuthLayoutProps) {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.hero}>
-        <BrandLogo style={styles.logo} />
+        <BrandLogoAppOrRemote style={styles.logo} />
       </View>
 
       <View style={[styles.sheet, { paddingBottom: bottomPad }]}>
