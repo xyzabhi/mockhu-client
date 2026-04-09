@@ -3,7 +3,6 @@ import type { ComponentType } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -29,6 +28,7 @@ import {
   type ThemeColors,
   useThemeColors,
 } from '../../presentation/theme/ThemeContext';
+import { useMessageModal } from '../../shared/components/MessageModal';
 import type { OnboardingStepScreenProps } from './onboardingStepTypes';
 
 type OnboardingStep = {
@@ -212,6 +212,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
   const styles = useMemo(() => createOnboardingLayoutStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const { submitOnboarding } = useOnboardingDraft();
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
   const [step, setStep] = useState(0);
   const [showFinishCelebration, setShowFinishCelebration] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
@@ -235,24 +236,29 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
   };
 
   const handleLogout = useCallback(() => {
-    Alert.alert('Log out?', 'You can sign in again anytime.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log out',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await clearSession();
-              resetToRoute('Auth');
-            } catch {
-              resetToRoute('Auth');
-            }
-          })();
+    showModal({
+      title: 'Log out?',
+      message: 'You can sign in again anytime.',
+      buttons: [
+        { label: 'Cancel', variant: 'secondary', onPress: hideModal },
+        {
+          label: 'Log out',
+          variant: 'destructive',
+          onPress: () => {
+            hideModal();
+            void (async () => {
+              try {
+                await clearSession();
+                resetToRoute('Auth');
+              } catch {
+                resetToRoute('Auth');
+              }
+            })();
+          },
         },
-      },
-    ]);
-  }, []);
+      ],
+    });
+  }, [hideModal, showModal]);
 
   const handlePrimary = useCallback(() => {
     if (isLast) {
@@ -269,7 +275,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
               : e instanceof Error
                 ? e.message
                 : 'Something went wrong.';
-          Alert.alert('Could not finish', msg);
+          showModal({ title: 'Could not finish', message: msg });
         } finally {
           setIsFinishing(false);
         }
@@ -288,6 +294,7 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
 
   return (
     <KeyboardAvoidingView behavior="padding" style={styles.root}>
+      {modal}
       <OnboardingFinishCelebration
         visible={showFinishCelebration}
         onComplete={handleCelebrationComplete}

@@ -47,4 +47,8 @@ export type RootStackParamList = {
   ExamCategories: undefined;
   ExamCategory: { categoryId: number };
   ExamDetail: { examId: number };
+  /** View another user's profile (or own via redirect). */
+  UserProfile: { userId: string };
+  /** Global search across users, posts, exams, topics, subjects. */
+  GlobalSearch: undefined;
 };

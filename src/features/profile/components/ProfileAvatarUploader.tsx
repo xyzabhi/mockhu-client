@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import {
   AppError,
   meAvatarUploadToTokenUserPatch,
@@ -10,6 +10,7 @@ import {
 import { theme } from '../../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../../presentation/theme/ThemeContext';
 import { AvatarImageCropPicker } from '../../../shared/components/AvatarImageCropPicker';
+import { useMessageModal } from '../../../shared/components/MessageModal';
 import { UserAvatar } from '../../../shared/components/UserAvatar';
 import { pickAvatarDisplayUrl } from '../../../shared/utils/avatarDisplayUrl';
 import { isUsableAvatarDraftUri } from '../../onboarding/onboardingDraft';
@@ -38,6 +39,7 @@ export function ProfileAvatarUploader({
 }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createUploaderStyles(colors), [colors]);
+  const { modal, show: showModal } = useMessageModal();
   const [busy, setBusy] = useState(false);
   const [r2Unavailable, setR2Unavailable] = useState(false);
   const [pendingPreviewUri, setPendingPreviewUri] = useState<string | null>(null);
@@ -72,9 +74,9 @@ export function ProfileAvatarUploader({
         (e.code === 'SERVICE_UNAVAILABLE' || e.status === 503)
       ) {
         setR2Unavailable(true);
-        Alert.alert('Upload unavailable', 'Photo upload is temporarily unavailable. Try again later.');
+        showModal({ title: 'Upload unavailable', message: 'Photo upload is temporarily unavailable. Try again later.' });
       } else {
-        Alert.alert('Could not update photo', msg);
+        showModal({ title: 'Could not update photo', message: msg });
       }
       setPendingPreviewUri(null);
     } finally {
@@ -99,6 +101,7 @@ export function ProfileAvatarUploader({
 
   return (
     <View style={styles.wrap} pointerEvents={busy ? 'none' : 'auto'}>
+      {modal}
       <AvatarImageCropPicker
         value={displayUri}
         onChange={applyUpload}

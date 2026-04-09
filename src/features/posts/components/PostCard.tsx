@@ -5,7 +5,6 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   ActionSheetIOS,
   ActivityIndicator,
-  Alert,
   Animated,
   Image,
   Linking,
@@ -26,7 +25,7 @@ import {
   useSession,
 } from '../../../api';
 import { notifyPostBookmarkUpdate } from '../../../shared/postBookmarkSync';
-import { navigateToPostComments } from '../../../navigation/navigationRef';
+import { navigateToPostComments, navigateToUserProfile } from '../../../navigation/navigationRef';
 import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../../api/post/mediaUrl';
@@ -37,6 +36,7 @@ import {
   useThemePreference,
 } from '../../../presentation/theme/ThemeContext';
 import { FollowAuthorLink } from '../../../shared/components/FollowAuthorLink';
+import { useMessageModal } from '../../../shared/components/MessageModal';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
 import { postContentLooksLikeHtml, stripHtmlTags } from '../postContentFormatting';
 import { PostContentBody } from './PostContentBody';
@@ -107,10 +107,10 @@ export function PostCard({
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
   const isDark = effectiveScheme === 'dark';
-  /** Unliked thumb — dark gray in both themes (Facebook-style). */
   const likeInactiveColor = isDark ? '#52525b' : '#111827';
   const styles = useMemo(() => createPostCardStyles(colors), [colors]);
   const { accessToken } = useSession();
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
   const [deleting, setDeleting] = useState(false);
   const [bookmarkOverride, setBookmarkOverride] = useState<boolean | null>(null);
   const authorStarPulse = useRef(new Animated.Value(0)).current;
@@ -146,6 +146,11 @@ export function PostCard({
   /** Same function — old name kept so stale bundles / HMR do not throw. */
   const playAuthorFiredAnimation = playAuthorStarredAnimation;
   const isOwner = currentUserId != null && post.user_id === currentUserId;
+
+  const onAuthorPress = useCallback(() => {
+    if (post.is_anonymous || !post.user_id) return;
+    navigateToUserProfile(post.user_id);
+  }, [post.is_anonymous, post.user_id]);
   const badge = useMemo(
     () => typeBadgeColors(post.post_type, colors, isDark),
     [post.post_type, colors, isDark],
@@ -159,28 +164,33 @@ export function PostCard({
   const avatarUri = post.is_anonymous ? null : post.author?.avatar_url?.trim();
 
   const handleDelete = useCallback(() => {
-    Alert.alert('Delete post?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setDeleting(true);
-            try {
-              await postApi.deletePost(post.id);
-              onDeleted?.(post.id);
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : 'Could not delete.';
-              Alert.alert('Delete failed', msg);
-            } finally {
-              setDeleting(false);
-            }
-          })();
+    showModal({
+      title: 'Delete post?',
+      message: 'This cannot be undone.',
+      buttons: [
+        { label: 'Cancel', variant: 'secondary', onPress: hideModal },
+        {
+          label: 'Delete',
+          variant: 'destructive',
+          onPress: () => {
+            hideModal();
+            void (async () => {
+              setDeleting(true);
+              try {
+                await postApi.deletePost(post.id);
+                onDeleted?.(post.id);
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : 'Could not delete.';
+                showModal({ title: 'Delete failed', message: msg });
+              } finally {
+                setDeleting(false);
+              }
+            })();
+          },
         },
-      },
-    ]);
-  }, [onDeleted, post.id]);
+      ],
+    });
+  }, [hideModal, onDeleted, post.id, showModal]);
 
   const openLink = useCallback(() => {
     const u = post.link_url?.trim();
@@ -210,8 +220,8 @@ export function PostCard({
   }, [post.content, post.link_url, post.title, tagsForDisplay]);
 
   const reportPost = useCallback(() => {
-    Alert.alert('Report', 'Thanks — we will review reports in a future update.');
-  }, []);
+    showModal({ title: 'Report', message: 'Thanks — we will review reports in a future update.' });
+  }, [showModal]);
 
   const starred = post.starred_by_me === true;
   const starCount = post.star_count ?? 0;
@@ -227,7 +237,7 @@ export function PostCard({
 
   const toggleBookmark = useCallback(async () => {
     if (!accessToken) {
-      Alert.alert('Sign in', 'Sign in to save posts.');
+      showModal({ title: 'Sign in', message: 'Sign in to save posts.' });
       return;
     }
     const next = !bookmarked;
@@ -248,13 +258,13 @@ export function PostCard({
     } catch (e) {
       setBookmarkOverride(null);
       const msg = e instanceof Error ? e.message : 'Could not update saved posts.';
-      Alert.alert('Saved', msg);
+      showModal({ title: 'Saved', message: msg });
     }
-  }, [accessToken, bookmarked, onPostUpdated, post]);
+  }, [accessToken, bookmarked, onPostUpdated, post, showModal]);
 
   const submitStar = useCallback(async () => {
     if (!accessToken) {
-      Alert.alert('Sign in', 'Sign in to like posts.');
+      showModal({ title: 'Sign in', message: 'Sign in to like posts.' });
       return;
     }
     try {
@@ -270,9 +280,9 @@ export function PostCard({
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not update like.';
-      Alert.alert('Like', msg);
+      showModal({ title: 'Like', message: msg });
     }
-  }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post]);
+  }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post, showModal]);
 
   const openPostMenu = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -291,47 +301,55 @@ export function PostCard({
         },
       );
     } else {
-      Alert.alert(
-        'Post options',
-        undefined,
-        [
-          { text: 'Share', onPress: () => void sharePost() },
+      showModal({
+        title: 'Post options',
+        message: 'Choose an action',
+        buttons: [
+          { label: 'Share', variant: 'primary', onPress: () => { hideModal(); void sharePost(); } },
           isOwner
-            ? { text: 'Delete', style: 'destructive', onPress: handleDelete }
-            : { text: 'Report', onPress: reportPost },
-          { text: 'Cancel', style: 'cancel' },
+            ? { label: 'Delete', variant: 'destructive', onPress: () => { hideModal(); handleDelete(); } }
+            : { label: 'Report', variant: 'destructive', onPress: () => { hideModal(); reportPost(); } },
+          { label: 'Cancel', variant: 'secondary', onPress: hideModal },
         ],
-        { cancelable: true },
-      );
+      });
     }
-  }, [handleDelete, isOwner, reportPost, sharePost]);
+  }, [handleDelete, hideModal, isOwner, reportPost, sharePost, showModal]);
 
   return (
     <View style={styles.card}>
+      {modal}
       <View style={styles.topRow}>
-        <View style={styles.avatarWrap}>
+        <Pressable
+          onPress={onAuthorPress}
+          disabled={post.is_anonymous}
+          style={styles.avatarWrap}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${displayName(post)}'s profile`}
+        >
           {avatarUri ? (
             <Image source={{ uri: resolvePostMediaUrl(avatarUri) }} style={styles.avatarImg} />
           ) : (
             <Text style={styles.avatarInitials}>{authorInitials(post)}</Text>
           )}
-        </View>
+        </Pressable>
         <View style={styles.headerMain}>
           <View style={styles.nameRow}>
             <View style={styles.authorNameRow}>
-              <Animated.Text
-                style={[
-                  styles.displayName,
-                  styles.displayNameFlex,
-                  {
-                    transform: [{ scale: authorNameScale }],
-                    color: authorNameColor,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {displayName(post)}
-              </Animated.Text>
+              <Pressable onPress={onAuthorPress} disabled={post.is_anonymous}>
+                <Animated.Text
+                  style={[
+                    styles.displayName,
+                    styles.displayNameFlex,
+                    {
+                      transform: [{ scale: authorNameScale }],
+                      color: authorNameColor,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {displayName(post)}
+                </Animated.Text>
+              </Pressable>
               {!post.is_anonymous ? (
                 <FollowAuthorLink
                   targetUserId={post.user_id}

@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
-  Alert,
   BackHandler,
   FlatList,
   KeyboardAvoidingView,
@@ -36,6 +35,8 @@ import {
 import { FollowAuthorLink } from '../../shared/components/FollowAuthorLink';
 import { formatRelativeTime } from '../../shared/utils/formatRelativeTime';
 import { UserAvatar } from '../../shared/components/UserAvatar';
+import { useMessageModal } from '../../shared/components/MessageModal';
+import { CommentListSkeleton } from '../../shared/components/skeleton';
 import type { RootStackParamList } from '../types';
 
 const COMMENT_MAX = 8000;
@@ -46,6 +47,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
   const { height: windowHeight } = useWindowDimensions();
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
   const isDark = effectiveScheme === 'dark';
   const likeInactiveColor = useMemo(
     () => (isDark ? '#52525b' : '#111827'),
@@ -122,53 +124,54 @@ export function PostCommentsScreen({ route, navigation }: Props) {
       setReplyingTo(null);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not post comment.';
-      Alert.alert('Comment', msg);
+      showModal({ title: 'Comment', message: msg });
     }
-  }, [canSend, draft, replyingTo, sendComment]);
+  }, [canSend, draft, replyingTo, sendComment, showModal]);
 
   const onPressCommentStar = useCallback(
     async (c: CommentResponse) => {
       if (!accessToken) {
-        Alert.alert('Sign in', 'Sign in to like comments.');
+        showModal({ title: 'Sign in', message: 'Sign in to like comments.' });
         return;
       }
       try {
         await toggleCommentStar(c.id);
       } catch (e) {
         const msg = e instanceof Error ? e.message : 'Could not update like.';
-        Alert.alert('Like', msg);
+        showModal({ title: 'Like', message: msg });
       }
     },
-    [accessToken, toggleCommentStar],
+    [accessToken, showModal, toggleCommentStar],
   );
 
   const confirmDelete = useCallback(
     (c: CommentResponse) => {
-      Alert.alert(
-        'Delete comment?',
-        c.parent_comment_id
+      showModal({
+        title: 'Delete comment?',
+        message: c.parent_comment_id
           ? 'This will remove your reply.'
           : 'This will remove your comment and any replies.',
-        [
-          { text: 'Cancel', style: 'cancel' },
+        buttons: [
+          { label: 'Cancel', variant: 'secondary', onPress: hideModal },
           {
-            text: 'Delete',
-            style: 'destructive',
+            label: 'Delete',
+            variant: 'destructive',
             onPress: () => {
+              hideModal();
               void (async () => {
                 try {
                   await removeComment(c.id);
                 } catch (err) {
                   const msg = err instanceof Error ? err.message : 'Could not delete.';
-                  Alert.alert('Delete', msg);
+                  showModal({ title: 'Delete', message: msg });
                 }
               })();
             },
           },
         ],
-      );
+      });
     },
-    [removeComment],
+    [hideModal, removeComment, showModal],
   );
 
   const openCommentMenu = useCallback(
@@ -422,6 +425,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.overlay} testID={`post-comments-${postId}`}>
+      {modal}
       <Pressable
         style={styles.backdrop}
         onPress={goBack}
@@ -462,9 +466,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
             </View>
 
             {loading && threads.length === 0 ? (
-              <View style={styles.centered}>
-                <ActivityIndicator size="large" color={colors.brand} />
-              </View>
+              <CommentListSkeleton count={6} />
             ) : error && threads.length === 0 ? (
               <View style={styles.centered}>
                 <Text style={styles.placeholder}>{error.message}</Text>

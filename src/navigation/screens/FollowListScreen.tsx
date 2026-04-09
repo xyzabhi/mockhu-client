@@ -1,8 +1,9 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   StyleSheet,
@@ -11,11 +12,13 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { normalizeTokenUserProfile, useFollow, useFollowList, useSession } from '../../api';
+import { useMessageModal } from '../../shared/components/MessageModal';
 import type { UserSummary } from '../../api/user/types';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 import { UserAvatar } from '../../shared/components/UserAvatar';
 import { displayNameForUser } from '../../shared/components/SuggestedUserRow';
+import { UserListSkeleton } from '../../shared/components/skeleton';
 import type { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FollowList'>;
@@ -35,18 +38,9 @@ export function FollowListScreen({ route }: Props) {
   });
   const listPaddingBottom = Math.max(insets.bottom, 16) + 8;
   const emptyText = kind === 'followers' ? 'No followers yet.' : 'Not following anyone yet.';
-  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
-  const visibleUsers = useMemo(
-    () => users.filter((u) => !hiddenIds.has(u.id)),
-    [users, hiddenIds],
-  );
 
   if (loading && users.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.brand} />
-      </View>
-    );
+    return <UserListSkeleton count={8} />;
   }
 
   if (error && users.length === 0) {
@@ -64,21 +58,18 @@ export function FollowListScreen({ route }: Props) {
     <View style={styles.root}>
       <FlatList
         style={styles.list}
-        data={visibleUsers}
+        data={users}
         keyExtractor={(u: UserSummary) => String(u.id)}
         renderItem={({ item }) => (
           <FollowListRow
             item={item}
             kind={kind}
             meId={meId}
-            onRemoved={(id) => {
-              setHiddenIds((prev) => new Set(prev).add(id));
-            }}
           />
         )}
         contentContainerStyle={[styles.listContent, { paddingBottom: listPaddingBottom }]}
         ListFooterComponent={
-          visibleUsers.length > 0 ? (
+          users.length > 0 ? (
             <View style={styles.footer}>
               {loadingMore ? (
                 <ActivityIndicator size="small" color={colors.brand} />
@@ -107,62 +98,76 @@ function FollowListRow({
   item,
   kind,
   meId,
-  onRemoved,
 }: {
   item: UserSummary;
   kind: 'followers' | 'following';
   meId?: string;
-  onRemoved: (id: string) => void;
 }) {
   const colors = useThemeColors();
   const styles = useMemo(() => createFollowListStyles(colors), [colors]);
   const { follow, unfollow, pending } = useFollow();
   const isSelf = meId != null && item.id === meId;
   const [isFollowing, setIsFollowing] = useState(kind === 'following');
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
 
   const handleFollow = async () => {
     try {
       await follow(item.id);
       setIsFollowing(true);
     } catch {
-      Alert.alert('Could not follow', 'Try again in a moment.');
+      showModal({ title: 'Could not follow', message: 'Try again in a moment.' });
     }
   };
 
   const confirmUnfollow = () => {
-    Alert.alert('Unfollow', `Stop following @${item.username}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Unfollow',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await unfollow(item.id);
-              setIsFollowing(false);
-              if (kind === 'following') {
-                onRemoved(item.id);
+    showModal({
+      title: 'Unfollow',
+      message: `Stop following @${item.username}?`,
+      buttons: [
+        { label: 'Cancel', variant: 'secondary', onPress: hideModal },
+        {
+          label: 'Unfollow',
+          variant: 'destructive',
+          onPress: () => {
+            hideModal();
+            void (async () => {
+              try {
+                await unfollow(item.id);
+                setIsFollowing(false);
+              } catch {
+                showModal({ title: 'Could not unfollow', message: 'Try again in a moment.' });
               }
-            } catch {
-              Alert.alert('Could not unfollow', 'Try again in a moment.');
-            }
-          })();
+            })();
+          },
         },
-      },
-    ]);
+      ],
+    });
   };
+
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const goToProfile = useCallback(() => {
+    navigation.push('UserProfile', { userId: item.id });
+  }, [item.id, navigation]);
 
   return (
     <View style={styles.row}>
-      <UserAvatar seed={item.id} avatarUrl={item.avatar_url} size={48} />
-      <View style={styles.rowText}>
-        <Text style={styles.rowName} numberOfLines={1}>
-          {displayNameForUser(item)}
-        </Text>
-        <Text style={styles.rowUsername} numberOfLines={1}>
-          @{item.username}
-        </Text>
-      </View>
+      {modal}
+      <Pressable
+        style={styles.rowProfileArea}
+        onPress={goToProfile}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${displayNameForUser(item)}'s profile`}
+      >
+        <UserAvatar seed={item.id} avatarUrl={item.avatar_url} size={48} />
+        <View style={styles.rowText}>
+          <Text style={styles.rowName} numberOfLines={1}>
+            {displayNameForUser(item)}
+          </Text>
+          <Text style={styles.rowUsername} numberOfLines={1}>
+            @{item.username}
+          </Text>
+        </View>
+      </Pressable>
       {!isSelf ? (
         <Pressable
           style={({ pressed }) => [
@@ -208,6 +213,13 @@ function createFollowListStyles(colors: ThemeColors) {
       paddingVertical: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderSubtle,
+      gap: 12,
+    },
+    rowProfileArea: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      minWidth: 0,
       gap: 12,
     },
     rowText: {

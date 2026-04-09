@@ -66,6 +66,7 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
     gender: nullToUndef(me.gender),
     grade: nullToUndef(me.grade),
     dob: nullToUndef(me.dob),
+    is_private: me.is_private === true,
     created_at: me.created_at,
     updated_at: me.updated_at,
   };

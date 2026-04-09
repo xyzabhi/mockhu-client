@@ -21,6 +21,7 @@ import type { PostResponse } from '../../api/post/types';
 import { PostCard } from '../../features/posts/components/PostCard';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
+import { PostFeedSkeleton } from '../../shared/components/skeleton';
 import type { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Bookmarks'>;
@@ -77,9 +78,7 @@ export function BookmarksScreen(_props: Props) {
   return (
     <View style={styles.root}>
       {loading && posts.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.brand} />
-        </View>
+        <PostFeedSkeleton count={5} />
       ) : error && posts.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error.message}</Text>

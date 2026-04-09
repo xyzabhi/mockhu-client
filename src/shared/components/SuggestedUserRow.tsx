@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   Pressable,
   StyleSheet,
@@ -13,6 +12,7 @@ import { useFollow } from '../../api';
 import type { UserSummary } from '../../api/user/types';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
+import { useMessageModal } from './MessageModal';
 import { UserAvatar } from './UserAvatar';
 
 export function displayNameForUser(u: UserSummary): string {
@@ -20,32 +20,52 @@ export function displayNameForUser(u: UserSummary): string {
   return parts.length > 0 ? parts.join(' ') : u.username;
 }
 
-export function SuggestedUserRow({ item }: { item: UserSummary }) {
+export function SuggestedUserRow({
+  item,
+  onPress,
+}: {
+  item: UserSummary;
+  onPress?: (userId: string) => void;
+}) {
   const colors = useThemeColors();
   const styles = useMemo(() => createRowStyles(colors), [colors]);
   const { follow, pending } = useFollow();
   const [done, setDone] = useState(false);
+  const { modal, show: showModal } = useMessageModal();
 
   const handleFollow = useCallback(async () => {
     try {
       await follow(item.id);
       setDone(true);
     } catch {
-      Alert.alert('Could not follow', 'Try again in a moment.');
+      showModal({ title: 'Could not follow', message: 'Try again in a moment.' });
     }
-  }, [follow, item.id]);
+  }, [follow, item.id, showModal]);
+
+  const handleRowPress = useCallback(() => {
+    onPress?.(item.id);
+  }, [item.id, onPress]);
 
   return (
     <View style={styles.row}>
-      <UserAvatar seed={item.id} avatarUrl={item.avatar_url} size={48} />
-      <View style={styles.rowText}>
-        <Text style={styles.rowName} numberOfLines={1}>
-          {displayNameForUser(item)}
-        </Text>
-        <Text style={styles.rowUsername} numberOfLines={1}>
-          @{item.username}
-        </Text>
-      </View>
+      {modal}
+      <Pressable
+        style={styles.rowProfileArea}
+        onPress={handleRowPress}
+        disabled={!onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${displayNameForUser(item)}'s profile`}
+      >
+        <UserAvatar seed={item.id} avatarUrl={item.avatar_url} size={48} />
+        <View style={styles.rowText}>
+          <Text style={styles.rowName} numberOfLines={1}>
+            {displayNameForUser(item)}
+          </Text>
+          <Text style={styles.rowUsername} numberOfLines={1}>
+            @{item.username}
+          </Text>
+        </View>
+      </Pressable>
       {!done ? (
         <Pressable
           style={({ pressed }) => [styles.followBtn, pressed && styles.followBtnPressed]}
@@ -76,18 +96,20 @@ export function SuggestedUserCard({ item }: { item: UserSummary }) {
   const styles = useMemo(() => createCardStyles(colors), [colors]);
   const { follow, pending } = useFollow();
   const [done, setDone] = useState(false);
+  const { modal: cardModal, show: showCardModal } = useMessageModal();
 
   const handleFollow = useCallback(async () => {
     try {
       await follow(item.id);
       setDone(true);
     } catch {
-      Alert.alert('Could not follow', 'Try again in a moment.');
+      showCardModal({ title: 'Could not follow', message: 'Try again in a moment.' });
     }
-  }, [follow, item.id]);
+  }, [follow, item.id, showCardModal]);
 
   return (
     <View style={styles.card}>
+      {cardModal}
       <UserAvatar seed={item.id} avatarUrl={item.avatar_url} size={56} />
       <Text style={styles.cardName} numberOfLines={2}>
         {displayNameForUser(item)}
@@ -209,6 +231,13 @@ function createRowStyles(colors: ThemeColors) {
       paddingVertical: 12,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.borderSubtle,
+      gap: 12,
+    },
+    rowProfileArea: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      minWidth: 0,
       gap: 12,
     },
     rowText: {

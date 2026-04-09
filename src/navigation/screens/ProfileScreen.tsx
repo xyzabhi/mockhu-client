@@ -10,11 +10,13 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  clearSession,
   hydrateSessionUserFromMe,
   normalizeTokenUserProfile,
   useBookmarkFeed,
@@ -23,6 +25,7 @@ import {
   useSession,
   useUserInterests,
   useUserPostsFeed,
+  userApi,
 } from '../../api';
 import type { PostResponse } from '../../api/post/types';
 import { PostCard } from '../../features/posts/components/PostCard';
@@ -33,14 +36,17 @@ import { type ThemeColors, useThemeColors } from '../../presentation/theme/Theme
 import { ProfileAvatarUploader } from '../../features/profile/components/ProfileAvatarUploader';
 import { LevelBadge } from '../../shared/components/LevelBadge';
 import { SpecialBadgesRow } from '../../shared/components/SpecialBadgesRow';
+import { useMessageModal } from '../../shared/components/MessageModal';
+import { PostFeedSkeleton, SkeletonBox, SkeletonGroup } from '../../shared/components/skeleton';
 import type { MainTabParamList, RootStackParamList } from '../types';
 
-type ProfileTabId = 'posts' | 'saved' | 'about';
+type ProfileTabId = 'posts' | 'saved' | 'about' | 'settings';
 
 const PROFILE_TABS: { id: ProfileTabId; label: string }[] = [
   { id: 'posts', label: 'Posts' },
   { id: 'saved', label: 'Saved' },
   { id: 'about', label: 'About' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 export function ProfileScreen() {
@@ -51,6 +57,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const parentNav = navigation.getParent();
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
   const [activeTab, setActiveTab] = useState<ProfileTabId>('posts');
 
   const goToMainTab = useCallback(
@@ -136,6 +143,45 @@ export function ProfileScreen() {
     refetch: refetchInterests,
   } = useUserInterests(userId);
 
+  const [isPrivate, setIsPrivate] = useState(profile?.is_private ?? false);
+  const [privacyUpdating, setPrivacyUpdating] = useState(false);
+
+  const togglePrivacy = useCallback(
+    async (newValue: boolean) => {
+      const prev = isPrivate;
+      setIsPrivate(newValue);
+      setPrivacyUpdating(true);
+      try {
+        const res = await userApi.setPrivacy(newValue);
+        setIsPrivate(res.is_private);
+      } catch {
+        setIsPrivate(prev);
+        showModal({ title: 'Error', message: 'Could not update privacy setting. Try again.' });
+      } finally {
+        setPrivacyUpdating(false);
+      }
+    },
+    [isPrivate],
+  );
+
+  const confirmSignOut = useCallback(() => {
+    showModal({
+      title: 'Sign Out',
+      message: 'Are you sure you want to sign out?',
+      buttons: [
+        { label: 'Cancel', variant: 'secondary', onPress: hideModal },
+        {
+          label: 'Sign Out',
+          variant: 'destructive',
+          onPress: () => {
+            hideModal();
+            void clearSession();
+          },
+        },
+      ],
+    });
+  }, [showModal, hideModal]);
+
   const levelBadge = profile ? resolveLevelBadgeFromUser(profile) : null;
   const hasLevelBadge = levelBadge != null;
   const specialBadges = profile?.special_badges ?? [];
@@ -203,11 +249,7 @@ export function ProfileScreen() {
 
   const renderSavedEmpty = useCallback(() => {
     if (savedLoading) {
-      return (
-        <View style={styles.savedEmptyWrap}>
-          <ActivityIndicator size="large" color={colors.brand} />
-        </View>
-      );
+      return <PostFeedSkeleton count={3} />;
     }
     if (savedError && savedPosts.length === 0) {
       return (
@@ -235,11 +277,7 @@ export function ProfileScreen() {
 
   const renderMyPostsEmpty = useCallback(() => {
     if (myPostsLoading) {
-      return (
-        <View style={styles.savedEmptyWrap}>
-          <ActivityIndicator size="large" color={colors.brand} />
-        </View>
-      );
+      return <PostFeedSkeleton count={3} />;
     }
     if (myPostsError && myPosts.length === 0) {
       return (
@@ -324,31 +362,45 @@ export function ProfileScreen() {
             )}
 
             {userId ? (
-              <View style={styles.countsRow} accessibilityRole="summary">
-                <Pressable
-                  style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
-                  onPress={() => openFollowList('followers')}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open followers list, ${followersCount ?? 0}`}
-                >
-                  <Text style={styles.countValue} accessibilityLabel={`Followers ${followersCount ?? 0}`}>
-                    {countsLoading ? '—' : String(followersCount ?? 0)}
-                  </Text>
-                  <Text style={styles.countLabel}>Followers</Text>
-                </Pressable>
-                <View style={styles.countDivider} />
-                <Pressable
-                  style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
-                  onPress={() => openFollowList('following')}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Open following list, ${followingCount ?? 0}`}
-                >
-                  <Text style={styles.countValue} accessibilityLabel={`Following ${followingCount ?? 0}`}>
-                    {countsLoading ? '—' : String(followingCount ?? 0)}
-                  </Text>
-                  <Text style={styles.countLabel}>Following</Text>
-                </Pressable>
-              </View>
+              countsLoading ? (
+                <SkeletonGroup style={styles.countsRow}>
+                  <View style={styles.countBlock}>
+                    <SkeletonBox width={28} height={14} radius={7} />
+                    <SkeletonBox width={56} height={10} radius={5} />
+                  </View>
+                  <View style={styles.countDivider} />
+                  <View style={styles.countBlock}>
+                    <SkeletonBox width={28} height={14} radius={7} />
+                    <SkeletonBox width={56} height={10} radius={5} />
+                  </View>
+                </SkeletonGroup>
+              ) : (
+                <View style={styles.countsRow} accessibilityRole="summary">
+                  <Pressable
+                    style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
+                    onPress={() => openFollowList('followers')}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open followers list, ${followersCount ?? 0}`}
+                  >
+                    <Text style={styles.countValue} accessibilityLabel={`Followers ${followersCount ?? 0}`}>
+                      {String(followersCount ?? 0)}
+                    </Text>
+                    <Text style={styles.countLabel}>Followers</Text>
+                  </Pressable>
+                  <View style={styles.countDivider} />
+                  <Pressable
+                    style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
+                    onPress={() => openFollowList('following')}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open following list, ${followingCount ?? 0}`}
+                  >
+                    <Text style={styles.countValue} accessibilityLabel={`Following ${followingCount ?? 0}`}>
+                      {String(followingCount ?? 0)}
+                    </Text>
+                    <Text style={styles.countLabel}>Following</Text>
+                  </Pressable>
+                </View>
+              )
             ) : null}
 
             {specialBadges.length > 0 ? <SpecialBadgesRow codes={specialBadges} /> : null}
@@ -456,7 +508,7 @@ export function ProfileScreen() {
               ) : null
             }
           />
-        ) : (
+        ) : activeTab === 'about' ? (
           <ScrollView
             style={styles.scrollTab}
             contentContainerStyle={[styles.aboutScrollContent, { paddingBottom: bottomPad }]}
@@ -559,12 +611,109 @@ export function ProfileScreen() {
                       <Text style={styles.aboutRowPlaceholder}>No interests on file.</Text>
                     )}
                   </View>
+
                 </>
               )}
             </View>
           </ScrollView>
+        ) : (
+          <ScrollView
+            style={styles.scrollTab}
+            contentContainerStyle={[styles.aboutScrollContent, { paddingBottom: bottomPad }]}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.aboutCard}>
+              <View style={styles.aboutRow}>
+                <Text style={styles.aboutRowLabel}>Appearance</Text>
+              </View>
+              <View style={styles.resourceThemeToggle}>
+                <ThemeAppearanceToggle />
+              </View>
+
+              <View style={styles.aboutRowDivider} />
+
+              <View style={styles.aboutRow}>
+                <View style={styles.privacyRow}>
+                  <View style={styles.privacyRowText}>
+                    <Text style={styles.aboutRowLabel}>Private account</Text>
+                    <Text style={styles.privacyHint}>
+                      Only followers can see your posts and details
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isPrivate}
+                    onValueChange={togglePrivacy}
+                    disabled={privacyUpdating}
+                    trackColor={{ false: colors.borderSubtle, true: colors.brand }}
+                    thumbColor={colors.surface}
+                    ios_backgroundColor={colors.borderSubtle}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.aboutRowDivider} />
+
+              <Pressable
+                style={({ pressed }) => [styles.resourceRow, pressed && styles.resourceRowPressed]}
+                onPress={() => goLegalInfo('privacy')}
+                accessibilityRole="button"
+              >
+                <MaterialCommunityIcons name="shield-lock-outline" size={22} color={colors.textMuted} />
+                <View style={styles.resourceRowText}>
+                  <Text style={styles.resourceRowTitle}>Privacy Policy</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+              </Pressable>
+
+              <View style={styles.aboutRowDivider} />
+
+              <Pressable
+                style={({ pressed }) => [styles.resourceRow, pressed && styles.resourceRowPressed]}
+                onPress={() => goLegalInfo('rules')}
+                accessibilityRole="button"
+              >
+                <MaterialCommunityIcons name="book-open-outline" size={22} color={colors.textMuted} />
+                <View style={styles.resourceRowText}>
+                  <Text style={styles.resourceRowTitle}>Community Rules</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+              </Pressable>
+
+              <View style={styles.aboutRowDivider} />
+
+              <Pressable
+                style={({ pressed }) => [styles.resourceRow, pressed && styles.resourceRowPressed]}
+                onPress={() => goLegalInfo('agreement')}
+                accessibilityRole="button"
+              >
+                <MaterialCommunityIcons name="file-document-outline" size={22} color={colors.textMuted} />
+                <View style={styles.resourceRowText}>
+                  <Text style={styles.resourceRowTitle}>Terms of Service</Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textMuted} />
+              </Pressable>
+
+              {accessToken?.trim() ? (
+                <>
+                  <View style={styles.aboutRowDivider} />
+                  <Pressable
+                    style={({ pressed }) => [styles.resourceRow, pressed && styles.resourceRowPressed]}
+                    onPress={confirmSignOut}
+                    accessibilityRole="button"
+                  >
+                    <MaterialCommunityIcons name="logout" size={22} color={colors.danger} />
+                    <View style={styles.resourceRowText}>
+                      <Text style={[styles.resourceRowTitle, { color: colors.danger }]}>Sign Out</Text>
+                    </View>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
+          </ScrollView>
         )}
       </View>
+      {modal}
     </View>
   );
 }
@@ -830,6 +979,23 @@ function createProfileStyles(colors: ThemeColors) {
     aboutRowDivider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: colors.borderSubtle,
+    },
+    privacyRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    privacyRowText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    privacyHint: {
+      marginTop: 2,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.xs,
+      color: colors.textMuted,
+      lineHeight: 18,
     },
     aboutInterestsLoading: {
       flexDirection: 'row',

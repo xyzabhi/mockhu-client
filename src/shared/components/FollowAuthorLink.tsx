@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFollow } from '../../api';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
+import { useMessageModal } from './MessageModal';
 
 type FollowAuthorLinkProps = {
   targetUserId: string;
@@ -27,6 +28,7 @@ export function FollowAuthorLink({
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors, !!compact), [colors, compact]);
   const { follow, unfollow, pending } = useFollow();
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
   const [optimistic, setOptimistic] = useState<'idle' | 'following' | 'not_following'>('idle');
 
   useEffect(() => {
@@ -49,9 +51,9 @@ export function FollowAuthorLink({
       setOptimistic('following');
       onFollowListChanged?.();
     } catch {
-      Alert.alert('Could not follow', 'Try again in a moment.');
+      showModal({ title: 'Could not follow', message: 'Try again in a moment.' });
     }
-  }, [follow, targetUserId, onFollowListChanged]);
+  }, [follow, targetUserId, onFollowListChanged, showModal]);
 
   const runUnfollow = useCallback(async () => {
     try {
@@ -59,46 +61,53 @@ export function FollowAuthorLink({
       setOptimistic('not_following');
       onFollowListChanged?.();
     } catch {
-      Alert.alert('Could not unfollow', 'Try again in a moment.');
+      showModal({ title: 'Could not unfollow', message: 'Try again in a moment.' });
     }
-  }, [unfollow, targetUserId, onFollowListChanged]);
+  }, [unfollow, targetUserId, onFollowListChanged, showModal]);
 
   const handlePress = useCallback(() => {
     if (isFollowing) {
-      Alert.alert('Unfollow', 'Stop following this user?', [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unfollow',
-          style: 'destructive',
-          onPress: () => void runUnfollow(),
-        },
-      ]);
+      showModal({
+        title: 'Unfollow',
+        message: 'Stop following this user?',
+        buttons: [
+          { label: 'Cancel', variant: 'secondary', onPress: hideModal },
+          {
+            label: 'Unfollow',
+            variant: 'destructive',
+            onPress: () => { hideModal(); void runUnfollow(); },
+          },
+        ],
+      });
     } else {
       void runFollow();
     }
-  }, [isFollowing, runFollow, runUnfollow]);
+  }, [hideModal, isFollowing, runFollow, runUnfollow, showModal]);
 
   if (!currentUserId || targetUserId === currentUserId || !followingIds) {
     return null;
   }
 
   return (
-    <Pressable
-      onPress={handlePress}
-      disabled={pending}
-      hitSlop={8}
-      style={({ pressed }) => [pressed && styles.pressed]}
-      accessibilityRole="button"
-      accessibilityLabel={isFollowing ? 'Unfollow user' : 'Follow user'}
-    >
-      {pending ? (
-        <ActivityIndicator size="small" color={colors.brand} />
-      ) : (
-        <Text style={isFollowing ? styles.followingText : styles.followText}>
-          {isFollowing ? 'Following' : 'Follow'}
-        </Text>
-      )}
-    </Pressable>
+    <View>
+      {modal}
+      <Pressable
+        onPress={handlePress}
+        disabled={pending}
+        hitSlop={8}
+        style={({ pressed }) => [pressed && styles.pressed]}
+        accessibilityRole="button"
+        accessibilityLabel={isFollowing ? 'Unfollow user' : 'Follow user'}
+      >
+        {pending ? (
+          <ActivityIndicator size="small" color={colors.brand} />
+        ) : (
+          <Text style={isFollowing ? styles.followingText : styles.followText}>
+            {isFollowing ? 'Following' : 'Follow'}
+          </Text>
+        )}
+      </Pressable>
+    </View>
   );
 }
 

@@ -3,7 +3,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { PermissionStatus } from 'expo-image-picker';
 import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   Image,
   Linking,
   Platform,
@@ -16,6 +15,7 @@ import {
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 import { AvatarCropModal } from './AvatarCropModal';
+import { useMessageModal } from './MessageModal';
 
 export type AvatarImageCropPickerProps = {
   value: string | null;
@@ -41,6 +41,7 @@ export function AvatarImageCropPicker({
   const colors = useThemeColors();
   const styles = useMemo(() => createStyles(colors, displaySize), [colors, displaySize]);
   const { width: windowW } = useWindowDimensions();
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
 
   const [cropAsset, setCropAsset] = useState<CropAsset | null>(null);
   const [cropVisible, setCropVisible] = useState(false);
@@ -61,16 +62,16 @@ export function AvatarImageCropPicker({
   const openLibrary = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== PermissionStatus.GRANTED) {
-      Alert.alert(
-        'Photo library access',
-        'Allow access to your photos to choose a profile picture. You can enable this in Settings.',
-        [
-          { text: 'Not now', style: 'cancel' },
+      showModal({
+        title: 'Photo library access',
+        message: 'Allow access to your photos to choose a profile picture. You can enable this in Settings.',
+        buttons: [
+          { label: 'Not now', variant: 'secondary', onPress: hideModal },
           ...(Platform.OS !== 'web'
-            ? [{ text: 'Open Settings', onPress: () => void Linking.openSettings() }]
+            ? [{ label: 'Open Settings', variant: 'primary' as const, onPress: () => { hideModal(); void Linking.openSettings(); } }]
             : []),
         ],
-      );
+      });
       return;
     }
 
@@ -106,6 +107,7 @@ export function AvatarImageCropPicker({
 
   return (
     <>
+      {modal}
       <View style={styles.avatarBlock}>
         <Pressable
           style={({ pressed }) => [

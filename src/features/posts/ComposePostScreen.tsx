@@ -7,7 +7,6 @@ import { useNavigation } from '@react-navigation/native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -42,6 +41,7 @@ import {
 } from '../../presentation/theme/ThemeContext';
 import { theme } from '../../presentation/theme/theme';
 import { requestHomeFeedRefresh } from '../../shared/homeFeedSync';
+import { useMessageModal } from '../../shared/components/MessageModal';
 import { ComposeMediaSheet } from './components/ComposeMediaSheet';
 
 async function getLocalFileByteSize(uri: string): Promise<number | undefined> {
@@ -128,6 +128,7 @@ export function ComposePostScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const linkInputRef = useRef<TextInput>(null);
+  const { modal, show: showModal } = useMessageModal();
   const bodyInputRef = useRef<TextInput>(null);
   const { accessToken, user } = useSession();
 
@@ -211,15 +212,12 @@ export function ComposePostScreen() {
     setMediaSheetOpen(false);
     const remaining = POST_MEDIA_MAX_IMAGES - attachmentImages.length;
     if (remaining <= 0) {
-      Alert.alert('Photos', `You can add up to ${POST_MEDIA_MAX_IMAGES} images per post.`);
+      showModal({ title: 'Photos', message: `You can add up to ${POST_MEDIA_MAX_IMAGES} images per post.` });
       return;
     }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(
-        'Photo library',
-        'Allow photo access in Settings to attach images to your post.',
-      );
+      showModal({ title: 'Photo library', message: 'Allow photo access in Settings to attach images to your post.' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -280,7 +278,7 @@ export function ComposePostScreen() {
       });
     }
     if (skipReasons.length > 0) {
-      Alert.alert('Some photos were skipped', skipReasons.join('\n'));
+      showModal({ title: 'Some photos were skipped', message: skipReasons.join('\n') });
     }
     if (next.length === 0) return;
     setAttachmentImages((prev) => [...prev, ...next].slice(0, POST_MEDIA_MAX_IMAGES));
@@ -290,10 +288,7 @@ export function ComposePostScreen() {
     setMediaSheetOpen(false);
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert(
-        'Video',
-        'Allow photo library access in Settings to pick a video.',
-      );
+      showModal({ title: 'Video', message: 'Allow photo library access in Settings to pick a video.' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -302,11 +297,8 @@ export function ComposePostScreen() {
       quality: 1,
     });
     if (result.canceled) return;
-    Alert.alert(
-      'Video',
-      'Video attachments are not available yet. You can add photos from the same menu.',
-    );
-  }, []);
+    showModal({ title: 'Video', message: 'Video attachments are not available yet. You can add photos from the same menu.' });
+  }, [showModal]);
 
   const handleChoosePdf = useCallback(async () => {
     setMediaSheetOpen(false);
@@ -319,11 +311,8 @@ export function ComposePostScreen() {
     } catch {
       return;
     }
-    Alert.alert(
-      'PDF',
-      'PDF attachments are not available yet. You can add photos from the same menu.',
-    );
-  }, []);
+    showModal({ title: 'PDF', message: 'PDF attachments are not available yet. You can add photos from the same menu.' });
+  }, [showModal]);
 
   const previewBreadcrumbParts = useMemo(
     () => composeBreadcrumbSegments(topic, exam),
@@ -357,14 +346,14 @@ export function ComposePostScreen() {
     if (!exam || !canSubmit) return;
     const presenceErr = validatePostHasTitleOrBody(title, body);
     if (presenceErr) {
-      Alert.alert('Post', presenceErr);
+      showModal({ title: 'Post', message: presenceErr });
       return;
     }
     const trimmedLink = linkUrl.trim();
     const hasLink = trimmedLink.length > 0;
     const mediaErr = validateMediaRule(attachmentImages.length, trimmedLink);
     if (mediaErr) {
-      Alert.alert('Photos or link', mediaErr);
+      showModal({ title: 'Photos or link', message: mediaErr });
       return;
     }
 
@@ -400,7 +389,7 @@ export function ComposePostScreen() {
       navigation.navigate('Home' as never);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not publish.';
-      Alert.alert('Publish failed', msg);
+      showModal({ title: 'Publish failed', message: msg });
     } finally {
       setSubmitting(false);
     }
@@ -429,6 +418,7 @@ export function ComposePostScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={0}
     >
+      {modal}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <View style={styles.headerLeft}>
           <Pressable

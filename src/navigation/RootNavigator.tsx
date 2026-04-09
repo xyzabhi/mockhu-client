@@ -30,7 +30,9 @@ import { FollowListScreen } from './screens/FollowListScreen';
 import { SuggestedUsersScreen } from './screens/SuggestedUsersScreen';
 import { LegalInfoScreen, legalInfoTitle } from './screens/LegalInfoScreen';
 import { BookmarksScreen } from './screens/BookmarksScreen';
+import { GlobalSearchScreen } from './screens/GlobalSearchScreen';
 import { TrendingScreen } from './screens/TrendingScreen';
+import { UserProfileScreen } from './screens/UserProfileScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -216,6 +218,16 @@ export function RootNavigator() {
           name="ExamDetail"
           component={ExamDetailScreen}
           options={{ headerShown: true, title: 'Exam' }}
+        />
+        <Stack.Screen
+          name="UserProfile"
+          component={UserProfileScreen}
+          options={{ headerShown: true, title: 'Profile' }}
+        />
+        <Stack.Screen
+          name="GlobalSearch"
+          component={GlobalSearchScreen}
+          options={{ headerShown: false, animation: 'fade' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Dimensions,
   Modal,
   NativeScrollEvent,
@@ -25,6 +24,7 @@ import {
 import { theme } from '../../../../presentation/theme/theme';
 import { formatCompactCount } from '../../../../shared/utils/formatCompactCount';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
+import { useMessageModal } from '../../../../shared/components/MessageModal';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
 
 type PickedCategory = { id: number; name: string };
@@ -433,6 +433,7 @@ function CategoryExamsModalBody({
   colors: ThemeColors;
 }) {
   const [examSearch, setExamSearch] = useState('');
+  const { modal, show: showModal } = useMessageModal();
   const {
     items,
     total,
@@ -563,8 +564,8 @@ function CategoryExamsModalBody({
       return;
     }
     const cat = categoryDisplayHashtag(categoryName);
-    Alert.alert('Request an exam', `We’ll note your request for “${term}” under ${cat}.`, [{ text: 'OK' }]);
-  }, [items, selectedExamIds, examSearch, filteredItems, categoryName, onClose]);
+    showModal({ title: 'Request an exam', message: `We’ll note your request for “${term}” under ${cat}.` });
+  }, [items, selectedExamIds, examSearch, filteredItems, categoryName, onClose, showModal]);
 
   const listHeader = (
     <View style={styles.modalSearchBlock}>
@@ -590,6 +591,7 @@ function CategoryExamsModalBody({
   if (loading && items.length === 0 && !listError) {
     return (
       <View style={[styles.sheetOuter, { height: sheetMax }]}>
+        {modal}
         <View style={[styles.sheet, styles.sheetFlex, { paddingBottom: bottomInset + 16 }]}>
           <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} styles={styles} colors={colors} />
           <View style={[styles.modalBodyFill, styles.modalBodyGrow]}>
@@ -603,6 +605,7 @@ function CategoryExamsModalBody({
   if (listError && items.length === 0) {
     return (
       <View style={[styles.sheetOuter, { height: sheetMax }]}>
+        {modal}
         <View style={[styles.sheet, styles.sheetFlex, { paddingBottom: bottomInset + 16 }]}>
           <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} styles={styles} colors={colors} />
           <View style={[styles.modalBodyFill, styles.modalBodyGrow]}>
@@ -618,6 +621,7 @@ function CategoryExamsModalBody({
 
   return (
     <View style={[styles.sheetOuter, { height: sheetMax }]}>
+      {modal}
       <View style={[styles.sheet, styles.sheetFlex]}>
         <ModalChrome title={categoryDisplayHashtag(categoryName)} onClose={onClose} styles={styles} colors={colors} />
         <ScrollView
