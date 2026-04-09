@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Animated,
   Image,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -36,6 +35,8 @@ import {
   useThemePreference,
 } from '../../../presentation/theme/ThemeContext';
 import { FollowAuthorLink } from '../../../shared/components/FollowAuthorLink';
+import { openInAppBrowser } from '../../../shared/openInAppBrowser';
+import { FullScreenImageViewer } from '../../../shared/components/FullScreenImageViewer';
 import { useMessageModal } from '../../../shared/components/MessageModal';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
 import { postContentLooksLikeHtml, stripHtmlTags } from '../postContentFormatting';
@@ -113,6 +114,8 @@ export function PostCard({
   const { modal, show: showModal, hide: hideModal } = useMessageModal();
   const [deleting, setDeleting] = useState(false);
   const [bookmarkOverride, setBookmarkOverride] = useState<boolean | null>(null);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
   const authorStarPulse = useRef(new Animated.Value(0)).current;
 
   const authorNameScale = authorStarPulse.interpolate({
@@ -156,6 +159,14 @@ export function PostCard({
     [post.post_type, colors, isDark],
   );
   const images = post.images ?? [];
+  const resolvedImages = useMemo(
+    () => images.map((u) => resolvePostMediaUrl(u)),
+    [images],
+  );
+  const openImageViewer = useCallback((index: number) => {
+    setViewerIndex(index);
+    setViewerVisible(true);
+  }, []);
   const tagsForDisplay = useMemo(
     () => (post.tags ?? []).map((t) => t.trim()).filter(Boolean),
     [post.tags],
@@ -194,7 +205,7 @@ export function PostCard({
 
   const openLink = useCallback(() => {
     const u = post.link_url?.trim();
-    if (u) void Linking.openURL(u);
+    if (u) void openInAppBrowser(u);
   }, [post.link_url]);
 
   const sharePost = useCallback(async () => {
@@ -416,22 +427,46 @@ export function PostCard({
       ) : null}
 
       {images.length === 1 ? (
-        <Image
-          source={{ uri: resolvePostMediaUrl(images[0]!) }}
-          style={styles.singleImage}
-          resizeMode="cover"
-        />
+        <Pressable onPress={() => openImageViewer(0)}>
+          <Image
+            source={{ uri: resolvedImages[0] }}
+            style={styles.singleImage}
+            resizeMode="cover"
+          />
+        </Pressable>
       ) : images.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageStrip}>
-          {images.map((uri) => (
-            <Image
-              key={uri}
-              source={{ uri: resolvePostMediaUrl(uri) }}
-              style={styles.thumb}
-              resizeMode="cover"
-            />
+          {images.map((uri, idx) => (
+            <Pressable key={uri} onPress={() => openImageViewer(idx)}>
+              <Image
+                source={{ uri: resolvePostMediaUrl(uri) }}
+                style={styles.thumb}
+                resizeMode="cover"
+              />
+            </Pressable>
           ))}
         </ScrollView>
+      ) : null}
+
+      {images.length > 0 ? (
+        <FullScreenImageViewer
+          images={resolvedImages}
+          initialIndex={viewerIndex}
+          visible={viewerVisible}
+          onClose={() => setViewerVisible(false)}
+          post={{
+            authorId: post.user_id,
+            authorUsername: post.is_anonymous ? undefined : (post.author?.username ?? undefined),
+            authorAvatarUrl: post.is_anonymous ? null : (post.author?.avatar_url ?? null),
+            title: post.title,
+            content: post.content,
+            starCount: post.star_count,
+            starred: post.starred_by_me,
+            commentCount: post.comment_count,
+          }}
+          onStarPress={submitStar}
+          onCommentPress={openComments}
+        />
       ) : null}
 
       {post.link_url ? (
