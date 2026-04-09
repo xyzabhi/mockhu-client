@@ -29,6 +29,7 @@ import { MatchingJobsScreen } from './screens/MatchingJobsScreen';
 import { FollowListScreen } from './screens/FollowListScreen';
 import { SuggestedUsersScreen } from './screens/SuggestedUsersScreen';
 import { LegalInfoScreen, legalInfoTitle } from './screens/LegalInfoScreen';
+import { BookmarksScreen } from './screens/BookmarksScreen';
 import { TrendingScreen } from './screens/TrendingScreen';
 import type { RootStackParamList } from './types';
 
@@ -176,6 +177,11 @@ export function RootNavigator() {
           name="Trending"
           component={TrendingScreen}
           options={{ headerShown: true, title: 'Trending' }}
+        />
+        <Stack.Screen
+          name="Bookmarks"
+          component={BookmarksScreen}
+          options={{ headerShown: true, title: 'Saved' }}
         />
         <Stack.Screen
           name="LegalInfo"

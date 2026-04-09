@@ -20,7 +20,7 @@ export type PostResponse = {
   topic_id: number;
   subject_id: number;
   exam_id: number;
-  /** Display title (1–255 chars on create). */
+  /** Display title. */
   title: string;
   post_type: PostType;
   content: string;
@@ -34,6 +34,8 @@ export type PostResponse = {
   star_count: number;
   /** Whether the current user has starred this post. */
   starred_by_me: boolean;
+  /** Whether the current user has bookmarked this post (private save-for-later). */
+  bookmarked_by_me: boolean;
   comment_count: number;
   images: string[];
   tags: string[];
@@ -73,4 +75,16 @@ export type UnstarResponse = {
   star_count: number;
   /** `true` when this call removed your star. */
   unstarred: boolean;
+};
+
+/** `POST /posts/:id/bookmark` — idempotent. */
+export type BookmarkPostResponse = {
+  /** `true` if a new bookmark was created; `false` if already bookmarked. */
+  bookmarked: boolean;
+};
+
+/** `DELETE /posts/:id/bookmark` — idempotent. */
+export type UnbookmarkPostResponse = {
+  /** `true` if a bookmark was removed; `false` if it was not bookmarked. */
+  unbookmarked: boolean;
 };

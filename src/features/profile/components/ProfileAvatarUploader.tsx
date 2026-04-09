@@ -22,6 +22,8 @@ type Props = {
   seed: string;
   /** When false, hide picker (e.g. R2 unavailable) */
   uploadEnabled: boolean;
+  /** Avatar diameter in px (default 112). */
+  displaySize?: number;
 };
 
 /**
@@ -32,6 +34,7 @@ export function ProfileAvatarUploader({
   avatarUrls,
   seed,
   uploadEnabled,
+  displaySize = 112,
 }: Props) {
   const colors = useThemeColors();
   const styles = useMemo(() => createUploaderStyles(colors), [colors]);
@@ -41,12 +44,12 @@ export function ProfileAvatarUploader({
 
   const displayUri = useMemo(() => {
     if (pendingPreviewUri) return pendingPreviewUri;
-    const fromCdn = pickAvatarDisplayUrl(avatarUrl ?? null, avatarUrls ?? null, 112);
+    const fromCdn = pickAvatarDisplayUrl(avatarUrl ?? null, avatarUrls ?? null, displaySize);
     const u = typeof fromCdn === 'string' ? fromCdn.trim() : '';
     if (!u) return null;
     if (u.startsWith('http://') || u.startsWith('https://')) return u;
     return isUsableAvatarDraftUri(u) ? u : null;
-  }, [pendingPreviewUri, avatarUrl, avatarUrls]);
+  }, [pendingPreviewUri, avatarUrl, avatarUrls, displaySize]);
 
   const applyUpload = useCallback(async (localUri: string | null) => {
     if (localUri == null) return;
@@ -82,7 +85,7 @@ export function ProfileAvatarUploader({
   if (!uploadEnabled || r2Unavailable) {
     return (
       <View style={styles.fallbackCol}>
-        <UserAvatar seed={seed} avatarUrl={avatarUrl} avatarUrls={avatarUrls} size={112} />
+        <UserAvatar seed={seed} avatarUrl={avatarUrl} avatarUrls={avatarUrls} size={displaySize} />
         <View style={[styles.banner, styles.bannerSpaced]}>
           <Text style={styles.bannerText}>
             {r2Unavailable
@@ -99,7 +102,7 @@ export function ProfileAvatarUploader({
       <AvatarImageCropPicker
         value={displayUri}
         onChange={applyUpload}
-        displaySize={112}
+        displaySize={displaySize}
         showReset={false}
       />
       {busy ? <Text style={styles.hint}>Uploading…</Text> : null}

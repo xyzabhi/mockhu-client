@@ -47,6 +47,7 @@ import {
 import type { PostResponse } from '../../api/post/types';
 import { BrandLogo, BRAND_LOGO_ASPECT } from '../../shared/components/BrandLogo';
 import { LevelBadge } from '../../shared/components/LevelBadge';
+import { consumeHomeFeedRefreshPending } from '../../shared/homeFeedSync';
 import { resetToRoute } from '../navigationRef';
 import type { RootStackParamList } from '../types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -277,6 +278,14 @@ export function HomeFeedScreen() {
       lastScrollY.current = null;
       return () => setStatusBarStyle(effectiveScheme === 'dark' ? 'light' : 'dark');
     }, [effectiveScheme]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeHomeFeedRefreshPending()) {
+        void refresh();
+      }
+    }, [refresh]),
   );
 
   const filtered = useMemo(() => {

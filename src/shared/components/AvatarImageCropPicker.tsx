@@ -50,6 +50,14 @@ export function AvatarImageCropPicker({
     [windowW],
   );
 
+  /** Smaller camera badge + icon scale with avatar diameter */
+  const photoEditOverlay = useMemo(() => {
+    const badgeSize = Math.round(Math.max(22, Math.min(30, displaySize * 0.28)));
+    const iconSize = Math.round(Math.max(11, Math.min(14, displaySize * 0.13)));
+    const offset = Math.round(Math.max(3, Math.min(8, displaySize * 0.065)));
+    return { badgeSize, iconSize, offset };
+  }, [displaySize]);
+
   const openLibrary = useCallback(async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== PermissionStatus.GRANTED) {
@@ -122,10 +130,22 @@ export function AvatarImageCropPicker({
                   style={styles.avatarImage}
                   accessibilityIgnoresInvertColors
                 />
-                <View style={styles.editBadge} pointerEvents="none">
+                <View
+                  style={[
+                    styles.editBadge,
+                    {
+                      width: photoEditOverlay.badgeSize,
+                      height: photoEditOverlay.badgeSize,
+                      borderRadius: photoEditOverlay.badgeSize / 2,
+                      bottom: photoEditOverlay.offset,
+                      right: photoEditOverlay.offset,
+                    },
+                  ]}
+                  pointerEvents="none"
+                >
                   <MaterialCommunityIcons
                     name="camera-outline"
-                    size={18}
+                    size={photoEditOverlay.iconSize}
                     color={colors.textPrimary}
                   />
                 </View>
@@ -221,11 +241,6 @@ function createStyles(colors: ThemeColors, displaySize: number) {
     },
     editBadge: {
       position: 'absolute',
-      bottom: 8,
-      right: 8,
-      width: 40,
-      height: 40,
-      borderRadius: 20,
       backgroundColor: colors.surface,
       alignItems: 'center',
       justifyContent: 'center',

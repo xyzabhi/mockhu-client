@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
-import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
@@ -17,7 +17,15 @@ import {
   Text,
   View,
 } from 'react-native';
-import { mergeStarResponse, mergeUnstarResponse, postApi, useSession } from '../../../api';
+import {
+  mergeBookmarkResponse,
+  mergeStarResponse,
+  mergeUnbookmarkResponse,
+  mergeUnstarResponse,
+  postApi,
+  useSession,
+} from '../../../api';
+import { notifyPostBookmarkUpdate } from '../../../shared/postBookmarkSync';
 import { navigateToPostComments } from '../../../navigation/navigationRef';
 import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
@@ -30,6 +38,8 @@ import {
 } from '../../../presentation/theme/ThemeContext';
 import { FollowAuthorLink } from '../../../shared/components/FollowAuthorLink';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
+import { postContentLooksLikeHtml, stripHtmlTags } from '../postContentFormatting';
+import { PostContentBody } from './PostContentBody';
 
 function displayName(post: PostResponse): string {
   if (post.is_anonymous) return 'Anonymous';
@@ -102,6 +112,7 @@ export function PostCard({
   const styles = useMemo(() => createPostCardStyles(colors), [colors]);
   const { accessToken } = useSession();
   const [deleting, setDeleting] = useState(false);
+  const [bookmarkOverride, setBookmarkOverride] = useState<boolean | null>(null);
   const authorStarPulse = useRef(new Animated.Value(0)).current;
 
   const authorNameScale = authorStarPulse.interpolate({
@@ -140,6 +151,10 @@ export function PostCard({
     [post.post_type, colors, isDark],
   );
   const images = post.images ?? [];
+  const tagsForDisplay = useMemo(
+    () => (post.tags ?? []).map((t) => t.trim()).filter(Boolean),
+    [post.tags],
+  );
   const timeLabel = formatRelativeTime(post.created_at);
   const avatarUri = post.is_anonymous ? null : post.author?.avatar_url?.trim();
 
@@ -174,7 +189,14 @@ export function PostCard({
 
   const sharePost = useCallback(async () => {
     try {
-      const parts = [post.title?.trim(), post.content.trim()].filter(Boolean) as string[];
+      const plainBody = postContentLooksLikeHtml(post.content)
+        ? stripHtmlTags(post.content)
+        : post.content;
+      const parts = [post.title?.trim(), plainBody.trim()].filter(Boolean) as string[];
+      const tagLine = tagsForDisplay.map((t) => `#${t}`).join(' ');
+      if (tagLine.length > 0) {
+        parts.push(tagLine);
+      }
       if (post.link_url?.trim()) {
         parts.push(post.link_url.trim());
       }
@@ -185,7 +207,7 @@ export function PostCard({
     } catch {
       /* dismissed */
     }
-  }, [post.content, post.link_url, post.title]);
+  }, [post.content, post.link_url, post.title, tagsForDisplay]);
 
   const reportPost = useCallback(() => {
     Alert.alert('Report', 'Thanks — we will review reports in a future update.');
@@ -193,10 +215,42 @@ export function PostCard({
 
   const starred = post.starred_by_me === true;
   const starCount = post.star_count ?? 0;
+  const bookmarked = bookmarkOverride ?? post.bookmarked_by_me === true;
+
+  useEffect(() => {
+    setBookmarkOverride(null);
+  }, [post.id, post.bookmarked_by_me]);
 
   const openComments = useCallback(() => {
     navigateToPostComments({ postId: post.id, commentCount: post.comment_count });
   }, [post.id, post.comment_count]);
+
+  const toggleBookmark = useCallback(async () => {
+    if (!accessToken) {
+      Alert.alert('Sign in', 'Sign in to save posts.');
+      return;
+    }
+    const next = !bookmarked;
+    setBookmarkOverride(next);
+    try {
+      if (next) {
+        const res = await postApi.bookmarkPost(post.id);
+        const merged = mergeBookmarkResponse(post, res);
+        onPostUpdated?.(merged);
+        notifyPostBookmarkUpdate(post.id, { bookmarked_by_me: merged.bookmarked_by_me });
+      } else {
+        const res = await postApi.unbookmarkPost(post.id);
+        const merged = mergeUnbookmarkResponse(post, res);
+        onPostUpdated?.(merged);
+        notifyPostBookmarkUpdate(post.id, { bookmarked_by_me: merged.bookmarked_by_me });
+      }
+      setBookmarkOverride(null);
+    } catch (e) {
+      setBookmarkOverride(null);
+      const msg = e instanceof Error ? e.message : 'Could not update saved posts.';
+      Alert.alert('Saved', msg);
+    }
+  }, [accessToken, bookmarked, onPostUpdated, post]);
 
   const submitStar = useCallback(async () => {
     if (!accessToken) {
@@ -331,7 +385,17 @@ export function PostCard({
           {post.title.trim()}
         </Text>
       ) : null}
-      <Text style={styles.content}>{post.content}</Text>
+      <PostContentBody content={post.content} style={styles.content} />
+
+      {tagsForDisplay.length > 0 ? (
+        <View style={styles.tagsRow} accessibilityLabel="Post tags">
+          {tagsForDisplay.map((t, i) => (
+            <Text key={`${t}-${i}`} style={styles.tagText}>
+              #{t}
+            </Text>
+          ))}
+        </View>
+      ) : null}
 
       {images.length === 1 ? (
         <Image
@@ -425,11 +489,16 @@ export function PostCard({
         <View style={styles.footerRight}>
           <Pressable
             style={({ pressed }) => [styles.bookmarkBox, pressed && styles.pillPressed]}
-            onPress={() => undefined}
+            onPress={() => void toggleBookmark()}
             accessibilityRole="button"
-            accessibilityLabel="Save"
+            accessibilityLabel={bookmarked ? 'Remove from saved' : 'Save post'}
+            accessibilityState={{ selected: bookmarked }}
           >
-            <MaterialCommunityIcons name="bookmark-outline" size={20} color={colors.textMuted} />
+            <MaterialCommunityIcons
+              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={20}
+              color={bookmarked ? colors.brand : colors.textMuted}
+            />
           </Pressable>
         </View>
       </View>
@@ -571,6 +640,19 @@ function createPostCardStyles(colors: ThemeColors) {
     color: colors.textPrimary,
     lineHeight: 24,
     marginBottom: 10,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  tagText: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: colors.brand,
   },
   singleImage: {
     width: '100%',

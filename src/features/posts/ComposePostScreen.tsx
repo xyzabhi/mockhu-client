@@ -1,4 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import { getInfoAsync } from 'expo-file-system/legacy';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -18,12 +22,15 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Exam } from '../../api/exam/types';
 import { postApi, useExamsList, useLinkPreview, useSession } from '../../api';
+import type { CreatePostImageInput } from '../../api/post/postApi';
 import type { PostType } from '../../api/post/types';
 import {
-  TAG_PART,
-  validatePostBody,
-  validatePostTitle,
-  validateTags,
+  inferPostImageMimeFromFilename,
+  isAllowedPostImageMime,
+  POST_IMAGE_MAX_BYTES,
+  POST_MEDIA_MAX_IMAGES,
+  validateMediaRule,
+  validatePostHasTitleOrBody,
 } from '../../api/post/postValidation';
 import { composeBreadcrumbSegments, TOPIC_OPTIONS, type TopicOption } from '../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../api/post/mediaUrl';
@@ -34,9 +41,51 @@ import {
   useThemeColors,
 } from '../../presentation/theme/ThemeContext';
 import { theme } from '../../presentation/theme/theme';
+import { requestHomeFeedRefresh } from '../../shared/homeFeedSync';
+import { ComposeMediaSheet } from './components/ComposeMediaSheet';
 
-const CONTENT_MAX = 2000;
-const TITLE_MAX = 255;
+async function getLocalFileByteSize(uri: string): Promise<number | undefined> {
+  try {
+    const info = await getInfoAsync(uri);
+    if (info.exists && typeof info.size === 'number') return info.size;
+  } catch {
+    /* ignore */
+  }
+  return undefined;
+}
+
+async function getImageAssetByteSize(asset: ImagePicker.ImagePickerAsset): Promise<number | undefined> {
+  if (typeof asset.fileSize === 'number' && asset.fileSize > 0) return asset.fileSize;
+  return getLocalFileByteSize(asset.uri);
+}
+
+/** iOS (and some Android) library photos — we convert to JPEG before upload. */
+function isHeicOrHeifAsset(asset: ImagePicker.ImagePickerAsset): boolean {
+  const m = asset.mimeType?.toLowerCase().split(';')[0]?.trim() ?? '';
+  if (m === 'image/heic' || m === 'image/heif' || m === 'image/heif-sequence') return true;
+  const n = (asset.fileName ?? '').toLowerCase();
+  return n.endsWith('.heic') || n.endsWith('.heif');
+}
+
+function jpegFileNameForConvertedHeic(
+  asset: ImagePicker.ImagePickerAsset,
+  fallbackIndex: number,
+): string {
+  const n = asset.fileName?.trim();
+  if (n) {
+    const withoutExt = n.replace(/\.(heic|heif)$/i, '');
+    return `${withoutExt}.jpg`;
+  }
+  return `image_${fallbackIndex}.jpg`;
+}
+
+function resolvePickedImageMime(asset: ImagePicker.ImagePickerAsset): string | null {
+  const raw = asset.mimeType?.trim();
+  if (raw && isAllowedPostImageMime(raw)) {
+    return raw.toLowerCase().split(';')[0]!.trim();
+  }
+  return inferPostImageMimeFromFilename(asset.fileName);
+}
 
 const TITLE_PLACEHOLDERS: Record<PostType, string> = {
   DOUBT: 'What’s your question?',
@@ -52,13 +101,6 @@ const BODY_PLACEHOLDERS: Record<PostType, string> = {
   EXPERIENCE: 'Describe your experience…',
 };
 
-function composeTitleBody(title: string, body: string): string {
-  const t = title.trim();
-  const b = body.trim();
-  if (t && b) return `${t}\n\n${b}`;
-  return t || b;
-}
-
 function userDisplayName(u: TokenUser | undefined | null): string {
   if (!u) return 'Member';
   const parts = [u.first_name?.trim(), u.last_name?.trim()].filter(Boolean);
@@ -67,7 +109,7 @@ function userDisplayName(u: TokenUser | undefined | null): string {
 }
 
 function normalizeTagInput(raw: string): string {
-  return raw.trim().replace(/^#+/u, '').toLowerCase();
+  return raw.trim().replace(/^#+/u, '');
 }
 
 function userInitials(u: TokenUser | undefined | null): string {
@@ -86,6 +128,7 @@ export function ComposePostScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const linkInputRef = useRef<TextInput>(null);
+  const bodyInputRef = useRef<TextInput>(null);
   const { accessToken, user } = useSession();
 
   const postType: PostType = 'DOUBT';
@@ -99,6 +142,8 @@ export function ComposePostScreen() {
   const [anonymous, setAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [mediaSheetOpen, setMediaSheetOpen] = useState(false);
+  const [attachmentImages, setAttachmentImages] = useState<CreatePostImageInput[]>([]);
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [tagList, setTagList] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState('');
@@ -113,6 +158,10 @@ export function ComposePostScreen() {
     if (exam !== null) return;
     if (exams.length > 0) setExam(exams[0]!);
   }, [exams, exam]);
+
+  const onBodyChange = useCallback((txt: string) => {
+    setBody(txt);
+  }, []);
 
   const onLinkChange = useCallback(
     (text: string) => {
@@ -131,11 +180,7 @@ export function ComposePostScreen() {
   }, [linkRowVisible]);
 
   const insertBullet = useCallback(() => {
-    setBody((b) => {
-      const next = b.length === 0 ? '• ' : `${b}\n• `;
-      if (next.length > CONTENT_MAX) return b;
-      return next;
-    });
+    setBody((prev) => (prev.length === 0 ? '• ' : `${prev}\n• `));
   }, []);
 
   const removeTag = useCallback((t: string) => {
@@ -145,14 +190,6 @@ export function ComposePostScreen() {
   const addTagFromDraft = useCallback(() => {
     const t = normalizeTagInput(tagDraft);
     if (!t) return;
-    if (tagList.length >= 3) {
-      Alert.alert('Tags', 'You can add up to 3 tags.');
-      return;
-    }
-    if (!TAG_PART.test(t)) {
-      Alert.alert('Tags', 'Use letters, numbers, and underscores only (max 30 characters).');
-      return;
-    }
     if (tagList.includes(t)) {
       setTagDraft('');
       return;
@@ -166,7 +203,127 @@ export function ComposePostScreen() {
     setTimeout(() => tagInputRef.current?.focus(), 250);
   }, []);
 
-  const composedContent = useMemo(() => composeTitleBody(title, body), [title, body]);
+  const removeAttachmentAt = useCallback((index: number) => {
+    setAttachmentImages((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleChoosePhotos = useCallback(async () => {
+    setMediaSheetOpen(false);
+    const remaining = POST_MEDIA_MAX_IMAGES - attachmentImages.length;
+    if (remaining <= 0) {
+      Alert.alert('Photos', `You can add up to ${POST_MEDIA_MAX_IMAGES} images per post.`);
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Photo library',
+        'Allow photo access in Settings to attach images to your post.',
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: remaining,
+      quality: 0.85,
+    });
+    if (result.canceled) return;
+
+    const next: CreatePostImageInput[] = [];
+    const skipReasons: string[] = [];
+    for (let i = 0; i < result.assets.length && next.length < remaining; i++) {
+      const asset = result.assets[i]!;
+      const index = next.length;
+      let uri = asset.uri;
+      let mime: string | null = null;
+      let name = asset.fileName ?? `image_${index}.jpg`;
+
+      if (isHeicOrHeifAsset(asset)) {
+        try {
+          const converted = await manipulateAsync(asset.uri, [], {
+            compress: 0.85,
+            format: SaveFormat.JPEG,
+          });
+          uri = converted.uri;
+          mime = 'image/jpeg';
+          name = jpegFileNameForConvertedHeic(asset, index);
+        } catch {
+          skipReasons.push(
+            `“${asset.fileName ?? 'Image'}”: could not convert HEIC/HEIF — try another photo.`,
+          );
+          continue;
+        }
+      } else {
+        mime = resolvePickedImageMime(asset);
+        if (!mime) {
+          skipReasons.push(`“${asset.fileName ?? 'Image'}”: use JPEG, PNG, WebP, or GIF.`);
+          continue;
+        }
+      }
+
+      let bytes = await getLocalFileByteSize(uri);
+      if (bytes == null && uri === asset.uri) {
+        bytes = await getImageAssetByteSize(asset);
+      }
+      if (bytes != null && bytes > POST_IMAGE_MAX_BYTES) {
+        skipReasons.push(
+          `“${asset.fileName ?? name}”: each file must be at most 5 MB.`,
+        );
+        continue;
+      }
+
+      next.push({
+        uri,
+        name,
+        type: mime!,
+      });
+    }
+    if (skipReasons.length > 0) {
+      Alert.alert('Some photos were skipped', skipReasons.join('\n'));
+    }
+    if (next.length === 0) return;
+    setAttachmentImages((prev) => [...prev, ...next].slice(0, POST_MEDIA_MAX_IMAGES));
+  }, [attachmentImages.length]);
+
+  const handleChooseVideo = useCallback(async () => {
+    setMediaSheetOpen(false);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(
+        'Video',
+        'Allow photo library access in Settings to pick a video.',
+      );
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['videos'],
+      allowsMultipleSelection: false,
+      quality: 1,
+    });
+    if (result.canceled) return;
+    Alert.alert(
+      'Video',
+      'Video attachments are not available yet. You can add photos from the same menu.',
+    );
+  }, []);
+
+  const handleChoosePdf = useCallback(async () => {
+    setMediaSheetOpen(false);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/pdf',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+    } catch {
+      return;
+    }
+    Alert.alert(
+      'PDF',
+      'PDF attachments are not available yet. You can add photos from the same menu.',
+    );
+  }, []);
 
   const previewBreadcrumbParts = useMemo(
     () => composeBreadcrumbSegments(topic, exam),
@@ -176,33 +333,42 @@ export function ComposePostScreen() {
   const previewDisplayName = anonymous ? 'Anonymous' : userDisplayName(user);
   const previewInitials = anonymous ? '?' : userInitials(user);
 
+  const composerAvatarUri = useMemo(() => {
+    const raw = user?.avatar_url?.trim();
+    if (!raw) return null;
+    return resolvePostMediaUrl(raw);
+  }, [user?.avatar_url]);
+
+  const previewAvatarUri = useMemo(() => {
+    if (anonymous) return null;
+    const raw = user?.avatar_url?.trim();
+    if (!raw) return null;
+    return resolvePostMediaUrl(raw);
+  }, [anonymous, user?.avatar_url]);
+
   const canSubmit = useMemo(() => {
     if (!exam) return false;
-    if (validatePostTitle(title)) return false;
-    if (validatePostBody(body)) return false;
-    if (validateTags(tagList)) return false;
+    if (validatePostHasTitleOrBody(title, body)) return false;
+    if (validateMediaRule(attachmentImages.length, linkUrl.trim())) return false;
     return true;
-  }, [body, exam, tagList, title]);
+  }, [attachmentImages.length, body, exam, linkUrl, title]);
 
   const submit = useCallback(async () => {
     if (!exam || !canSubmit) return;
-    const titleErr = validatePostTitle(title);
-    if (titleErr) {
-      Alert.alert('Title', titleErr);
-      return;
-    }
-    const bodyErr = validatePostBody(body);
-    if (bodyErr) {
-      Alert.alert('Content', bodyErr);
-      return;
-    }
-    const tagErr = validateTags(tagList);
-    if (tagErr) {
-      Alert.alert('Tags', tagErr);
+    const presenceErr = validatePostHasTitleOrBody(title, body);
+    if (presenceErr) {
+      Alert.alert('Post', presenceErr);
       return;
     }
     const trimmedLink = linkUrl.trim();
     const hasLink = trimmedLink.length > 0;
+    const mediaErr = validateMediaRule(attachmentImages.length, trimmedLink);
+    if (mediaErr) {
+      Alert.alert('Photos or link', mediaErr);
+      return;
+    }
+
+    const trimmedBody = body.trim();
 
     setSubmitting(true);
     try {
@@ -212,30 +378,26 @@ export function ComposePostScreen() {
         subject_id: topic.subject_id,
         exam_id: exam.id,
         title: title.trim(),
-        content: body.trim(),
+        content: trimmedBody,
         tags: tagList,
         link_url: hasLink ? trimmedLink : undefined,
         link_title: hasLink ? preview?.title : undefined,
         link_desc: hasLink ? preview?.description : undefined,
         link_img: hasLink && preview?.image ? resolvePostMediaUrl(preview.image) : undefined,
         is_anonymous: anonymous,
+        images: attachmentImages.length > 0 ? attachmentImages : undefined,
       });
-      Alert.alert('Posted', 'Your post is live.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            setTitle('');
-            setBody('');
-            setLinkUrl('');
-            setTagList([]);
-            setTagDraft('');
-            clearPreview();
-            setAnonymous(false);
-            setLinkRowVisible(false);
-            navigation.navigate('Home' as never);
-          },
-        },
-      ]);
+      setTitle('');
+      setBody('');
+      setLinkUrl('');
+      setTagList([]);
+      setTagDraft('');
+      clearPreview();
+      setAnonymous(false);
+      setLinkRowVisible(false);
+      setAttachmentImages([]);
+      requestHomeFeedRefresh();
+      navigation.navigate('Home' as never);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not publish.';
       Alert.alert('Publish failed', msg);
@@ -258,6 +420,7 @@ export function ComposePostScreen() {
     title,
     topic.subject_id,
     topic.topic_id,
+    attachmentImages,
   ]);
 
   return (
@@ -339,7 +502,16 @@ export function ComposePostScreen() {
       >
         <View style={styles.authorBlock}>
           <View style={styles.avatarCircle}>
-            <Text style={styles.avatarInitials}>{userInitials(user)}</Text>
+            {composerAvatarUri ? (
+              <Image
+                source={{ uri: composerAvatarUri }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+                accessibilityIgnoresInvertColors
+              />
+            ) : (
+              <Text style={styles.avatarInitials}>{userInitials(user)}</Text>
+            )}
           </View>
           <View style={styles.authorTextCol}>
             <Text style={styles.authorName} numberOfLines={1}>
@@ -361,24 +533,44 @@ export function ComposePostScreen() {
           placeholder={TITLE_PLACEHOLDERS[postType]}
           placeholderTextColor={colors.textHint}
           value={title}
-          onChangeText={(txt) => {
-            if (txt.length <= TITLE_MAX) setTitle(txt);
-          }}
+          onChangeText={setTitle}
           maxFontSizeMultiplier={1.3}
         />
         <View style={styles.bodyWrap}>
           <TextInput
+            ref={bodyInputRef}
             style={styles.bodyInput}
             multiline
             placeholder={BODY_PLACEHOLDERS[postType]}
             placeholderTextColor={colors.textHint}
             value={body}
-            onChangeText={(txt) => {
-              if (txt.length <= CONTENT_MAX) setBody(txt);
-            }}
+            onChangeText={onBodyChange}
             textAlignVertical="top"
           />
         </View>
+
+        {attachmentImages.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.attachStripContent}
+            style={styles.attachStrip}
+          >
+            {attachmentImages.map((img, index) => (
+              <View key={`${img.uri}-${index}`} style={styles.attachTile}>
+                <Image source={{ uri: img.uri }} style={styles.attachThumb} resizeMode="cover" />
+                <Pressable
+                  onPress={() => removeAttachmentAt(index)}
+                  style={styles.attachRemove}
+                  hitSlop={6}
+                  accessibilityLabel="Remove attachment"
+                >
+                  <MaterialCommunityIcons name="close-circle" size={22} color={colors.surface} />
+                </Pressable>
+              </View>
+            ))}
+          </ScrollView>
+        ) : null}
 
         {linkRowVisible ? (
           <>
@@ -433,10 +625,10 @@ export function ComposePostScreen() {
         </Pressable>
         <Pressable
           style={styles.toolbarBtn}
-          onPress={() => Alert.alert('Video', 'Video posts are not supported yet.')}
-          accessibilityLabel="Add video"
+          onPress={() => setMediaSheetOpen(true)}
+          accessibilityLabel="Add photos, video, or PDF"
         >
-          <MaterialCommunityIcons name="play-box-outline" size={24} color={colors.textMuted} />
+          <MaterialCommunityIcons name="image-multiple" size={24} color={colors.textPrimary} />
         </Pressable>
         <Pressable style={styles.toolbarBtn} onPress={insertBullet} accessibilityLabel="Bullet list">
           <MaterialCommunityIcons name="format-list-bulleted" size={24} color={colors.textPrimary} />
@@ -444,21 +636,20 @@ export function ComposePostScreen() {
         <Pressable style={styles.toolbarBtn} onPress={openTagModal} accessibilityLabel="Add tags">
           <Text style={styles.toolbarHash}>#</Text>
         </Pressable>
-        <View style={styles.toolbarDivider} />
-        <Pressable
-          style={styles.toolbarBtn}
-          onPress={() =>
-            Alert.alert('Formatting', 'Bold and italics will be available in a future update.')
-          }
-          accessibilityLabel="Text formatting"
-        >
-          <MaterialCommunityIcons name="format-font" size={24} color={colors.textPrimary} />
-        </Pressable>
         <View style={styles.toolbarSpacer} />
         <Text style={styles.toolbarCharCount} maxFontSizeMultiplier={1.2}>
-          {body.length} / {CONTENT_MAX}
+          {body.length}
         </Text>
       </View>
+
+      <ComposeMediaSheet
+        colors={colors}
+        visible={mediaSheetOpen}
+        onClose={() => setMediaSheetOpen(false)}
+        onChoosePhotos={handleChoosePhotos}
+        onChooseVideo={handleChooseVideo}
+        onChoosePdf={handleChoosePdf}
+      />
 
       <Modal
         visible={tagModalOpen}
@@ -473,13 +664,15 @@ export function ComposePostScreen() {
               <Text style={styles.tagModalDone}>Done</Text>
             </Pressable>
           </View>
-          <Text style={styles.tagModalHint}>Add 1–3 tags so others can find your post.</Text>
-          <Text style={styles.tagModalCounter}>
-            {tagList.length} / 3
-          </Text>
+          <Text style={styles.tagModalHint}>Optional tags — add as many as you like.</Text>
+          {tagList.length > 0 ? (
+            <Text style={styles.tagModalCounter}>
+              {tagList.length} tag{tagList.length === 1 ? '' : 's'}
+            </Text>
+          ) : null}
           <View style={styles.tagChipRow}>
-            {tagList.map((t) => (
-              <View key={t} style={styles.tagChipOn}>
+            {tagList.map((t, i) => (
+              <View key={`${t}-${i}`} style={styles.tagChipOn}>
                 <Text style={styles.tagChipOnText}>#{t}</Text>
                 <Pressable onPress={() => removeTag(t)} hitSlop={6} accessibilityLabel={`Remove ${t}`}>
                   <MaterialCommunityIcons name="close" size={16} color={colors.onBrand} />
@@ -497,12 +690,10 @@ export function ComposePostScreen() {
               onChangeText={setTagDraft}
               onSubmitEditing={() => addTagFromDraft()}
               autoCapitalize="none"
-              editable={tagList.length < 3}
             />
             <Pressable
               style={({ pressed }) => [styles.tagModalAddBtn, pressed && styles.pressed]}
               onPress={addTagFromDraft}
-              disabled={tagList.length >= 3}
             >
               <Text style={styles.tagModalAddBtnText}>Add</Text>
             </Pressable>
@@ -531,7 +722,16 @@ export function ComposePostScreen() {
             <View style={styles.previewFeedCard}>
               <View style={styles.previewTopRow}>
                 <View style={styles.previewAvatar}>
-                  <Text style={styles.previewAvatarText}>{previewInitials}</Text>
+                  {previewAvatarUri ? (
+                    <Image
+                      source={{ uri: previewAvatarUri }}
+                      style={styles.previewAvatarImage}
+                      resizeMode="cover"
+                      accessibilityIgnoresInvertColors
+                    />
+                  ) : (
+                    <Text style={styles.previewAvatarText}>{previewInitials}</Text>
+                  )}
                 </View>
                 <View style={styles.previewHeaderMain}>
                   <View style={styles.previewNameRow}>
@@ -559,11 +759,20 @@ export function ComposePostScreen() {
                 </View>
               </View>
 
-              <Text style={styles.previewContentText}>
-                {composedContent.trim().length > 0
-                  ? composedContent.trim()
-                  : 'Your post text will appear here.'}
-              </Text>
+              {title.trim().length > 0 || body.trim().length > 0 ? (
+                <>
+                  {title.trim().length > 0 ? (
+                    <Text style={styles.previewPostTitle} numberOfLines={4}>
+                      {title.trim()}
+                    </Text>
+                  ) : null}
+                  {body.trim().length > 0 ? (
+                    <Text style={styles.previewContentText}>{body.trim()}</Text>
+                  ) : null}
+                </>
+              ) : (
+                <Text style={styles.previewContentText}>Your post text will appear here.</Text>
+              )}
 
               {tagList.length > 0 ? (
                 <View style={styles.previewTagsRow}>
@@ -706,7 +915,7 @@ function createComposeStyles(colors: ThemeColors) {
   },
   scrollContent: {
     paddingHorizontal: theme.spacing.screenPaddingH,
-    paddingTop: 16,
+    paddingTop: 10,
     flexGrow: 1,
   },
   titleInput: {
@@ -741,6 +950,12 @@ function createComposeStyles(colors: ThemeColors) {
     backgroundColor: colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
   },
   avatarInitials: {
     fontFamily: theme.typography.semiBold,
@@ -766,6 +981,39 @@ function createComposeStyles(colors: ThemeColors) {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.xs,
     color: colors.textMuted,
+  },
+  attachStrip: {
+    marginBottom: 12,
+    maxHeight: 92,
+  },
+  attachStripContent: {
+    gap: 10,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  attachTile: {
+    width: 76,
+    height: 76,
+    borderRadius: theme.radius.card,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSubtle,
+  },
+  attachThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  attachRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bodyWrap: {
     marginBottom: 14,
@@ -868,12 +1116,6 @@ function createComposeStyles(colors: ThemeColors) {
     gap: 4,
     padding: 8,
   },
-  toolbarDivider: {
-    width: 1,
-    height: 24,
-    marginHorizontal: 4,
-    backgroundColor: colors.borderSubtle,
-  },
   toolbarSpacer: {
     flex: 1,
   },
@@ -888,7 +1130,7 @@ function createComposeStyles(colors: ThemeColors) {
     fontFamily: theme.typography.semiBold,
     fontSize: 22,
     lineHeight: 24,
-    color: colors.brand,
+    color: colors.textPrimary,
   },
   tagModalRoot: {
     flex: 1,
@@ -1021,6 +1263,12 @@ function createComposeStyles(colors: ThemeColors) {
     backgroundColor: colors.brandLight,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  previewAvatarImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   previewAvatarText: {
     fontFamily: theme.typography.semiBold,
@@ -1082,6 +1330,14 @@ function createComposeStyles(colors: ThemeColors) {
     fontFamily: theme.typography.semiBold,
     fontSize: theme.fintSizes.xs,
     color: colors.brand,
+  },
+  previewPostTitle: {
+    fontFamily: theme.typography.semiBold,
+    fontSize: theme.fintSizes.lg,
+    color: colors.textPrimary,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+    marginBottom: 8,
   },
   previewContentText: {
     fontFamily: theme.typography.regular,

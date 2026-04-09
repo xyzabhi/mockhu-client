@@ -42,6 +42,8 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   /** Thread / composer for a post (opened from feed). */
   PostComments: { postId: string; commentCount?: number };
+  /** Saved posts (bookmarks feed). */
+  Bookmarks: undefined;
   ExamCategories: undefined;
   ExamCategory: { categoryId: number };
   ExamDetail: { examId: number };

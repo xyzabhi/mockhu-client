@@ -1,4 +1,5 @@
 import { apiDelete, apiGet, apiPost, apiPostMultipart } from '../apiClient';
+import { POST_MEDIA_MAX_IMAGES } from './postValidation';
 import type {
   CommentListResponse,
   CommentResponse,
@@ -8,14 +9,17 @@ import type {
 } from './commentTypes';
 import type { AuthorBadge } from '../user/types';
 import type {
+  BookmarkPostResponse,
   DeletePostResponse,
   LinkPreviewData,
   PostFeedResponse,
   PostResponse,
   PostType,
   StarResponse,
+  UnbookmarkPostResponse,
   UnstarResponse,
 } from './types';
+import { TOPIC_OPTIONS } from './topicCatalog';
 
 /** Parse `author.badge` from feed/post/comment payloads (JSON numbers may be strings). */
 export function normalizeAuthorBadge(raw: unknown): AuthorBadge | undefined {
@@ -90,6 +94,7 @@ export function normalizePost(p: PostResponse): PostResponse {
     upvote_count: typeof p.upvote_count === 'number' ? p.upvote_count : 0,
     star_count: typeof p.star_count === 'number' ? p.star_count : 0,
     starred_by_me: p.starred_by_me === true,
+    bookmarked_by_me: p.bookmarked_by_me === true,
     comment_count: typeof p.comment_count === 'number' ? p.comment_count : 0,
     author:
       author === null || author === undefined
@@ -128,6 +133,30 @@ export function mergeUnstarResponse(post: PostResponse, res: UnstarResponse): Po
   });
 }
 
+/**
+ * Apply `POST /posts/:id/bookmark` — `bookmarked_by_me` stays true if already saved (idempotent).
+ */
+export function mergeBookmarkResponse(
+  post: PostResponse,
+  res: BookmarkPostResponse,
+): PostResponse {
+  return normalizePost({
+    ...post,
+    bookmarked_by_me: res.bookmarked || post.bookmarked_by_me,
+  });
+}
+
+/** Apply `DELETE /posts/:id/bookmark`. */
+export function mergeUnbookmarkResponse(
+  post: PostResponse,
+  res: UnbookmarkPostResponse,
+): PostResponse {
+  return normalizePost({
+    ...post,
+    bookmarked_by_me: res.unbookmarked ? false : post.bookmarked_by_me,
+  });
+}
+
 function normalizeFeed(data: PostFeedResponse): PostFeedResponse {
   const rows = data.posts;
   return {
@@ -147,9 +176,9 @@ export type CreatePostParams = {
   topic_id: number;
   subject_id: number;
   exam_id: number;
-  /** 1–255 chars after trim. */
+  /** Title (optional if body is non-empty). */
   title: string;
-  /** 10–2000 chars after trim (body). */
+  /** Body (optional if title is non-empty). */
   content: string;
   tags: string[];
   link_url?: string;
@@ -186,11 +215,9 @@ export async function createPost(params: CreatePostParams): Promise<PostResponse
   appendIfPresent(fd, 'link_desc', params.link_desc);
   appendIfPresent(fd, 'link_img', params.link_img);
 
-  if (params.is_anonymous) {
-    fd.append('is_anonymous', 'true');
-  }
+  fd.append('is_anonymous', params.is_anonymous === true ? 'true' : 'false');
 
-  const images = params.images ?? [];
+  const images = (params.images ?? []).slice(0, POST_MEDIA_MAX_IMAGES);
   for (const img of images) {
     fd.append(
       'images',
@@ -220,6 +247,16 @@ export async function starPost(postId: string): Promise<StarResponse> {
 /** Unstar the same post. `DELETE /api/v1/posts/:id/star`. */
 export async function unstarPost(postId: string): Promise<UnstarResponse> {
   return apiDelete<UnstarResponse>(`/posts/${encodeURIComponent(postId)}/star`);
+}
+
+/** Save post for later (idempotent). `POST /api/v1/posts/:id/bookmark`. */
+export async function bookmarkPost(postId: string): Promise<BookmarkPostResponse> {
+  return apiPost<BookmarkPostResponse>(`/posts/${encodeURIComponent(postId)}/bookmark`, {});
+}
+
+/** Remove bookmark (idempotent). `DELETE /api/v1/posts/:id/bookmark`. */
+export async function unbookmarkPost(postId: string): Promise<UnbookmarkPostResponse> {
+  return apiDelete<UnbookmarkPostResponse>(`/posts/${encodeURIComponent(postId)}/bookmark`);
 }
 
 export type GetPostsFeedParams = {
@@ -261,6 +298,28 @@ export async function getTopicFeed(
 export async function getHomeFeed(params?: GetPostsFeedParams): Promise<PostFeedResponse> {
   const q = buildCursorQuery(params);
   return normalizeFeed(await apiGet<PostFeedResponse>(`/posts/home${q}`));
+}
+
+/** Bookmarked posts feed — newest bookmark first. `GET /api/v1/posts/bookmarks`. */
+export async function getBookmarkFeed(params?: GetPostsFeedParams): Promise<PostFeedResponse> {
+  const q = buildCursorQuery(params);
+  return normalizeFeed(await apiGet<PostFeedResponse>(`/posts/bookmarks${q}`));
+}
+
+/**
+ * Posts by a single user. Uses `GET /users/:user_id/posts` so we do not hit
+ * `GET /posts` (which is topic-scoped and requires `topic_id`).
+ */
+export async function getUserPostsFeed(
+  userId: string,
+  params?: GetPostsFeedParams,
+): Promise<PostFeedResponse> {
+  const q = buildCursorQuery(params);
+  return normalizeFeed(
+    await apiGet<PostFeedResponse>(
+      `/users/${encodeURIComponent(userId)}/posts${q}`,
+    ),
+  );
 }
 
 export type GetPostCommentsParams = {
@@ -378,8 +437,12 @@ export const postApi = {
   deletePost,
   starPost,
   unstarPost,
+  bookmarkPost,
+  unbookmarkPost,
   getTopicFeed,
   getHomeFeed,
+  getBookmarkFeed,
+  getUserPostsFeed,
   getPostComments,
   createPostComment,
   deletePostComment,
