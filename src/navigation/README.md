@@ -13,7 +13,7 @@ App.tsx
               └── Home          → HomeScreen (dummy; replace with tabs later)
 ```
 
-- **Auth**: sign up / login entry, phone & email flows, phone verification.
+- **Auth**: sign up / login entry, email OTP flows, Google Sign-In.
 - **Onboarding**: multi-step wizard (optional; not the default after login today).
 - **Home**: placeholder for the signed-in app (tabs, feed, etc.).
 
@@ -32,7 +32,7 @@ The **first screen** users see is **`Auth`** (stack starts at **Sign up**).
 
 ## How users move between flows
 
-1. **After any auth that returns tokens** (email login/signup, phone verify, etc.)  
+1. **After any auth that returns tokens** (email login/signup, Google, etc.)  
    Tokens and `user` (including `is_onboarded`) are persisted, then **`resetToRootAfterAuth()`** runs: **`Home`** if `user.is_onboarded === true`, else **`Onboarding`**.  
    That **replaces** the navigation state so the user isn’t stuck “under” the auth stack.
 
@@ -40,7 +40,7 @@ The **first screen** users see is **`Auth`** (stack starts at **Sign up**).
    `OnboardingLayout` calls **`onFinish`** → **`resetToRoute('Home')`**.
 
 3. **Inside auth only**  
-   Sign up ↔ Login, Phone, Email, Verify use normal **`navigate`** / **`goBack`** on the **auth** stack (see `AuthNavigator.tsx`).
+   Sign up ↔ Login, Email, Verify use normal **`navigate`** / **`goBack`** on the **auth** stack (see `AuthNavigator.tsx`).
 
 ## Extending safely
 

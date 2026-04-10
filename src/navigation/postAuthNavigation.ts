@@ -3,7 +3,7 @@ import { getSessionSnapshot } from '../api/sessionStore';
 import { resetToRoute } from './navigationRef';
 
 /**
- * After tokens + user cache are persisted (login, signup, phone verify, refresh, etc.),
+ * After tokens + user cache are persisted (login, signup, email verify, refresh, etc.),
  * move to the correct root stack from `user.is_onboarded`.
  *
  * Callers should pass `tokens` from the auth response when available so routing matches

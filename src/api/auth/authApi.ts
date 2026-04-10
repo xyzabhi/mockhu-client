@@ -10,9 +10,6 @@ import type {
   ForgotPasswordData,
   GoogleSignInBody,
   LoginBody,
-  PhoneOtpRequestData,
-  PhoneRequestBody,
-  PhoneVerifyBody,
   ResetPasswordBody,
   SignupBody,
 } from './types';
@@ -46,15 +43,6 @@ export async function registerSignup(body: SignupBody): Promise<void> {
 
 export async function login(body: LoginBody): Promise<TokenResponse> {
   const data = await apiPost<TokenResponse>('/auth/login', body, authOpts);
-  return persistTokens(data);
-}
-
-export async function requestPhoneOtp(body: PhoneRequestBody): Promise<PhoneOtpRequestData> {
-  return apiPost<PhoneOtpRequestData>('/auth/phone/request', body, authOpts);
-}
-
-export async function verifyPhoneOtp(body: PhoneVerifyBody): Promise<TokenResponse> {
-  const data = await apiPost<TokenResponse>('/auth/phone/verify', body, authOpts);
   return persistTokens(data);
 }
 
@@ -102,8 +90,6 @@ export const authApi = {
   signup,
   registerSignup,
   login,
-  requestPhoneOtp,
-  verifyPhoneOtp,
   requestEmailOtp,
   verifyEmailOtp,
   signInWithGoogle,

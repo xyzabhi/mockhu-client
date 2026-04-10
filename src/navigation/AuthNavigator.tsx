@@ -5,9 +5,7 @@ import { EmailOtpRequestScreen } from '../features/auth/presentation/screens/Ema
 import { EmailOtpVerificationScreen } from '../features/auth/presentation/screens/EmailOtpVerificationScreen';
 import { ForgotPasswordEmailScreen } from '../features/auth/presentation/screens/ForgotPasswordEmailScreen';
 import { ForgotPasswordResetScreen } from '../features/auth/presentation/screens/ForgotPasswordResetScreen';
-import { AuthWithPhone } from '../features/auth/presentation/screens/AuthWithPhone';
 import { LoginScreen } from '../features/auth/presentation/screens/LoginScreen';
-import { PhoneVerificationScreen } from '../features/auth/presentation/screens/PhoneVerificationScreen';
 import { SignUpScreen } from '../features/auth/presentation/screens/SignUpScreen';
 import { resetToRootAfterAuth } from './postAuthNavigation';
 import type { AuthStackParamList } from './types';
@@ -21,7 +19,6 @@ function SignUpScreenNav({
   return (
     <SignUpScreen
       onSwitchToLogin={() => navigation.navigate('AuthLogin')}
-      onPressPhone={() => navigation.navigate('AuthPhone', { mode: 'signup' })}
       onPressEmail={() => navigation.navigate('AuthEmail', { mode: 'signup' })}
       onPressGoogle={signInWithGoogle}
       googleBusy={googleBusy}
@@ -37,27 +34,10 @@ function LoginScreenNav({
   return (
     <LoginScreen
       onSwitchToSignUp={() => navigation.navigate('AuthSignUp')}
-      onPressPhone={() => navigation.navigate('AuthPhone', { mode: 'login' })}
       onPressEmail={() => navigation.navigate('AuthEmail', { mode: 'login' })}
       onPressGoogle={signInWithGoogle}
       googleBusy={googleBusy}
       googleErrorText={googleErrorText}
-    />
-  );
-}
-
-function AuthPhoneNav({
-  navigation,
-  route,
-}: NativeStackScreenProps<AuthStackParamList, 'AuthPhone'>) {
-  const { mode } = route.params;
-  return (
-    <AuthWithPhone
-      mode={mode}
-      onBack={() => navigation.goBack()}
-      onVerify={(phoneE164) =>
-        navigation.navigate('AuthPhoneVerify', { mode, phoneE164 })
-      }
     />
   );
 }
@@ -103,21 +83,6 @@ function AuthEmailVerifyNav({
   );
 }
 
-function AuthPhoneVerifyNav({
-  navigation,
-  route,
-}: NativeStackScreenProps<AuthStackParamList, 'AuthPhoneVerify'>) {
-  const { mode, phoneE164 } = route.params;
-  return (
-    <PhoneVerificationScreen
-      mode={mode}
-      phoneE164={phoneE164}
-      onBack={() => navigation.goBack()}
-      onVerified={(tokens) => resetToRootAfterAuth(tokens)}
-    />
-  );
-}
-
 function AuthForgotPasswordEmailNav({
   navigation,
   route,
@@ -154,10 +119,8 @@ export function AuthNavigator() {
     >
       <Stack.Screen name="AuthSignUp" component={SignUpScreenNav} />
       <Stack.Screen name="AuthLogin" component={LoginScreenNav} />
-      <Stack.Screen name="AuthPhone" component={AuthPhoneNav} />
       <Stack.Screen name="AuthEmail" component={AuthEmailNav} />
       <Stack.Screen name="AuthEmailVerify" component={AuthEmailVerifyNav} />
-      <Stack.Screen name="AuthPhoneVerify" component={AuthPhoneVerifyNav} />
       <Stack.Screen name="AuthForgotPasswordEmail" component={AuthForgotPasswordEmailNav} />
       <Stack.Screen name="AuthForgotPasswordReset" component={AuthForgotPasswordResetNav} />
     </Stack.Navigator>

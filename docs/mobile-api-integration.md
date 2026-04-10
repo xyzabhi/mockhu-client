@@ -49,7 +49,7 @@ Helpers (from `src/api/config.ts`):
 | `sessionStore.ts` | Persist tokens + user, in-memory snapshot, subscribers |
 | `storage/stringStorage.ts` | SecureStore (iOS/Android); sessionStorage on web for dev |
 | `reauth.ts` | `setReauthHandler` — e.g. reset navigation to login |
-| `auth/authApi.ts` | Signup, login, phone OTP, refresh |
+| `auth/authApi.ts` | Signup, login, email OTP, Google, refresh |
 | `auth/types.ts` | Request/response shapes for auth |
 | `health.ts` | `GET /health` (plain JSON, not the standard envelope) |
 | `user/userApi.ts` | Example feature module using `apiGet` |
@@ -158,8 +158,6 @@ Useful exports:
 | `login` | `/auth/login` | `{ email, password }` | Saves tokens |
 | `requestEmailOtp` | `/auth/email/request` | `{ email }` | Returns message + expiry; dev may include `otp` in JSON |
 | `verifyEmailOtp` | `/auth/email/verify` | `{ email, otp }` (6 digits) | Saves tokens |
-| `requestPhoneOtp` | `/auth/phone/request` | `{ phone }` E.164 | Returns message + expiry; dev may include `otp` in JSON |
-| `verifyPhoneOtp` | `/auth/phone/verify` | `{ phone, otp }` (6 digits) | Saves tokens |
 | `forgotPassword` | `/auth/password/forgot` | `{ email }` | Returns `{ message }` (same public copy always); dev may include `otp` |
 | `resetPassword` | `/auth/password/reset` | `{ email, otp, new_password }` | Saves tokens (same as login) |
 | `signInWithGoogle` | `/auth/google` | `{ id_token }` | Saves tokens (same as login); native Google Sign-In supplies JWT |
@@ -280,7 +278,7 @@ Adjust the relative path from your feature folder (e.g. `../../../api`).
 
 ## Non-goals / reminders
 
-- Do **not** hardcode OTP in production UI; today the backend may return `otp` on phone request for development only.
+- Do **not** hardcode OTP in production UI; today the backend may return `otp` on email flows for development only.
 - Keep **BASE_URL** and secrets out of source; use `.env` / EAS / CI env for real environments.
 
 If you add new backend routes, prefer **one** thin module per domain (like `user/userApi.ts`) that only calls `apiGet` / `apiPost` / … with typed paths and payloads.

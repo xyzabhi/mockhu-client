@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GoogleLogo } from '../../../../presentation/components/GoogleLogo';
 import { theme } from '../../../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../../../presentation/theme/ThemeContext';
@@ -12,7 +12,6 @@ const ANDROID_FLAT_PRESSABLE = { android_ripple: null };
 type SocialAuthButtonsProps = {
   switchCtaLabel: string;
   onSwitchMode: () => void;
-  onPressPhone: () => void;
   onPressEmail: () => void;
   onPressGoogle?: () => void | Promise<void>;
   googleBusy?: boolean;
@@ -24,11 +23,13 @@ function SocialButton({
   label,
   onPress,
   styles,
+  accessibilityLabel,
 }: {
   leading: ReactNode;
   label: string;
   onPress: () => void;
   styles: ReturnType<typeof createSocialStyles>;
+  accessibilityLabel?: string;
 }) {
   return (
     <Pressable
@@ -38,6 +39,8 @@ function SocialButton({
         styles.socialButton,
         pressed && styles.socialButtonPressed,
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
     >
       <View style={styles.socialIconSlot}>{leading}</View>
       <Text style={[styles.socialLabel, textAndroid]} numberOfLines={1}>
@@ -47,10 +50,19 @@ function SocialButton({
   );
 }
 
+function Divider({ styles }: { styles: ReturnType<typeof createSocialStyles> }) {
+  return (
+    <View style={styles.dividerRow}>
+      <View style={styles.dividerLine} />
+      <Text style={[styles.dividerText, textAndroid]}>or</Text>
+      <View style={styles.dividerLine} />
+    </View>
+  );
+}
+
 export function SocialAuthButtons({
   switchCtaLabel,
   onSwitchMode,
-  onPressPhone,
   onPressEmail,
   onPressGoogle,
   googleBusy = false,
@@ -60,20 +72,8 @@ export function SocialAuthButtons({
   const styles = useMemo(() => createSocialStyles(colors), [colors]);
 
   return (
-    <ScrollView
-      style={styles.sheetBodyScroll}
-      contentContainerStyle={styles.sheetBodyScrollContent}
-      bounces
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={styles.container}>
       <View style={styles.buttonsGroup}>
-        <SocialButton
-          styles={styles}
-          leading={<MaterialCommunityIcons name="phone" size={22} color={colors.iconPhone} />}
-          label="Phone"
-          onPress={onPressPhone}
-        />
         <SocialButton
           styles={styles}
           leading={
@@ -108,20 +108,23 @@ export function SocialAuthButtons({
             </Text>
           )}
         </Pressable>
-        <Pressable
-          onPress={onSwitchMode}
-          {...ANDROID_FLAT_PRESSABLE}
-          style={({ pressed }) => [styles.switchCta, pressed && styles.switchCtaPressed]}
-        >
-          <Text style={[styles.switchCtaText, textAndroid]}>{switchCtaLabel}</Text>
-        </Pressable>
         {googleErrorText != null && googleErrorText !== '' ? (
           <View style={styles.googleErrorBox}>
             <Text style={styles.googleErrorText}>{googleErrorText}</Text>
           </View>
         ) : null}
       </View>
-    </ScrollView>
+
+      <Divider styles={styles} />
+
+      <Pressable
+        onPress={onSwitchMode}
+        {...ANDROID_FLAT_PRESSABLE}
+        style={({ pressed }) => [styles.switchCta, pressed && styles.switchCtaPressed]}
+      >
+        <Text style={[styles.switchCtaText, textAndroid]}>{switchCtaLabel}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -131,16 +134,8 @@ const textAndroid = Platform.OS === 'android' ? { includeFontPadding: false } : 
 
 function createSocialStyles(colors: ThemeColors) {
   return StyleSheet.create({
-    sheetBodyScroll: {
-      flex: 1,
-      minHeight: 0,
+    container: {
       width: '100%',
-    },
-    sheetBodyScrollContent: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      width: '100%',
-      paddingVertical: 8,
     },
     buttonsGroup: {
       width: '100%',
@@ -189,16 +184,32 @@ function createSocialStyles(colors: ThemeColors) {
       fontSize: theme.fintSizes.md,
       color: colors.textPrimary,
     },
+    dividerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 20,
+      gap: 12,
+    },
+    dividerLine: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.borderSubtle,
+    },
+    dividerText: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.xs,
+      color: colors.textHint,
+      textTransform: 'lowercase',
+    },
     switchCta: {
       borderRadius: 999,
-      borderWidth: 2,
+      borderWidth: 1,
       borderColor: colors.brand,
       backgroundColor: colors.surface,
       paddingVertical: 14,
       paddingHorizontal: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 8,
       overflow: 'hidden',
       ...Platform.select({
         android: { elevation: 0 },
@@ -210,13 +221,13 @@ function createSocialStyles(colors: ThemeColors) {
       backgroundColor: colors.brandLight,
     },
     switchCtaText: {
-      fontFamily: theme.typography.semiBold,
+      fontFamily: theme.typography.regular,
       fontSize: theme.fintSizes.md,
       color: colors.brand,
       textAlign: 'center',
     },
     googleErrorBox: {
-      marginTop: 8,
+      marginTop: 4,
       padding: 10,
       borderRadius: 12,
       borderWidth: StyleSheet.hairlineWidth,
