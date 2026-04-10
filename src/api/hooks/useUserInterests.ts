@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppError } from '../AppError';
 import { examCatalogApi } from '../exam/examCatalogApi';
 import type { UserInterestsResponse } from '../user/types';
@@ -37,7 +37,13 @@ export async function expandInterestsToExamIds(res: UserInterestsResponse): Prom
 export type UseUserInterestsResult = {
   /** Raw `GET /users/:id/interests` payload (null if no user or error). */
   interests: UserInterestsResponse | null;
-  /** `exam_ids` ∪ exams in selected categories — for feed / topic filters. */
+  /**
+   * `exam_ids` from the API only (sorted, deduped). Use for Progress tabs and anywhere
+   * the user’s explicit exam picks matter. Does not expand `exam_category_ids` into all
+   * catalog exams (see `examIdsForFilter` for that).
+   */
+  examIdsDirect: number[];
+  /** `exam_ids` ∪ every exam listed under `exam_category_ids` (catalog pagination) — for home feed / topic filters. */
   examIdsForFilter: number[];
   loading: boolean;
   error: AppError | null;
@@ -90,5 +96,10 @@ export function useUserInterests(userId: string | undefined): UseUserInterestsRe
     };
   }, [userId, reloadKey]);
 
-  return { interests, examIdsForFilter, loading, error, refetch };
+  const examIdsDirect = useMemo(() => {
+    const raw = interests?.exam_ids ?? [];
+    return [...new Set(raw)].sort((a, b) => a - b);
+  }, [interests]);
+
+  return { interests, examIdsDirect, examIdsForFilter, loading, error, refetch };
 }
