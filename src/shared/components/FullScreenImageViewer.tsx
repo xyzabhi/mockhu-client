@@ -249,9 +249,9 @@ export function FullScreenImageViewer({
                 size={22}
                 color={post?.starred ? colors.brand : iconColor}
               />
-              {post?.starCount != null && post.starCount > 0 ? (
-                <Text style={[styles.actionText, post?.starred && { color: colors.brand }]}>
-                  {post.starCount}
+              {post != null ? (
+                <Text style={[styles.actionText, post.starred && { color: colors.brand }]}>
+                  {post.starCount ?? 0}
                 </Text>
               ) : null}
             </Pressable>
@@ -267,8 +267,8 @@ export function FullScreenImageViewer({
               accessibilityLabel="Comments"
             >
               <MaterialCommunityIcons name="comment-outline" size={20} color={iconColor} />
-              {post?.commentCount != null && post.commentCount > 0 ? (
-                <Text style={styles.actionText}>{post.commentCount}</Text>
+              {post != null ? (
+                <Text style={styles.actionText}>{post.commentCount ?? 0}</Text>
               ) : null}
             </Pressable>
           </View>

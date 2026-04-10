@@ -253,7 +253,7 @@ export function HomeFeedScreen() {
   const followingExamsList = useMemo(() => {
     const rows = uniqueExamIds.map((id) => ({
       id,
-      name: followedExamMeta.get(id)?.name?.trim() ?? `Exam #${id}`,
+      name: followedExamMeta.get(id)?.name?.trim() ?? `Exam ${id}`,
     }));
     rows.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     return rows;

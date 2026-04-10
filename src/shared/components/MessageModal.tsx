@@ -70,6 +70,9 @@ export function MessageModal({
       animationType="fade"
       onRequestClose={onClose}
       statusBarTranslucent
+      {...(Platform.OS === 'ios'
+        ? { presentationStyle: 'overFullScreen' as const }
+        : {})}
     >
       <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <Pressable

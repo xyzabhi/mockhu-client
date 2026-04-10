@@ -1,5 +1,5 @@
 import ConfettiCannon from 'react-native-confetti-cannon';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Dimensions,
@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { theme } from '../../presentation/theme/theme';
+import { useThemeColors } from '../../presentation/theme/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -24,6 +25,43 @@ export function OnboardingFinishCelebration({
   visible,
   onComplete,
 }: OnboardingFinishCelebrationProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        backdrop: {
+          flex: 1,
+          backgroundColor: colors.surface,
+        },
+        textBlock: {
+          ...StyleSheet.absoluteFillObject,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: 32,
+          zIndex: 10,
+        },
+        emoji: {
+          fontSize: 56,
+          marginBottom: 12,
+        },
+        title: {
+          fontFamily: theme.typography.semiBold,
+          fontSize: theme.fintSizes.xxxl,
+          color: colors.textPrimary,
+          textAlign: 'center',
+          letterSpacing: -0.4,
+        },
+        subtitle: {
+          marginTop: 6,
+          fontFamily: theme.typography.medium,
+          fontSize: theme.fintSizes.lg,
+          color: colors.textMuted,
+          textAlign: 'center',
+        },
+      }),
+    [colors],
+  );
+
   const confettiRef = useRef<{ start?: () => void } | null>(null);
   const textOpacity = useRef(new Animated.Value(0)).current;
   const onCompleteRef = useRef(onComplete);
@@ -78,10 +116,10 @@ export function OnboardingFinishCelebration({
           fallSpeed={4000}
           explosionSpeed={380}
           colors={[
-            theme.colors.brand,
-            theme.colors.progress,
-            theme.colors.textPrimary,
-            theme.colors.brandBorder,
+            colors.brand,
+            colors.progress,
+            colors.textPrimary,
+            colors.brandBorder,
             '#FBBF24',
             '#60A5FA',
             '#F472B6',
@@ -99,35 +137,3 @@ export function OnboardingFinishCelebration({
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-  },
-  textBlock: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    zIndex: 10,
-  },
-  emoji: {
-    fontSize: 56,
-    marginBottom: 12,
-  },
-  title: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.xxxl,
-    color: theme.colors.textPrimary,
-    textAlign: 'center',
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    marginTop: 6,
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.lg,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  },
-});

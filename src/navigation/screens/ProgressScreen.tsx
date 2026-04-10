@@ -95,7 +95,7 @@ export function ProgressScreen() {
     if (uniqueExamIds.length === 0) return rows;
     const withNames = uniqueExamIds.map((id) => ({
       id,
-      name: examMeta.get(id)?.name?.trim() ?? `Exam #${id}`,
+      name: examMeta.get(id)?.name?.trim() ?? `Exam ${id}`,
     }));
     withNames.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     if (uniqueExamIds.length === 1) {
@@ -124,7 +124,7 @@ export function ProgressScreen() {
     if (selectedTab === 'all') {
       return 'A snapshot across every exam you follow — connect to real data later.';
     }
-    const name = examMeta.get(selectedTab)?.name?.trim() ?? `Exam #${selectedTab}`;
+    const name = examMeta.get(selectedTab)?.name?.trim() ?? `Exam ${selectedTab}`;
     return `Progress for ${name} — connect to real data later.`;
   }, [selectedTab, uniqueExamIds.length, examMeta]);
 

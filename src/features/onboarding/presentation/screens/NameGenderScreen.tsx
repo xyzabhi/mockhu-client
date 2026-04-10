@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   type ThemeColors,
   useThemeColors,
@@ -13,6 +7,11 @@ import {
 import { theme } from '../../../../presentation/theme/theme';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
+import {
+  createOnboardingStepStyles,
+  onboardingInputShadow,
+  ONBOARDING_INPUT_RADIUS,
+} from '../../onboardingStepStyles';
 import { DropDown } from '../../../../shared/components/DropDown';
 
 const GENDER_OPTIONS = [
@@ -22,45 +21,13 @@ const GENDER_OPTIONS = [
   { label: 'Prefer not to say', value: 'prefer_not_to_say' },
 ] as const;
 
-const INPUT_RADIUS = 24;
-
 function createNameGenderStyles(colors: ThemeColors) {
-  const inputShadow = Platform.select({
-    ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-    },
-    android: { elevation: 1 },
-    default: {},
-  });
+  const inputShadow = onboardingInputShadow();
 
   return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.surface,
-      paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 4,
-      gap: 20,
-    },
-    field: {
-      width: '100%',
-      gap: 8,
-      zIndex: 1,
-    },
-    fieldRaised: {
-      zIndex: 40,
-    },
-    label: {
-      fontSize: theme.fintSizes.sm,
-      fontFamily: theme.typography.semiBold,
-      color: colors.textPrimary,
-      letterSpacing: -0.1,
-    },
     input: {
       minHeight: 52,
-      borderRadius: INPUT_RADIUS,
+      borderRadius: ONBOARDING_INPUT_RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 14,
       fontSize: theme.fintSizes.md,
@@ -90,7 +57,13 @@ export function NameGenderScreen({
   onStepValidityChange,
 }: OnboardingStepScreenProps) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createNameGenderStyles(colors), [colors]);
+  const styles = useMemo(
+    () => ({
+      ...createOnboardingStepStyles(colors),
+      ...createNameGenderStyles(colors),
+    }),
+    [colors],
+  );
   const { draft, updateDraft } = useOnboardingDraft();
   const [firstName, setFirstName] = useState(draft.first_name);
   const [lastName, setLastName] = useState(draft.last_name);
@@ -119,7 +92,7 @@ export function NameGenderScreen({
   return (
     <View style={styles.container}>
       <View style={styles.field}>
-        <Text style={styles.label}>First</Text>
+        <Text style={styles.fieldLabel}>First name</Text>
         <TextInput
           style={[
             styles.input,
@@ -127,7 +100,7 @@ export function NameGenderScreen({
             focusedField === 'firstName' && styles.inputFocused,
             firstName.length > 0 ? styles.inputFilled : styles.inputPlaceholderTypography,
           ]}
-          placeholder="First"
+          placeholder="First name"
           placeholderTextColor={colors.textMuted}
           autoCapitalize="words"
           value={firstName}
@@ -139,7 +112,7 @@ export function NameGenderScreen({
       </View>
 
       <View style={styles.field}>
-        <Text style={styles.label}>Last</Text>
+        <Text style={styles.fieldLabel}>Last name</Text>
         <TextInput
           style={[
             styles.input,
@@ -147,7 +120,7 @@ export function NameGenderScreen({
             focusedField === 'lastName' && styles.inputFocused,
             lastName.length > 0 ? styles.inputFilled : styles.inputPlaceholderTypography,
           ]}
-          placeholder="Last"
+          placeholder="Last name"
           placeholderTextColor={colors.textMuted}
           autoCapitalize="words"
           value={lastName}
@@ -159,12 +132,12 @@ export function NameGenderScreen({
       </View>
 
       <View style={[styles.field, openField === 'gender' && styles.fieldRaised]}>
-        <Text style={styles.label}>Gender</Text>
+        <Text style={styles.fieldLabel}>Gender</Text>
         <DropDown
           options={[...GENDER_OPTIONS]}
           value={gender}
           onChange={setGender}
-          placeholder="Choose"
+          placeholder="Choose gender"
           isOpen={openField === 'gender'}
           onOpenChange={(open) => setOpenField(open ? 'gender' : null)}
         />

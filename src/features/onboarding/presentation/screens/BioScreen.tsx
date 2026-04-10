@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+} from 'react-native';
 import {
   type ThemeColors,
   useThemeColors,
@@ -7,26 +13,22 @@ import {
 import { theme } from '../../../../presentation/theme/theme';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
+import {
+  createOnboardingStepStyles,
+  onboardingInputShadow,
+  ONBOARDING_INPUT_RADIUS,
+} from '../../onboardingStepStyles';
 
 const MAX_CHARS = 500;
 
 function createBioStyles(colors: ThemeColors) {
+  const shadow = onboardingInputShadow();
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-      backgroundColor: colors.surface,
-    },
-    scrollContent: {
-      paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 4,
-      paddingBottom: 24,
-      flexGrow: 1,
-    },
     input: {
       minHeight: 160,
       borderWidth: 1,
       borderColor: colors.inputBorder,
-      borderRadius: 12,
+      borderRadius: ONBOARDING_INPUT_RADIUS,
       paddingHorizontal: 16,
       paddingVertical: 16,
       fontFamily: theme.typography.regular,
@@ -34,6 +36,7 @@ function createBioStyles(colors: ThemeColors) {
       lineHeight: 24,
       color: colors.textPrimary,
       backgroundColor: colors.surface,
+      ...shadow,
     },
     inputHasText: {
       backgroundColor: colors.surface,
@@ -43,6 +46,11 @@ function createBioStyles(colors: ThemeColors) {
       borderColor: colors.brand,
       borderWidth: 2,
       backgroundColor: colors.surface,
+      ...Platform.select({
+        ios: { shadowOpacity: 0, shadowRadius: 0 },
+        android: { elevation: 0 },
+        default: {},
+      }),
     },
     inputAtLimit: {
       borderColor: colors.brand,
@@ -66,7 +74,13 @@ function createBioStyles(colors: ThemeColors) {
 
 export function BioScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createBioStyles(colors), [colors]);
+  const styles = useMemo(
+    () => ({
+      ...createOnboardingStepStyles(colors),
+      ...createBioStyles(colors),
+    }),
+    [colors],
+  );
   const { draft, updateDraft } = useOnboardingDraft();
   const [bio, setBio] = useState(draft.bio);
   const [isFocused, setIsFocused] = useState(false);
@@ -90,6 +104,7 @@ export function BioScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      <Text style={styles.sectionLabel}>Bio</Text>
       <TextInput
         style={[
           styles.input,

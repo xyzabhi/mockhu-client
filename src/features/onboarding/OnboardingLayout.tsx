@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ComponentType } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -131,7 +133,7 @@ function createOnboardingLayoutStyles(colors: ThemeColors) {
       justifyContent: 'center',
       borderRadius: theme.radius.button,
       borderWidth: 1,
-      borderColor: colors.buttonBorder,
+      borderColor: colors.borderStrong,
       backgroundColor: colors.surface,
     },
     logoutButtonPressed: {
@@ -165,6 +167,7 @@ function createOnboardingLayoutStyles(colors: ThemeColors) {
     },
     description: {
       marginTop: 8,
+      marginBottom: 4,
       fontFamily: theme.typography.regular,
       fontSize: theme.fontSizes.body,
       color: colors.textMuted,
@@ -179,30 +182,48 @@ function createOnboardingLayoutStyles(colors: ThemeColors) {
       marginHorizontal: theme.spacing.screenPaddingH,
       marginBottom: 24,
       borderRadius: theme.radius.button,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.brand,
-      backgroundColor: colors.brand,
-      paddingVertical: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.borderStrong,
       minHeight: 48,
       overflow: 'hidden',
     },
     primaryButtonDisabled: {
-      backgroundColor: colors.ctaDisabledBackground,
       borderWidth: 1,
-      borderColor: colors.brand,
+      borderColor: colors.borderStrong,
+    },
+    primaryButtonInner: {
+      minHeight: 48,
+      justifyContent: 'center',
+    },
+    primaryButtonTrack: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.surfaceSubtle,
+    },
+    primaryButtonFill: {
+      position: 'absolute',
+      left: 0,
+      top: 0,
+      bottom: 0,
+      backgroundColor: colors.brand,
+    },
+    primaryButtonLabelWrap: {
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2,
     },
     primaryButtonText: {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.md,
-      color: colors.onBrand,
       textAlign: 'center',
       ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
     },
-    primaryButtonTextDisabled: {
-      color: colors.brand,
-      ...(Platform.OS === 'android' ? { includeFontPadding: false } : {}),
+    primaryButtonTextOnFill: {
+      color: colors.textPrimary,
+    },
+    primaryButtonTextMuted: {
+      color: colors.textPrimary,
+      opacity: 0.45,
     },
   });
 }
@@ -219,9 +240,33 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
   const [stepCanContinue, setStepCanContinue] = useState(() =>
     initialCanContinueForStep(0),
   );
+  const totalSteps = screens.length;
+  const fillProgress = useRef(
+    new Animated.Value((0 + 1) / totalSteps),
+  ).current;
+  const [primaryBtnW, setPrimaryBtnW] = useState(0);
+
   const current = screens[step];
   const Step = current.component;
   const isLast = step === screens.length - 1;
+
+  const fillWidth = useMemo(
+    () =>
+      fillProgress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, Math.max(primaryBtnW, 0)],
+      }),
+    [fillProgress, primaryBtnW],
+  );
+
+  useEffect(() => {
+    Animated.timing(fillProgress, {
+      toValue: (step + 1) / totalSteps,
+      duration: primaryBtnW > 0 ? 400 : 0,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [step, primaryBtnW, totalSteps]);
 
   const handleStepValidityChange = useCallback((canContinue: boolean) => {
     setStepCanContinue(canContinue);
@@ -357,25 +402,41 @@ export function OnboardingLayout({ onFinish }: OnboardingLayoutProps = {}) {
           styles.primaryButton,
           primaryDisabled && styles.primaryButtonDisabled,
         ]}
+        onLayout={(e) => setPrimaryBtnW(e.nativeEvent.layout.width)}
         onPress={handlePrimary}
         disabled={primaryDisabled}
         activeOpacity={primaryDisabled ? 1 : 0.88}
         accessibilityRole="button"
-        accessibilityLabel={isLast ? 'Finish onboarding' : 'Continue to next step'}
+        accessibilityLabel={
+          isLast
+            ? `Step ${step + 1} of ${totalSteps}, finish onboarding`
+            : `Step ${step + 1} of ${totalSteps}, continue to next step`
+        }
         accessibilityState={{ disabled: primaryDisabled, busy: isLast && isFinishing }}
       >
-        {isLast && isFinishing ? (
-          <ActivityIndicator size="small" color={colors.onBrand} />
-        ) : (
-          <Text
-            style={[
-              styles.primaryButtonText,
-              primaryDisabled && styles.primaryButtonTextDisabled,
-            ]}
-          >
-            {isLast ? 'Finish' : 'Continue'}
-          </Text>
-        )}
+        <View style={styles.primaryButtonInner}>
+          <View style={styles.primaryButtonTrack} pointerEvents="none" />
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.primaryButtonFill, { width: fillWidth }]}
+          />
+          <View style={styles.primaryButtonLabelWrap} pointerEvents="box-none">
+            {isLast && isFinishing ? (
+              <ActivityIndicator size="small" color={colors.textPrimary} />
+            ) : (
+              <Text
+                style={[
+                  styles.primaryButtonText,
+                  primaryDisabled
+                    ? styles.primaryButtonTextMuted
+                    : styles.primaryButtonTextOnFill,
+                ]}
+              >
+                {`${step + 1} of ${totalSteps} steps`}
+              </Text>
+            )}
+          </View>
+        </View>
       </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
