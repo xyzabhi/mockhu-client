@@ -2,22 +2,21 @@ import type { PostType } from './types';
 
 export const POST_TYPES: PostType[] = ['DOUBT', 'TIP', 'WIN', 'EXPERIENCE'];
 
-/** Each tag: alphanumeric + underscore, max 30 chars. */
-export const TAG_PART = /^[a-zA-Z0-9_]{1,30}$/;
-
-/** Display title: 1–255 characters after trim. */
-export function validatePostTitle(title: string): string | null {
-  const t = title.trim();
-  if (t.length < 1) return 'Title is required.';
-  if (t.length > 255) return 'Title must be at most 255 characters.';
+/** Title: no client-side length rules (server may enforce limits). */
+export function validatePostTitle(_title: string): string | null {
   return null;
 }
 
-/** Body text: 10–2000 characters after trim. */
-export function validatePostBody(content: string): string | null {
-  const t = content.trim();
-  if (t.length < 10) return 'Content must be at least 10 characters.';
-  if (t.length > 2000) return 'Content must be at most 2000 characters.';
+/** Body: no client-side length rules (server may enforce limits). */
+export function validatePostBody(_content: string): string | null {
+  return null;
+}
+
+/** Require at least a title or body (after trim), not both empty. */
+export function validatePostHasTitleOrBody(title: string, body: string): string | null {
+  if (title.trim().length < 1 && body.trim().length < 1) {
+    return 'Add a title or some content for your post.';
+  }
   return null;
 }
 
@@ -26,36 +25,44 @@ export function validatePostContent(content: string): string | null {
   return validatePostBody(content);
 }
 
-/** Parse comma/space-separated tags → 1–3 lowercase tags. */
-export function parseTagsInput(raw: string): { ok: true; tags: string[] } | { ok: false; message: string } {
+/** Parse comma/space-separated tags (optional; no client-side format rules). */
+export function parseTagsInput(raw: string): { ok: true; tags: string[] } {
   const parts = raw
     .split(/[\s,]+/)
-    .map((s) => s.trim().toLowerCase())
+    .map((s) => s.trim().replace(/^#+/u, ''))
     .filter(Boolean);
-  if (parts.length < 1 || parts.length > 3) {
-    return { ok: false, message: 'Use 1–3 tags (comma-separated).' };
-  }
-  for (const p of parts) {
-    if (!TAG_PART.test(p)) {
-      return {
-        ok: false,
-        message: 'Each tag: letters, numbers, underscores only, max 30 characters.',
-      };
-    }
-  }
   return { ok: true, tags: parts };
 }
 
-/** Validate an explicit tag list (1–3 tags) for chip-based UIs. */
-export function validateTags(tags: string[]): string | null {
-  if (tags.length < 1 || tags.length > 3) {
-    return 'Use 1–3 tags.';
-  }
-  for (const p of tags) {
-    if (!TAG_PART.test(p)) {
-      return 'Each tag: letters, numbers, underscores only, max 30 characters.';
-    }
-  }
+/** Server: `POST /posts` multipart — max 4 images per post. */
+export const POST_MEDIA_MAX_IMAGES = 4;
+
+/** Server: each image file max 5 MiB. */
+export const POST_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+
+const ALLOWED_POST_IMAGE_MIME = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+]);
+
+/** MIME types accepted by the API (JPEG, PNG, WebP, GIF). */
+export function isAllowedPostImageMime(mime: string | undefined | null): boolean {
+  if (!mime) return false;
+  const m = mime.toLowerCase().split(';')[0]!.trim();
+  return ALLOWED_POST_IMAGE_MIME.has(m);
+}
+
+/** Infer MIME from filename when the picker omits `mimeType`. */
+export function inferPostImageMimeFromFilename(filename: string | undefined | null): string | null {
+  if (!filename) return null;
+  const lower = filename.toLowerCase();
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
   return null;
 }
 

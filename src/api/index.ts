@@ -66,7 +66,9 @@ export type {
   LevelInfo,
   MeAvatarUploadResponse,
   MeResponse,
+  SetPrivacyResponse,
   UserInterestsResponse,
+  UserProfileResponse,
   UserSuggestionsResponse,
   UserSummary,
 } from './user/types';
@@ -88,6 +90,8 @@ export {
   normalizeAuthorBadge,
   mergeStarResponse,
   mergeUnstarResponse,
+  mergeBookmarkResponse,
+  mergeUnbookmarkResponse,
   mergeCommentStarResponse,
   mergeCommentUnstarResponse,
   getPostComments,
@@ -116,6 +120,7 @@ export {
 } from './post/commentDisplay';
 export type { CommentListRow, FlattenThreadsOptions } from './post/commentDisplay';
 export type {
+  BookmarkPostResponse,
   DeletePostResponse,
   LinkPreviewData,
   PostAuthor,
@@ -123,6 +128,7 @@ export type {
   PostResponse,
   PostType,
   StarResponse,
+  UnbookmarkPostResponse,
   UnstarResponse,
 } from './post/types';
 export { resolvePostMediaUrl } from './post/mediaUrl';
@@ -135,11 +141,16 @@ export {
   type TopicOption,
 } from './post/topicCatalog';
 export {
+  inferPostImageMimeFromFilename,
+  isAllowedPostImageMime,
   parseTagsInput,
+  POST_IMAGE_MAX_BYTES,
+  POST_MEDIA_MAX_IMAGES,
   POST_TYPES,
   validateMediaRule,
   validatePostBody,
   validatePostContent,
+  validatePostHasTitleOrBody,
   validatePostTitle,
 } from './post/postValidation';
 
@@ -150,9 +161,13 @@ export { useExamById } from './hooks/useExamById';
 export { useExamsList, type UseExamsListOptions } from './hooks/useExamsList';
 export { useFollow } from './hooks/useFollow';
 export { useUserSuggestions } from './hooks/useUserSuggestions';
+export { useInterestSuggestions } from './hooks/useInterestSuggestions';
 export { useFollowList, type FollowListKind, type UseFollowListOptions } from './hooks/useFollowList';
 export { useFollowCounts } from './hooks/useFollowCounts';
 export { useHomeFeed } from './hooks/useHomeFeed';
+export { useBookmarkFeed } from './hooks/useBookmarkFeed';
+export { useUserPostsFeed } from './hooks/useUserPostsFeed';
+export { useUserProfile, isProfileRestricted } from './hooks/useUserProfile';
 export { usePostComments } from './hooks/usePostComments';
 export { useTopicFeed } from './hooks/useTopicFeed';
 export { useLinkPreview } from './hooks/useLinkPreview';
@@ -161,3 +176,17 @@ export {
   expandInterestsToExamIds,
   type UseUserInterestsResult,
 } from './hooks/useUserInterests';
+
+export { searchApi } from './search/searchApi';
+export type {
+  GlobalSearchResponse,
+  SearchExamCategoryResult,
+  SearchExamResult,
+  SearchParams,
+  SearchPostResult,
+  SearchSubjectResult,
+  SearchTopicResult,
+  SearchType,
+  SearchUserResult,
+} from './search/types';
+export { useGlobalSearch } from './hooks/useGlobalSearch';

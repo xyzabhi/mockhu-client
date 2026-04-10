@@ -15,6 +15,18 @@ export function navigateToPostComments(params: RootStackParamList['PostComments'
   });
 }
 
+/** Navigate to another user's profile from any context (e.g. PostCard author tap). */
+export function navigateToUserProfile(userId: string) {
+  const go = () => navigationRef.navigate('UserProfile', { userId });
+  if (navigationRef.isReady()) {
+    go();
+    return;
+  }
+  requestAnimationFrame(() => {
+    if (navigationRef.isReady()) go();
+  });
+}
+
 let pendingReset: keyof RootStackParamList | null = null;
 
 export function resetToRoute(name: keyof RootStackParamList) {

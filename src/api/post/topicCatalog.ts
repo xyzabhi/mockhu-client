@@ -34,7 +34,7 @@ export function topicBreadcrumbSegments(post: PostResponse): [string, string, st
   const topicOpt = TOPIC_OPTIONS.find((t) => t.topic_id === post.topic_id);
   const topicLabel = topicOpt?.label ?? `Topic ${post.topic_id}`;
   const examLabel =
-    EXAM_LABELS[post.exam_id] ?? `Exam #${post.exam_id}`;
+    EXAM_LABELS[post.exam_id] ?? `Exam ${post.exam_id}`;
   return [subject, topicLabel, examLabel];
 }
 

@@ -42,7 +42,13 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
   /** Thread / composer for a post (opened from feed). */
   PostComments: { postId: string; commentCount?: number };
+  /** Saved posts (bookmarks feed). */
+  Bookmarks: undefined;
   ExamCategories: undefined;
   ExamCategory: { categoryId: number };
   ExamDetail: { examId: number };
+  /** View another user's profile (or own via redirect). */
+  UserProfile: { userId: string };
+  /** Global search across users, posts, exams, topics, subjects. */
+  GlobalSearch: undefined;
 };

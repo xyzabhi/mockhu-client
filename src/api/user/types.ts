@@ -41,6 +41,7 @@ export type MeResponse = {
   special_badges?: string[] | null;
   /** Legacy nested DTO — still supported if the server sends it. */
   level_info?: LevelInfo | null;
+  is_private?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -86,6 +87,31 @@ export type FollowListResponse = {
 export type UserSuggestionsResponse = {
   items: UserSummary[];
   total: number;
+};
+
+/** `GET /api/v1/users/:id/profile` — public profile with privacy gating. */
+export type UserProfileResponse = {
+  id: string;
+  username: string;
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+  gender: string | null;
+  dob: string | null;
+  grade: string | null;
+  is_private: boolean;
+  is_own_profile: boolean;
+  is_following: boolean;
+  follower_count: number;
+  following_count: number;
+  post_count: number;
+  created_at: string;
+};
+
+/** `PATCH /api/v1/me/privacy` response. */
+export type SetPrivacyResponse = {
+  is_private: boolean;
 };
 
 /** `POST /me/avatar` success `data` — R2 URLs + cache-bust query. */

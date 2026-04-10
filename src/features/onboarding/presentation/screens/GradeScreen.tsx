@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import {
-  type ThemeColors,
-  useThemeColors,
-} from '../../../../presentation/theme/ThemeContext';
-import { theme } from '../../../../presentation/theme/theme';
+import { Text, View } from 'react-native';
+import { useThemeColors } from '../../../../presentation/theme/ThemeContext';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
+import { createOnboardingStepStyles } from '../../onboardingStepStyles';
 import { DropDown } from '../../../../shared/components/DropDown';
 
 /** Maps to `grade` in onboarding / profile payloads. */
@@ -28,34 +25,9 @@ const GRADE_OPTIONS = [
   { label: 'Other', value: 'other' },
 ] as const;
 
-function createGradeStyles(colors: ThemeColors) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.surface,
-      paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 4,
-      gap: 20,
-    },
-    field: {
-      width: '100%',
-      gap: 6,
-      zIndex: 1,
-    },
-    fieldRaised: {
-      zIndex: 40,
-    },
-    label: {
-      fontSize: theme.fintSizes.sm,
-      fontFamily: theme.typography.medium,
-      color: colors.textPrimary,
-    },
-  });
-}
-
 export function GradeScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createGradeStyles(colors), [colors]);
+  const styles = useMemo(() => createOnboardingStepStyles(colors), [colors]);
   const { draft, updateDraft } = useOnboardingDraft();
   const [grade, setGrade] = useState(draft.grade);
   const [open, setOpen] = useState(false);
@@ -71,7 +43,7 @@ export function GradeScreen({ onStepValidityChange }: OnboardingStepScreenProps)
   return (
     <View style={styles.container}>
       <View style={[styles.field, open && styles.fieldRaised]}>
-        <Text style={styles.label}>Class / Grade</Text>
+        <Text style={styles.fieldLabel}>Class / Grade</Text>
         <DropDown
           options={[...GRADE_OPTIONS]}
           value={grade}

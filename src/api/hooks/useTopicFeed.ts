@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AppError } from '../AppError';
 import { postApi } from '../post/postApi';
 import type { PostResponse } from '../post/types';
+import { subscribePostBookmarkUpdate } from '../../shared/postBookmarkSync';
 import { mapUnknownToAppError } from './mapUnknownToAppError';
 
 const PAGE_SIZE = 20;
@@ -38,6 +39,14 @@ export function useTopicFeed(topicId: number | undefined) {
   useEffect(() => {
     void fetchInitial();
   }, [fetchInitial]);
+
+  useEffect(() => {
+    return subscribePostBookmarkUpdate((postId, patch) => {
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)),
+      );
+    });
+  }, []);
 
   const loadMore = useCallback(async () => {
     if (topicId == null || loading || loadingMore || nextCursor == null) return;

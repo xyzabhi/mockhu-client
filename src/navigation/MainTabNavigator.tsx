@@ -192,7 +192,7 @@ export function MainTabNavigator() {
                 justifyContent: 'center',
                 padding: 2,
                 borderWidth: 2,
-                borderColor: focused ? colors.brand : '#000000',
+                borderColor: focused ? colors.brand : colors.textPrimary,
                 backgroundColor: colors.surface,
               }}
             >

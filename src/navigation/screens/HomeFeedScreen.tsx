@@ -20,7 +20,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -47,6 +46,9 @@ import {
 import type { PostResponse } from '../../api/post/types';
 import { BrandLogo, BRAND_LOGO_ASPECT } from '../../shared/components/BrandLogo';
 import { LevelBadge } from '../../shared/components/LevelBadge';
+import { consumeHomeFeedRefreshPending } from '../../shared/homeFeedSync';
+import { PostFeedSkeleton } from '../../shared/components/skeleton';
+import { SuggestedForYouSection } from '../../shared/components/SuggestedForYouSection';
 import { resetToRoute } from '../navigationRef';
 import type { RootStackParamList } from '../types';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -122,8 +124,8 @@ export function HomeFeedScreen() {
   const headerHeightRef = useRef(0);
   const lastScrollY = useRef<number | null>(null);
   const [headerH, setHeaderH] = useState(0);
-  const [query, setQuery] = useState('');
-  const [searchFocused, setSearchFocused] = useState(false);
+  const query = '';
+  const searchFocused = false;
   const [searchHintIndex, setSearchHintIndex] = useState(0);
   const searchHintOpacity = useRef(new Animated.Value(1)).current;
   const searchHintTranslateY = useRef(new Animated.Value(0)).current;
@@ -251,7 +253,7 @@ export function HomeFeedScreen() {
   const followingExamsList = useMemo(() => {
     const rows = uniqueExamIds.map((id) => ({
       id,
-      name: followedExamMeta.get(id)?.name?.trim() ?? `Exam #${id}`,
+      name: followedExamMeta.get(id)?.name?.trim() ?? `Exam ${id}`,
     }));
     rows.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     return rows;
@@ -277,6 +279,14 @@ export function HomeFeedScreen() {
       lastScrollY.current = null;
       return () => setStatusBarStyle(effectiveScheme === 'dark' ? 'light' : 'dark');
     }, [effectiveScheme]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeHomeFeedRefreshPending()) {
+        void refresh();
+      }
+    }, [refresh]),
   );
 
   const filtered = useMemo(() => {
@@ -740,7 +750,12 @@ export function HomeFeedScreen() {
       >
         <View style={styles.headerRow}>
           {/* <BrandLogo style={styles.brandLogo} /> */}
-          <View style={styles.searchRow}>
+          <Pressable
+            style={styles.searchRow}
+            onPress={() => navigation.navigate('GlobalSearch')}
+            accessibilityRole="button"
+            accessibilityLabel="Open search"
+          >
             <MaterialCommunityIcons
               name="magnify"
               size={22}
@@ -748,42 +763,27 @@ export function HomeFeedScreen() {
               style={styles.searchIcon}
             />
             <View style={styles.searchInputWrap}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder=""
-                placeholderTextColor={colors.textHint}
-                value={query}
-                onChangeText={setQuery}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                returnKeyType="search"
-                clearButtonMode="while-editing"
-                accessibilityLabel="Search feed"
-                accessibilityHint="Search posts; hint cycles through topics when empty"
-              />
-              {showAnimatedSearchHint ? (
-                <View pointerEvents="none" style={styles.searchHintOverlay}>
-                  <View style={styles.searchHintRow}>
-                    <Text style={styles.searchHintPrefix} numberOfLines={1}>
-                      Search{' '}
-                    </Text>
-                    <Animated.Text
-                      numberOfLines={1}
-                      style={[
-                        styles.searchHintWord,
-                        {
-                          opacity: searchHintOpacity,
-                          transform: [{ translateY: searchHintTranslateY }],
-                        },
-                      ]}
-                    >
-                      {SEARCH_PLACEHOLDER_WORDS[searchHintIndex]}
-                    </Animated.Text>
-                  </View>
+              <View style={styles.searchHintOverlay}>
+                <View style={styles.searchHintRow}>
+                  <Text style={styles.searchHintPrefix} numberOfLines={1}>
+                    Search{' '}
+                  </Text>
+                  <Animated.Text
+                    numberOfLines={1}
+                    style={[
+                      styles.searchHintWord,
+                      {
+                        opacity: searchHintOpacity,
+                        transform: [{ translateY: searchHintTranslateY }],
+                      },
+                    ]}
+                  >
+                    {SEARCH_PLACEHOLDER_WORDS[searchHintIndex]}
+                  </Animated.Text>
                 </View>
-              ) : null}
+              </View>
             </View>
-          </View>
+          </Pressable>
           {headerLevelBadge && currentUserId ? (
             <LevelBadge
               compact
@@ -832,9 +832,16 @@ export function HomeFeedScreen() {
         </ScrollView>
       </Animated.View>
       {loading && posts.length === 0 ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.brand} />
-        </View>
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingTop: headerH + FEED_BELOW_HEADER_GAP },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <PostFeedSkeleton count={5} />
+        </ScrollView>
       ) : error && posts.length === 0 ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error.message}</Text>
@@ -878,6 +885,7 @@ export function HomeFeedScreen() {
               <ActivityIndicator style={styles.footerSpinner} color={colors.brand} />
             ) : null
           }
+          ListHeaderComponent={<SuggestedForYouSection />}
           ListEmptyComponent={
             listEmpty ? <Text style={styles.empty}>{emptyHint}</Text> : null
           }

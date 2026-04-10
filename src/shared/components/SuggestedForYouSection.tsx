@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useUserSuggestions } from '../../api';
+import { useInterestSuggestions } from '../../api';
 import { theme } from '../../presentation/theme/theme';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 import { navigationRef } from '../../navigation/navigationRef';
@@ -18,7 +18,7 @@ const PREVIEW_COUNT = 5;
 export function SuggestedForYouSection() {
   const colors = useThemeColors();
   const styles = useMemo(() => createSectionStyles(colors), [colors]);
-  const { items, loading, error, refresh } = useUserSuggestions();
+  const { items, loading, error, refresh } = useInterestSuggestions();
 
   const goToFullList = useCallback(() => {
     if (navigationRef.isReady()) {

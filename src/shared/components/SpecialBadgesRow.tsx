@@ -40,7 +40,7 @@ export function SpecialBadgesRow({ codes }: Props) {
 function createStyles(colors: ThemeColors) {
   return StyleSheet.create({
     wrap: {
-      marginTop: 16,
+      marginTop: 10,
     },
     sectionTitle: {
       fontFamily: theme.typography.semiBold,
@@ -48,7 +48,7 @@ function createStyles(colors: ThemeColors) {
       color: colors.textMuted,
       letterSpacing: 0.4,
       textTransform: 'uppercase',
-      marginBottom: 8,
+      marginBottom: 6,
     },
     row: {
       flexDirection: 'row',

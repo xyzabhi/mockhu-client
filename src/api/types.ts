@@ -51,6 +51,7 @@ export type TokenUser = {
   tier?: string;
   tier_color_hint?: string;
   special_badges?: string[];
+  is_private?: boolean;
   exam_category_ids?: number[];
   exam_ids?: number[];
   created_at?: string;

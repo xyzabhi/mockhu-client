@@ -10,23 +10,18 @@ import { AvatarImageCropPicker } from '../../../../shared/components/AvatarImage
 import { isUsableAvatarDraftUri } from '../../onboardingDraft';
 import { useOnboardingDraft } from '../../OnboardingDraftContext';
 import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
+import {
+  createOnboardingStepStyles,
+  onboardingInputShadow,
+  ONBOARDING_INPUT_RADIUS,
+} from '../../onboardingStepStyles';
 
 const USERNAME_MIN = 3;
 const USERNAME_MAX = 16;
 const AVATAR = 144;
-const INPUT_RADIUS = 24;
 
 function createPhotoUsernameStyles(colors: ThemeColors) {
-  const inputShadow = Platform.select({
-    ios: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.05,
-      shadowRadius: 4,
-    },
-    android: { elevation: 1 },
-    default: {},
-  });
+  const inputShadow = onboardingInputShadow();
 
   const clearShadow = Platform.select({
     ios: {
@@ -38,33 +33,11 @@ function createPhotoUsernameStyles(colors: ThemeColors) {
   });
 
   return StyleSheet.create({
-    scroll: {
-      flex: 1,
-      backgroundColor: colors.surface,
-    },
-    scrollContent: {
-      paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 4,
-      paddingBottom: 32,
-    },
-    sectionLabel: {
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.sm,
-      color: colors.textMuted,
-      marginBottom: 12,
-      letterSpacing: 0.2,
-      textTransform: 'uppercase',
-    },
-    divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors.borderSubtle,
-      marginVertical: 24,
-    },
     usernameShell: {
       flexDirection: 'row',
       alignItems: 'center',
       minHeight: 52,
-      borderRadius: INPUT_RADIUS,
+      borderRadius: ONBOARDING_INPUT_RADIUS,
       paddingLeft: 4,
       paddingRight: 12,
       overflow: 'hidden',
@@ -124,7 +97,13 @@ export function PhotoUsernameScreen({
   onStepValidityChange,
 }: OnboardingStepScreenProps) {
   const colors = useThemeColors();
-  const styles = useMemo(() => createPhotoUsernameStyles(colors), [colors]);
+  const styles = useMemo(
+    () => ({
+      ...createOnboardingStepStyles(colors),
+      ...createPhotoUsernameStyles(colors),
+    }),
+    [colors],
+  );
   const { draft, updateDraft } = useOnboardingDraft();
   /** `null` = show default avatar; set when user picks a custom photo (file://, content://, https://, …). */
   const [photoUri, setPhotoUri] = useState<string | null>(() => {
@@ -160,7 +139,7 @@ export function PhotoUsernameScreen({
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={styles.scrollContentLoose}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -175,6 +154,7 @@ export function PhotoUsernameScreen({
 
       <View style={styles.divider} />
 
+      <Text style={styles.sectionLabel}>Username</Text>
       <View
         style={[
           styles.usernameShell,

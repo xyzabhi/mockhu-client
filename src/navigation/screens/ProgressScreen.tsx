@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -37,12 +38,20 @@ export function ProgressScreen() {
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const currentUserId = profile?.id?.trim();
 
-  const { examIdsForFilter, loading: interestsLoading, error: interestsError } =
-    useUserInterests(currentUserId);
+  const {
+    examIdsDirect,
+    loading: interestsLoading,
+    error: interestsError,
+    refetch: refetchInterests,
+  } = useUserInterests(currentUserId);
 
-  const uniqueExamIds = useMemo(
-    () => [...new Set(examIdsForFilter)].sort((a, b) => a - b),
-    [examIdsForFilter],
+  /** Tabs: `exam_ids` from `GET /api/v1/users/:id/interests` (same source as onboarding write). */
+  const uniqueExamIds = examIdsDirect;
+
+  useFocusEffect(
+    useCallback(() => {
+      refetchInterests();
+    }, [refetchInterests]),
   );
 
   /** Stable string so we only reset the selected tab when interests actually change. */
@@ -95,7 +104,7 @@ export function ProgressScreen() {
     if (uniqueExamIds.length === 0) return rows;
     const withNames = uniqueExamIds.map((id) => ({
       id,
-      name: examMeta.get(id)?.name?.trim() ?? `Exam #${id}`,
+      name: examMeta.get(id)?.name?.trim() ?? `Exam ${id}`,
     }));
     withNames.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     if (uniqueExamIds.length === 1) {
@@ -124,7 +133,7 @@ export function ProgressScreen() {
     if (selectedTab === 'all') {
       return 'A snapshot across every exam you follow — connect to real data later.';
     }
-    const name = examMeta.get(selectedTab)?.name?.trim() ?? `Exam #${selectedTab}`;
+    const name = examMeta.get(selectedTab)?.name?.trim() ?? `Exam ${selectedTab}`;
     return `Progress for ${name} — connect to real data later.`;
   }, [selectedTab, uniqueExamIds.length, examMeta]);
 

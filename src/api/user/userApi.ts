@@ -1,11 +1,13 @@
-import { apiDelete, apiGet, apiPost, apiPostMultipart } from '../apiClient';
+import { apiDelete, apiGet, apiPatch, apiPost, apiPostMultipart } from '../apiClient';
 import type {
   FollowListQuery,
   FollowListResponse,
   FollowResponse,
   MeAvatarUploadResponse,
   MeResponse,
+  SetPrivacyResponse,
   UserInterestsResponse,
+  UserProfileResponse,
   UserSuggestionsResponse,
   UserSummary,
 } from './types';
@@ -30,6 +32,16 @@ export async function uploadMeAvatar(localUri: string): Promise<MeAvatarUploadRe
     } as unknown as Blob,
   );
   return apiPostMultipart<MeAvatarUploadResponse>('/me/avatar', fd);
+}
+
+/** `GET /api/v1/users/:id/profile` — any user's profile; privacy handled server-side. */
+export async function getUserProfile(userId: string): Promise<UserProfileResponse> {
+  return apiGet<UserProfileResponse>(`/users/${encodeURIComponent(userId)}/profile`);
+}
+
+/** `PATCH /api/v1/me/privacy` — toggle account privacy. */
+export async function setPrivacy(isPrivate: boolean): Promise<SetPrivacyResponse> {
+  return apiPatch<SetPrivacyResponse>('/me/privacy', { is_private: isPrivate });
 }
 
 /** `GET /api/v1/users/:user_id/interests` — interests (separate from `/me`). */
@@ -132,8 +144,20 @@ export async function getUserSuggestions(params?: {
   return normalizeSuggestionsPayload(raw);
 }
 
+/** `GET /api/v1/users/suggestions/interests` — interest-based suggestions; falls back to general. */
+export async function getInterestSuggestions(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<UserSuggestionsResponse> {
+  const q = buildSuggestionsQuery(params);
+  const raw = await apiGet<unknown>(`/users/suggestions/interests${q}`);
+  return normalizeSuggestionsPayload(raw);
+}
+
 export const userApi = {
   getCurrentUserProfile,
+  getUserProfile,
+  setPrivacy,
   uploadMeAvatar,
   getUserInterests,
   followUser,
@@ -141,4 +165,5 @@ export const userApi = {
   getFollowers,
   getFollowing,
   getUserSuggestions,
+  getInterestSuggestions,
 };

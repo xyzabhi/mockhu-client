@@ -24,6 +24,7 @@ module.exports = {
           iosUrlScheme: iosUrlSchemeFromEnv(),
         },
       ],
+      'expo-web-browser',
     ],
   },
 };

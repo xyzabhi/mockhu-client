@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { AppError } from '../AppError';
 import { postApi } from '../post/postApi';
 import type { PostResponse } from '../post/types';
+import { consumeHomeFeedRefreshPending } from '../../shared/homeFeedSync';
+import { subscribePostBookmarkUpdate } from '../../shared/postBookmarkSync';
 import { subscribePostStarUpdate } from '../../shared/postStarSync';
 import { mapUnknownToAppError } from './mapUnknownToAppError';
 
@@ -37,11 +39,23 @@ export function useHomeFeed() {
   }, []);
 
   useEffect(() => {
-    void loadFirstPage('initial');
+    if (consumeHomeFeedRefreshPending()) {
+      void loadFirstPage('refresh');
+    } else {
+      void loadFirstPage('initial');
+    }
   }, [loadFirstPage]);
 
   useEffect(() => {
     return subscribePostStarUpdate((postId, patch) => {
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)),
+      );
+    });
+  }, []);
+
+  useEffect(() => {
+    return subscribePostBookmarkUpdate((postId, patch) => {
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, ...patch } : p)),
       );

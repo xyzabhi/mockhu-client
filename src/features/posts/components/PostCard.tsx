@@ -1,14 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Octicons from '@expo/vector-icons/Octicons';
-import { Fragment, useCallback, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
-  Alert,
   Animated,
   Image,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -17,8 +15,16 @@ import {
   Text,
   View,
 } from 'react-native';
-import { mergeStarResponse, mergeUnstarResponse, postApi, useSession } from '../../../api';
-import { navigateToPostComments } from '../../../navigation/navigationRef';
+import {
+  mergeBookmarkResponse,
+  mergeStarResponse,
+  mergeUnbookmarkResponse,
+  mergeUnstarResponse,
+  postApi,
+  useSession,
+} from '../../../api';
+import { notifyPostBookmarkUpdate } from '../../../shared/postBookmarkSync';
+import { navigateToPostComments, navigateToUserProfile } from '../../../navigation/navigationRef';
 import type { PostResponse, PostType } from '../../../api/post/types';
 import { topicBreadcrumb, topicBreadcrumbSegments } from '../../../api/post/topicCatalog';
 import { resolvePostMediaUrl } from '../../../api/post/mediaUrl';
@@ -29,7 +35,12 @@ import {
   useThemePreference,
 } from '../../../presentation/theme/ThemeContext';
 import { FollowAuthorLink } from '../../../shared/components/FollowAuthorLink';
+import { openInAppBrowser } from '../../../shared/openInAppBrowser';
+import { FullScreenImageViewer } from '../../../shared/components/FullScreenImageViewer';
+import { useMessageModal } from '../../../shared/components/MessageModal';
 import { formatRelativeTime } from '../../../shared/utils/formatRelativeTime';
+import { postContentLooksLikeHtml, stripHtmlTags } from '../postContentFormatting';
+import { PostContentBody } from './PostContentBody';
 
 function displayName(post: PostResponse): string {
   if (post.is_anonymous) return 'Anonymous';
@@ -97,11 +108,14 @@ export function PostCard({
   const colors = useThemeColors();
   const { effectiveScheme } = useThemePreference();
   const isDark = effectiveScheme === 'dark';
-  /** Unliked thumb — dark gray in both themes (Facebook-style). */
   const likeInactiveColor = isDark ? '#52525b' : '#111827';
   const styles = useMemo(() => createPostCardStyles(colors), [colors]);
   const { accessToken } = useSession();
+  const { modal, show: showModal, hide: hideModal } = useMessageModal();
   const [deleting, setDeleting] = useState(false);
+  const [bookmarkOverride, setBookmarkOverride] = useState<boolean | null>(null);
+  const [viewerVisible, setViewerVisible] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
   const authorStarPulse = useRef(new Animated.Value(0)).current;
 
   const authorNameScale = authorStarPulse.interpolate({
@@ -135,46 +149,75 @@ export function PostCard({
   /** Same function — old name kept so stale bundles / HMR do not throw. */
   const playAuthorFiredAnimation = playAuthorStarredAnimation;
   const isOwner = currentUserId != null && post.user_id === currentUserId;
+
+  const onAuthorPress = useCallback(() => {
+    if (post.is_anonymous || !post.user_id) return;
+    navigateToUserProfile(post.user_id);
+  }, [post.is_anonymous, post.user_id]);
   const badge = useMemo(
     () => typeBadgeColors(post.post_type, colors, isDark),
     [post.post_type, colors, isDark],
   );
   const images = post.images ?? [];
+  const resolvedImages = useMemo(
+    () => images.map((u) => resolvePostMediaUrl(u)),
+    [images],
+  );
+  const openImageViewer = useCallback((index: number) => {
+    setViewerIndex(index);
+    setViewerVisible(true);
+  }, []);
+  const tagsForDisplay = useMemo(
+    () => (post.tags ?? []).map((t) => t.trim()).filter(Boolean),
+    [post.tags],
+  );
   const timeLabel = formatRelativeTime(post.created_at);
   const avatarUri = post.is_anonymous ? null : post.author?.avatar_url?.trim();
 
   const handleDelete = useCallback(() => {
-    Alert.alert('Delete post?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            setDeleting(true);
-            try {
-              await postApi.deletePost(post.id);
-              onDeleted?.(post.id);
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : 'Could not delete.';
-              Alert.alert('Delete failed', msg);
-            } finally {
-              setDeleting(false);
-            }
-          })();
+    showModal({
+      title: 'Delete post?',
+      message: 'This cannot be undone.',
+      buttons: [
+        { label: 'Cancel', variant: 'secondary', onPress: hideModal },
+        {
+          label: 'Delete',
+          variant: 'destructive',
+          onPress: () => {
+            hideModal();
+            void (async () => {
+              setDeleting(true);
+              try {
+                await postApi.deletePost(post.id);
+                onDeleted?.(post.id);
+              } catch (e) {
+                const msg = e instanceof Error ? e.message : 'Could not delete.';
+                showModal({ title: 'Delete failed', message: msg });
+              } finally {
+                setDeleting(false);
+              }
+            })();
+          },
         },
-      },
-    ]);
-  }, [onDeleted, post.id]);
+      ],
+    });
+  }, [hideModal, onDeleted, post.id, showModal]);
 
   const openLink = useCallback(() => {
     const u = post.link_url?.trim();
-    if (u) void Linking.openURL(u);
+    if (u) void openInAppBrowser(u);
   }, [post.link_url]);
 
   const sharePost = useCallback(async () => {
     try {
-      const parts = [post.title?.trim(), post.content.trim()].filter(Boolean) as string[];
+      const plainBody = postContentLooksLikeHtml(post.content)
+        ? stripHtmlTags(post.content)
+        : post.content;
+      const parts = [post.title?.trim(), plainBody.trim()].filter(Boolean) as string[];
+      const tagLine = tagsForDisplay.map((t) => `#${t}`).join(' ');
+      if (tagLine.length > 0) {
+        parts.push(tagLine);
+      }
       if (post.link_url?.trim()) {
         parts.push(post.link_url.trim());
       }
@@ -185,22 +228,54 @@ export function PostCard({
     } catch {
       /* dismissed */
     }
-  }, [post.content, post.link_url, post.title]);
+  }, [post.content, post.link_url, post.title, tagsForDisplay]);
 
   const reportPost = useCallback(() => {
-    Alert.alert('Report', 'Thanks — we will review reports in a future update.');
-  }, []);
+    showModal({ title: 'Report', message: 'Thanks — we will review reports in a future update.' });
+  }, [showModal]);
 
   const starred = post.starred_by_me === true;
   const starCount = post.star_count ?? 0;
+  const bookmarked = bookmarkOverride ?? post.bookmarked_by_me === true;
+
+  useEffect(() => {
+    setBookmarkOverride(null);
+  }, [post.id, post.bookmarked_by_me]);
 
   const openComments = useCallback(() => {
     navigateToPostComments({ postId: post.id, commentCount: post.comment_count });
   }, [post.id, post.comment_count]);
 
+  const toggleBookmark = useCallback(async () => {
+    if (!accessToken) {
+      showModal({ title: 'Sign in', message: 'Sign in to save posts.' });
+      return;
+    }
+    const next = !bookmarked;
+    setBookmarkOverride(next);
+    try {
+      if (next) {
+        const res = await postApi.bookmarkPost(post.id);
+        const merged = mergeBookmarkResponse(post, res);
+        onPostUpdated?.(merged);
+        notifyPostBookmarkUpdate(post.id, { bookmarked_by_me: merged.bookmarked_by_me });
+      } else {
+        const res = await postApi.unbookmarkPost(post.id);
+        const merged = mergeUnbookmarkResponse(post, res);
+        onPostUpdated?.(merged);
+        notifyPostBookmarkUpdate(post.id, { bookmarked_by_me: merged.bookmarked_by_me });
+      }
+      setBookmarkOverride(null);
+    } catch (e) {
+      setBookmarkOverride(null);
+      const msg = e instanceof Error ? e.message : 'Could not update saved posts.';
+      showModal({ title: 'Saved', message: msg });
+    }
+  }, [accessToken, bookmarked, onPostUpdated, post, showModal]);
+
   const submitStar = useCallback(async () => {
     if (!accessToken) {
-      Alert.alert('Sign in', 'Sign in to like posts.');
+      showModal({ title: 'Sign in', message: 'Sign in to like posts.' });
       return;
     }
     try {
@@ -216,9 +291,9 @@ export function PostCard({
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not update like.';
-      Alert.alert('Like', msg);
+      showModal({ title: 'Like', message: msg });
     }
-  }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post]);
+  }, [accessToken, onPostUpdated, playAuthorFiredAnimation, post, showModal]);
 
   const openPostMenu = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -237,47 +312,55 @@ export function PostCard({
         },
       );
     } else {
-      Alert.alert(
-        'Post options',
-        undefined,
-        [
-          { text: 'Share', onPress: () => void sharePost() },
+      showModal({
+        title: 'Post options',
+        message: 'Choose an action',
+        buttons: [
+          { label: 'Share', variant: 'primary', onPress: () => { hideModal(); void sharePost(); } },
           isOwner
-            ? { text: 'Delete', style: 'destructive', onPress: handleDelete }
-            : { text: 'Report', onPress: reportPost },
-          { text: 'Cancel', style: 'cancel' },
+            ? { label: 'Delete', variant: 'destructive', onPress: () => { hideModal(); handleDelete(); } }
+            : { label: 'Report', variant: 'destructive', onPress: () => { hideModal(); reportPost(); } },
+          { label: 'Cancel', variant: 'secondary', onPress: hideModal },
         ],
-        { cancelable: true },
-      );
+      });
     }
-  }, [handleDelete, isOwner, reportPost, sharePost]);
+  }, [handleDelete, hideModal, isOwner, reportPost, sharePost, showModal]);
 
   return (
     <View style={styles.card}>
+      {modal}
       <View style={styles.topRow}>
-        <View style={styles.avatarWrap}>
+        <Pressable
+          onPress={onAuthorPress}
+          disabled={post.is_anonymous}
+          style={styles.avatarWrap}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${displayName(post)}'s profile`}
+        >
           {avatarUri ? (
             <Image source={{ uri: resolvePostMediaUrl(avatarUri) }} style={styles.avatarImg} />
           ) : (
             <Text style={styles.avatarInitials}>{authorInitials(post)}</Text>
           )}
-        </View>
+        </Pressable>
         <View style={styles.headerMain}>
           <View style={styles.nameRow}>
             <View style={styles.authorNameRow}>
-              <Animated.Text
-                style={[
-                  styles.displayName,
-                  styles.displayNameFlex,
-                  {
-                    transform: [{ scale: authorNameScale }],
-                    color: authorNameColor,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {displayName(post)}
-              </Animated.Text>
+              <Pressable onPress={onAuthorPress} disabled={post.is_anonymous}>
+                <Animated.Text
+                  style={[
+                    styles.displayName,
+                    styles.displayNameFlex,
+                    {
+                      transform: [{ scale: authorNameScale }],
+                      color: authorNameColor,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {displayName(post)}
+                </Animated.Text>
+              </Pressable>
               {!post.is_anonymous ? (
                 <FollowAuthorLink
                   targetUserId={post.user_id}
@@ -331,25 +414,59 @@ export function PostCard({
           {post.title.trim()}
         </Text>
       ) : null}
-      <Text style={styles.content}>{post.content}</Text>
+      <PostContentBody content={post.content} style={styles.content} />
+
+      {tagsForDisplay.length > 0 ? (
+        <View style={styles.tagsRow} accessibilityLabel="Post tags">
+          {tagsForDisplay.map((t, i) => (
+            <Text key={`${t}-${i}`} style={styles.tagText}>
+              #{t}
+            </Text>
+          ))}
+        </View>
+      ) : null}
 
       {images.length === 1 ? (
-        <Image
-          source={{ uri: resolvePostMediaUrl(images[0]!) }}
-          style={styles.singleImage}
-          resizeMode="cover"
-        />
+        <Pressable onPress={() => openImageViewer(0)}>
+          <Image
+            source={{ uri: resolvedImages[0] }}
+            style={styles.singleImage}
+            resizeMode="cover"
+          />
+        </Pressable>
       ) : images.length > 1 ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.imageStrip}>
-          {images.map((uri) => (
-            <Image
-              key={uri}
-              source={{ uri: resolvePostMediaUrl(uri) }}
-              style={styles.thumb}
-              resizeMode="cover"
-            />
+          {images.map((uri, idx) => (
+            <Pressable key={uri} onPress={() => openImageViewer(idx)}>
+              <Image
+                source={{ uri: resolvePostMediaUrl(uri) }}
+                style={styles.thumb}
+                resizeMode="cover"
+              />
+            </Pressable>
           ))}
         </ScrollView>
+      ) : null}
+
+      {images.length > 0 ? (
+        <FullScreenImageViewer
+          images={resolvedImages}
+          initialIndex={viewerIndex}
+          visible={viewerVisible}
+          onClose={() => setViewerVisible(false)}
+          post={{
+            authorId: post.user_id,
+            authorUsername: post.is_anonymous ? undefined : (post.author?.username ?? undefined),
+            authorAvatarUrl: post.is_anonymous ? null : (post.author?.avatar_url ?? null),
+            title: post.title,
+            content: post.content,
+            starCount: post.star_count,
+            starred: post.starred_by_me,
+            commentCount: post.comment_count,
+          }}
+          onStarPress={submitStar}
+          onCommentPress={openComments}
+        />
       ) : null}
 
       {post.link_url ? (
@@ -425,11 +542,16 @@ export function PostCard({
         <View style={styles.footerRight}>
           <Pressable
             style={({ pressed }) => [styles.bookmarkBox, pressed && styles.pillPressed]}
-            onPress={() => undefined}
+            onPress={() => void toggleBookmark()}
             accessibilityRole="button"
-            accessibilityLabel="Save"
+            accessibilityLabel={bookmarked ? 'Remove from saved' : 'Save post'}
+            accessibilityState={{ selected: bookmarked }}
           >
-            <MaterialCommunityIcons name="bookmark-outline" size={20} color={colors.textMuted} />
+            <MaterialCommunityIcons
+              name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+              size={20}
+              color={bookmarked ? colors.brand : colors.textMuted}
+            />
           </Pressable>
         </View>
       </View>
@@ -571,6 +693,19 @@ function createPostCardStyles(colors: ThemeColors) {
     color: colors.textPrimary,
     lineHeight: 24,
     marginBottom: 10,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  tagText: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.xs,
+    color: colors.brand,
   },
   singleImage: {
     width: '100%',
