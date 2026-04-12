@@ -42,9 +42,27 @@ export type MeResponse = {
   /** Legacy nested DTO — still supported if the server sends it. */
   level_info?: LevelInfo | null;
   is_private?: boolean | null;
+  /** Exam target year from profile; included when backend returns it on `/me`. */
+  target_year?: number | null;
   created_at: string;
   updated_at: string;
 };
+
+/**
+ * `PATCH /api/v1/me` — partial profile update (snake_case body; omit fields you do not change).
+ * Backend may ignore unknown keys; some fields require server support.
+ */
+export type PatchMeRequest = Partial<{
+  first_name: string;
+  last_name: string;
+  bio: string | null;
+  username: string | null;
+  gender: string | null;
+  grade: string | null;
+  /** `YYYY-MM-DD` or null to clear */
+  dob: string | null;
+  target_year: number;
+}>;
 
 /**
  * `GET /api/v1/users/:user_id/interests` — `data` shape (envelope).

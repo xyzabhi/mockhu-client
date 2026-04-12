@@ -31,6 +31,7 @@ import { LegalInfoScreen, legalInfoTitle } from './screens/LegalInfoScreen';
 import { BookmarksScreen } from './screens/BookmarksScreen';
 import { GlobalSearchScreen } from './screens/GlobalSearchScreen';
 import { TrendingScreen } from './screens/TrendingScreen';
+import { EditProfileScreen } from './screens/EditProfileScreen';
 import { UserProfileScreen } from './screens/UserProfileScreen';
 import { PostOnboardingSuggestionsScreen } from './screens/PostOnboardingSuggestionsScreen';
 import type { RootStackParamList } from './types';
@@ -221,6 +222,11 @@ export function RootNavigator() {
           name="ExamDetail"
           component={ExamDetailScreen}
           options={{ headerShown: true, title: 'Exam' }}
+        />
+        <Stack.Screen
+          name="EditProfile"
+          component={EditProfileScreen}
+          options={{ headerShown: true, title: 'Edit profile' }}
         />
         <Stack.Screen
           name="UserProfile"

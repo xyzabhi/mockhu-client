@@ -5,6 +5,7 @@ import type {
   FollowResponse,
   MeAvatarUploadResponse,
   MeResponse,
+  PatchMeRequest,
   SetPrivacyResponse,
   UserInterestsResponse,
   UserProfileResponse,
@@ -42,6 +43,27 @@ export async function getUserProfile(userId: string): Promise<UserProfileRespons
 /** `PATCH /api/v1/me/privacy` — toggle account privacy. */
 export async function setPrivacy(isPrivate: boolean): Promise<SetPrivacyResponse> {
   return apiPatch<SetPrivacyResponse>('/me/privacy', { is_private: isPrivate });
+}
+
+/**
+ * `PATCH /api/v1/me` — update profile fields (requires backend support).
+ * Returns updated `MeResponse` for merging into session.
+ */
+export async function patchMe(body: PatchMeRequest): Promise<MeResponse> {
+  return apiPatch<MeResponse>('/me', body);
+}
+
+/**
+ * `PATCH /api/v1/users/:user_id/interests` — replace exam / category interests (requires backend support).
+ */
+export async function patchUserInterests(
+  userId: string,
+  body: UserInterestsResponse,
+): Promise<UserInterestsResponse> {
+  return apiPatch<UserInterestsResponse>(
+    `/users/${encodeURIComponent(userId)}/interests`,
+    body,
+  );
 }
 
 /** `GET /api/v1/users/:user_id/interests` — interests (separate from `/me`). */
@@ -157,6 +179,8 @@ export async function getInterestSuggestions(params?: {
 export const userApi = {
   getCurrentUserProfile,
   getUserProfile,
+  patchMe,
+  patchUserInterests,
   setPrivacy,
   uploadMeAvatar,
   getUserInterests,

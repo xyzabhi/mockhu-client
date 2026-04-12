@@ -51,6 +51,12 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
         )
       : undefined;
 
+  const targetYearTop = numOrUndef(me.target_year);
+  const targetYearAlias = numOrUndef(
+    (me as unknown as { targetYear?: unknown }).targetYear,
+  );
+  const targetYearMerged = targetYearTop ?? targetYearAlias;
+
   const patch: Partial<TokenUser> = {
     id: me.id,
     is_onboarded: me.is_onboarded,
@@ -70,6 +76,10 @@ export function meResponseToTokenUserPatch(me: MeResponse): Partial<TokenUser> {
     created_at: me.created_at,
     updated_at: me.updated_at,
   };
+
+  if (targetYearMerged !== undefined) {
+    patch.target_year = targetYearMerged;
+  }
 
   if (levelMerged !== undefined) {
     patch.level = levelMerged;

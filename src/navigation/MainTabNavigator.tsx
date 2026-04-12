@@ -179,9 +179,8 @@ export function MainTabNavigator() {
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={({ navigation }) => ({
-          title: 'Profile',
-          ...backToHomeHeaderOptions(colors, navigation),
+        options={{
+          headerShown: false,
           tabBarIcon: ({ color, size, focused }) => (
             <View
               style={{
@@ -204,7 +203,7 @@ export function MainTabNavigator() {
               />
             </View>
           ),
-        })}
+        }}
       />
     </Tab.Navigator>
   );

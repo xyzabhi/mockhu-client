@@ -66,6 +66,7 @@ export type {
   LevelInfo,
   MeAvatarUploadResponse,
   MeResponse,
+  PatchMeRequest,
   SetPrivacyResponse,
   UserInterestsResponse,
   UserProfileResponse,

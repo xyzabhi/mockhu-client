@@ -1,9 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Platform,
   Pressable,
@@ -12,19 +13,21 @@ import {
   StyleSheet,
   Switch,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   clearSession,
+  examCatalogApi,
   hydrateSessionUserFromMe,
   normalizeTokenUserProfile,
   useBookmarkFeed,
   useFollowList,
-  useFollowCounts,
   useSession,
   useUserInterests,
   useUserPostsFeed,
+  useUserProfile,
   userApi,
 } from '../../api';
 import type { PostResponse } from '../../api/post/types';
@@ -34,20 +37,134 @@ import { theme } from '../../presentation/theme/theme';
 import { ThemeAppearanceToggle } from '../../presentation/theme/ThemeAppearanceToggle';
 import { type ThemeColors, useThemeColors } from '../../presentation/theme/ThemeContext';
 import { ProfileAvatarUploader } from '../../features/profile/components/ProfileAvatarUploader';
-import { LevelBadge } from '../../shared/components/LevelBadge';
-import { SpecialBadgesRow } from '../../shared/components/SpecialBadgesRow';
 import { useMessageModal } from '../../shared/components/MessageModal';
 import { PostFeedSkeleton, SkeletonBox, SkeletonGroup } from '../../shared/components/skeleton';
 import type { MainTabParamList, RootStackParamList } from '../types';
 
-type ProfileTabId = 'posts' | 'saved' | 'about' | 'settings';
+type ProfileTabId = 'posts' | 'tracker' | 'battles' | 'saved' | 'about' | 'settings';
 
-const PROFILE_TABS: { id: ProfileTabId; label: string }[] = [
+const PROFILE_TAB_BAR: { id: ProfileTabId; label: string }[] = [
   { id: 'posts', label: 'Posts' },
-  { id: 'saved', label: 'Saved' },
-  { id: 'about', label: 'About' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'tracker', label: 'Tracker' },
+  { id: 'battles', label: 'Battles' },
 ];
+
+/** Fixed chip width from longest label (semiBold xs + horizontal padding), capped to screen. */
+function estimateFixedExamChipWidth(labels: string[], windowWidth: number): number {
+  if (labels.length === 0) return 160;
+  const longest = labels.reduce((m, s) => Math.max(m, s.length), 0);
+  const fontSize = theme.fintSizes.xs;
+  const charEstimate = fontSize * 0.62;
+  const horizontalPad = 12 * 2 + 4;
+  const raw = Math.ceil(longest * charEstimate + horizontalPad);
+  const cap = Math.min(340, Math.floor(windowWidth * 0.58));
+  const floor = 120;
+  return Math.min(Math.max(raw, floor), cap);
+}
+
+type ExamPrepChipRow = { id: number; name: string; year: number | null };
+
+function formatExamYearTwoDigit(year: number): string {
+  return String(Math.trunc(year) % 100).padStart(2, '0');
+}
+
+function formatExamChipLine(e: ExamPrepChipRow): string {
+  if (e.year != null && Number.isFinite(e.year)) {
+    return `${e.name} · ${formatExamYearTwoDigit(e.year)}`;
+  }
+  return e.name;
+}
+
+const EXAM_CHIP_ROTATE_MS = 3200;
+const EXAM_CHIP_FADE_MS = 220;
+
+type RotatingExamChipStyles = {
+  chipPill: object;
+  chipFrost: object;
+  chipLightText: object;
+  examChipRotatingText: object;
+  examChipRotator: object;
+};
+
+function RotatingExamChip({ exams, styles }: { exams: ExamPrepChipRow[]; styles: RotatingExamChipStyles }) {
+  const isFocused = useIsFocused();
+  const { width: windowWidth } = useWindowDimensions();
+  const opacity = useRef(new Animated.Value(1)).current;
+  const [index, setIndex] = useState(0);
+  const examsRef = useRef(exams);
+  examsRef.current = exams;
+
+  const fixedChipWidth = useMemo(
+    () =>
+      exams.length === 0 ? 0 : estimateFixedExamChipWidth(exams.map((e) => formatExamChipLine(e)), windowWidth),
+    [exams, windowWidth],
+  );
+
+  useEffect(() => {
+    setIndex(0);
+    opacity.setValue(1);
+  }, [exams, opacity]);
+
+  useEffect(() => {
+    if (exams.length < 2 || !isFocused) return undefined;
+
+    const advance = () => {
+      Animated.timing(opacity, {
+        toValue: 0,
+        duration: EXAM_CHIP_FADE_MS,
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (!finished) return;
+        const rows = examsRef.current;
+        if (rows.length < 2) return;
+        setIndex((prev) => (prev + 1) % rows.length);
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: EXAM_CHIP_FADE_MS,
+          useNativeDriver: true,
+        }).start();
+      });
+    };
+
+    const id = setInterval(advance, EXAM_CHIP_ROTATE_MS);
+    return () => clearInterval(id);
+  }, [exams.length, isFocused, opacity]);
+
+  if (exams.length === 0) return null;
+
+  const current = exams[index] ?? exams[0];
+  if (!current) return null;
+
+  const line = formatExamChipLine(current);
+
+  return (
+    <View
+      style={styles.examChipRotator}
+      accessibilityRole="summary"
+      accessibilityLabel={`Exam prep: ${line}`}
+    >
+      <View
+        style={[
+          styles.chipPill,
+          styles.chipFrost,
+          fixedChipWidth > 0 && {
+            width: fixedChipWidth,
+            minWidth: fixedChipWidth,
+            maxWidth: fixedChipWidth,
+          },
+        ]}
+      >
+        <Animated.Text
+          style={[styles.chipLightText, styles.examChipRotatingText, { opacity }]}
+          numberOfLines={2}
+          accessibilityLiveRegion="polite"
+        >
+          {line}
+        </Animated.Text>
+      </View>
+    </View>
+  );
+}
 
 export function ProfileScreen() {
   const colors = useThemeColors();
@@ -93,8 +210,11 @@ export function ProfileScreen() {
 
   const profile = user ? normalizeTokenUserProfile(user) : null;
   const userId = profile?.id?.trim();
-  const { followersCount, followingCount, loading: countsLoading, refresh: refreshCounts } =
-    useFollowCounts(userId);
+  const {
+    profile: publicProfile,
+    loading: publicProfileLoading,
+    refresh: refreshPublicProfile,
+  } = useUserProfile(userId);
   const firstName = profile?.first_name?.trim() ?? '';
   const lastName = profile?.last_name?.trim() ?? '';
   const fullName = [firstName, lastName].filter(Boolean).join(' ');
@@ -138,10 +258,56 @@ export function ProfileScreen() {
 
   const {
     interests: interestsPayload,
+    examIdsDirect,
     loading: interestsLoading,
     error: interestsError,
     refetch: refetchInterests,
   } = useUserInterests(userId);
+
+  /** Resolved exam names for each selected id (target year appended when set). */
+  const [examPrepRows, setExamPrepRows] = useState<ExamPrepChipRow[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!userId || examIdsDirect.length === 0) {
+        setExamPrepRows([]);
+        return;
+      }
+      try {
+        const settled = await Promise.allSettled(examIdsDirect.map((id) => examCatalogApi.getExam(id)));
+        if (cancelled) return;
+        const rawYr = profile?.target_year;
+        const year =
+          rawYr != null && typeof rawYr === 'number' && Number.isFinite(rawYr) ? Math.round(rawYr) : null;
+        const rows: { id: number; name: string; year: number | null; userCount: number }[] = [];
+        settled.forEach((s, i) => {
+          if (s.status !== 'fulfilled') return;
+          const id = examIdsDirect[i];
+          const name = s.value.name?.trim() || 'Exam';
+          const userCount =
+            typeof s.value.user_count === 'number' && Number.isFinite(s.value.user_count)
+              ? s.value.user_count
+              : 0;
+          rows.push({
+            id,
+            userCount,
+            name,
+            year,
+          });
+        });
+        rows.sort((a, b) => {
+          if (b.userCount !== a.userCount) return b.userCount - a.userCount;
+          return b.id - a.id;
+        });
+        setExamPrepRows(rows.map(({ id, name, year }) => ({ id, name, year })));
+      } catch {
+        if (!cancelled) setExamPrepRows([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, examIdsDirect, profile?.target_year]);
 
   const [isPrivate, setIsPrivate] = useState(profile?.is_private ?? false);
   const [privacyUpdating, setPrivacyUpdating] = useState(false);
@@ -185,6 +351,17 @@ export function ProfileScreen() {
   const levelBadge = profile ? resolveLevelBadgeFromUser(profile) : null;
   const hasLevelBadge = levelBadge != null;
   const specialBadges = profile?.special_badges ?? [];
+  const xpDisplay = useMemo(() => {
+    const lv = profile?.level;
+    if (lv == null || !Number.isFinite(lv)) return null;
+    return Math.round(lv * 124 + 100);
+  }, [profile?.level]);
+
+  const followersCount = publicProfile?.follower_count ?? 0;
+  const followingCount = publicProfile?.following_count ?? 0;
+  const postCount = publicProfile?.post_count ?? 0;
+  const countsLoading = publicProfileLoading && !publicProfile;
+
   const openFollowList = useCallback(
     (kind: 'followers' | 'following') => {
       if (!userId) return;
@@ -195,8 +372,8 @@ export function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshCounts();
-    }, [refreshCounts]),
+      void refreshPublicProfile();
+    }, [refreshPublicProfile]),
   );
 
   useFocusEffect(
@@ -208,10 +385,10 @@ export function ProfileScreen() {
       };
       return tabParent.addListener('tabPress', (e) => {
         if (e.target === route.key) {
-          refreshCounts();
+          void refreshPublicProfile();
         }
       });
-    }, [navigation, route.key, refreshCounts]),
+    }, [navigation, route.key, refreshPublicProfile]),
   );
 
   const renderSavedItem = useCallback(
@@ -263,11 +440,15 @@ export function ProfileScreen() {
     }
     return (
       <View style={styles.savedEmptyWrap}>
-        <MaterialCommunityIcons name="bookmark-outline" size={48} color={colors.textMuted} />
-        <Text style={[styles.placeholderText, styles.savedEmptyTitle]}>{savedEmptyMessage}</Text>
+        <View style={styles.emptyStateCard}>
+          <View style={styles.emptyStateIconRing}>
+            <MaterialCommunityIcons name="bookmark-outline" size={36} color={colors.brand} />
+          </View>
+          <Text style={styles.emptyStateTitle}>{savedEmptyMessage}</Text>
+        </View>
       </View>
     );
-  }, [colors.brand, colors.textMuted, refreshSaved, savedEmptyMessage, savedError, savedLoading, savedPosts.length, styles]);
+  }, [colors.brand, refreshSaved, savedEmptyMessage, savedError, savedLoading, savedPosts.length, styles]);
 
   const myPostsEmptyMessage = useMemo(() => {
     if (!accessToken?.trim()) return 'Sign in to see your posts.';
@@ -291,143 +472,157 @@ export function ProfileScreen() {
     }
     return (
       <View style={styles.savedEmptyWrap}>
-        <MaterialCommunityIcons name="note-text-outline" size={48} color={colors.textMuted} />
-        <Text style={[styles.placeholderText, styles.savedEmptyTitle]}>{myPostsEmptyMessage}</Text>
-        <Pressable
-          style={[styles.primaryBtn, styles.emptyCtaBtn]}
-          onPress={() => goToMainTab('Post')}
-          accessibilityRole="button"
-          accessibilityLabel="Open Post tab"
-        >
-          <Text style={styles.primaryBtnText}>Compose</Text>
-        </Pressable>
+        <View style={styles.emptyStateCard}>
+          <View style={styles.emptyStateIconRing}>
+            <MaterialCommunityIcons name="post-outline" size={34} color={colors.brand} />
+          </View>
+          <Text style={styles.emptyStateTitle}>{myPostsEmptyMessage}</Text>
+          <Text style={styles.emptyStateHint}>
+            Use the purple + in the tab bar for a quick post, or open the full composer here.
+          </Text>
+          <Pressable
+            style={({ pressed }) => [styles.primaryBtn, styles.emptyCtaBtn, pressed && styles.primaryBtnPressed]}
+            onPress={() => goToMainTab('Post')}
+            accessibilityRole="button"
+            accessibilityLabel="Open Post tab"
+          >
+            <Text style={styles.primaryBtnText}>Open composer</Text>
+          </Pressable>
+        </View>
       </View>
     );
-  }, [
-    colors.brand,
-    colors.textMuted,
-    goToMainTab,
-    myPosts.length,
-    myPostsEmptyMessage,
-    myPostsError,
-    myPostsLoading,
-    refreshMyPosts,
-    styles,
-  ]);
+  }, [colors.brand, goToMainTab, myPosts.length, myPostsEmptyMessage, myPostsError, myPostsLoading, refreshMyPosts, styles]);
 
   const bottomPad = Math.max(insets.bottom, 12);
 
   return (
     <View style={styles.root}>
-      {/** Fixed: profile card + tabs (does not scroll) */}
       <View style={styles.topSlot}>
-        <View style={styles.topFixedContent}>
-          <View style={styles.headerCard}>
-            <View style={styles.avatarRow}>
-              <ProfileAvatarUploader
-                seed={userId ?? (username || 'profile')}
-                avatarUrl={profile?.avatar_url}
-                avatarUrls={profile?.avatar_urls}
-                uploadEnabled
-                displaySize={92}
-              />
-            </View>
-            <View style={styles.nameRow}>
-              <View style={styles.nameRowLeft}>
-                <Text
-                  style={styles.welcomeHeadline}
-                  accessibilityRole="header"
-                  numberOfLines={2}
-                  ellipsizeMode="tail"
-                >
-                  {fullName ? fullName : 'Profile'}
-                </Text>
-                {hasLevelBadge && levelBadge ? (
-                  <LevelBadge
-                    level={levelBadge.level}
-                    tier={levelBadge.tierLabel}
-                    tierColorHint={profile?.tier_color_hint}
-                    lineFontSize={theme.fintSizes.md}
-                    style={styles.levelBadgeInline}
-                  />
-                ) : null}
-              </View>
-            </View>
-            {username ? (
-              <Text style={styles.usernameLine} accessibilityLabel={`Username ${username}`}>
-                @{username}
+        <View style={[styles.purpleHeader, { paddingTop: Math.max(insets.top, 12) }]}>
+          <View style={styles.heroHeaderRow}>
+            <ProfileAvatarUploader
+              seed={userId ?? (username || 'profile')}
+              avatarUrl={profile?.avatar_url}
+              avatarUrls={profile?.avatar_urls}
+              uploadEnabled
+              displaySize={80}
+            />
+            <View style={styles.heroRowIdentity}>
+              <Text style={styles.heroName} accessibilityRole="header" numberOfLines={2}>
+                {fullName ? fullName : 'Profile'}
               </Text>
-            ) : (
-              <Text style={styles.muted}>Add a username in settings when available.</Text>
-            )}
-
-            {userId ? (
-              countsLoading ? (
-                <SkeletonGroup style={styles.countsRow}>
-                  <View style={styles.countBlock}>
-                    <SkeletonBox width={28} height={14} radius={7} />
-                    <SkeletonBox width={56} height={10} radius={5} />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                nestedScrollEnabled
+                style={styles.badgeChipScroll}
+                contentContainerStyle={styles.badgeChipRow}
+              >
+                <RotatingExamChip exams={examPrepRows} styles={styles} />
+                {hasLevelBadge && levelBadge ? (
+                  <View style={styles.chipTier}>
+                    <MaterialCommunityIcons name="star-four-points" size={14} color="#FBBF24" />
+                    <Text style={styles.chipTierText}>{levelBadge.tierLabel}</Text>
                   </View>
-                  <View style={styles.countDivider} />
-                  <View style={styles.countBlock}>
-                    <SkeletonBox width={28} height={14} radius={7} />
-                    <SkeletonBox width={56} height={10} radius={5} />
+                ) : null}
+                {specialBadges.map((code) => (
+                  <View key={code} style={[styles.chipPill, styles.chipFrost]}>
+                    <Text style={styles.chipLightText} numberOfLines={1}>
+                      {code.replace(/_/g, ' ')}
+                    </Text>
                   </View>
-                </SkeletonGroup>
-              ) : (
-                <View style={styles.countsRow} accessibilityRole="summary">
-                  <Pressable
-                    style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
-                    onPress={() => openFollowList('followers')}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open followers list, ${followersCount ?? 0}`}
-                  >
-                    <Text style={styles.countValue} accessibilityLabel={`Followers ${followersCount ?? 0}`}>
-                      {String(followersCount ?? 0)}
-                    </Text>
-                    <Text style={styles.countLabel}>Followers</Text>
-                  </Pressable>
-                  <View style={styles.countDivider} />
-                  <Pressable
-                    style={({ pressed }) => [styles.countBlock, pressed && styles.countBlockPressed]}
-                    onPress={() => openFollowList('following')}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Open following list, ${followingCount ?? 0}`}
-                  >
-                    <Text style={styles.countValue} accessibilityLabel={`Following ${followingCount ?? 0}`}>
-                      {String(followingCount ?? 0)}
-                    </Text>
-                    <Text style={styles.countLabel}>Following</Text>
-                  </Pressable>
-                </View>
-              )
-            ) : null}
-
-            {specialBadges.length > 0 ? <SpecialBadgesRow codes={specialBadges} /> : null}
+                ))}
+              </ScrollView>
+            </View>
+            <Pressable
+              style={({ pressed }) => [styles.editProfileIconBtn, styles.editProfileAlign, pressed && styles.heroPressDim]}
+              onPress={() => navigation.navigate('EditProfile')}
+              accessibilityRole="button"
+              accessibilityLabel="Edit profile"
+              hitSlop={12}
+            >
+              <MaterialCommunityIcons name="pencil-outline" size={22} color={colors.onBrand} />
+            </Pressable>
           </View>
 
-          <View style={styles.tabBarShell} accessibilityRole="tablist">
-            <View style={styles.tabBarRow}>
-              {PROFILE_TABS.map((t) => {
-                const selected = activeTab === t.id;
-                return (
-                  <Pressable
-                    key={t.id}
-                    style={({ pressed }) => [
-                      styles.tabPill,
-                      selected && styles.tabPillSelected,
-                      pressed && styles.tabPillPressed,
+          {userId ? (
+            countsLoading ? (
+              <SkeletonGroup style={styles.heroStatsRow}>
+                {[0, 1, 2, 3].map((k) => (
+                  <View key={k} style={styles.heroStatCell}>
+                    <SkeletonBox width={32} height={16} radius={6} />
+                    <SkeletonBox width={48} height={10} radius={4} />
+                  </View>
+                ))}
+              </SkeletonGroup>
+            ) : (
+              <View style={styles.heroStatsRow} accessibilityRole="summary">
+                <Pressable
+                  style={({ pressed }) => [styles.heroStatCell, pressed && styles.heroPressDim]}
+                  onPress={() => openFollowList('followers')}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.heroStatValue}>{String(followersCount)}</Text>
+                  <Text style={styles.heroStatLabel}>followers</Text>
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [styles.heroStatCell, pressed && styles.heroPressDim]}
+                  onPress={() => openFollowList('following')}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.heroStatValue}>{String(followingCount)}</Text>
+                  <Text style={styles.heroStatLabel}>following</Text>
+                </Pressable>
+                <View style={styles.heroStatCell}>
+                  <Text style={styles.heroStatValue}>{String(postCount)}</Text>
+                  <Text style={styles.heroStatLabel}>posts</Text>
+                </View>
+                <View
+                  style={styles.heroStatCell}
+                  accessibilityLabel={
+                    xpDisplay != null
+                      ? `Experience points ${xpDisplay.toLocaleString()}`
+                      : 'Experience points not set'
+                  }
+                >
+                  <View style={styles.heroXpValueRow}>
+                    <MaterialCommunityIcons name="lightning-bolt" size={18} color={colors.onBrand} />
+                    <Text style={styles.heroStatValue}>
+                      {xpDisplay != null ? xpDisplay.toLocaleString() : '—'}
+                    </Text>
+                  </View>
+                  <Text style={[styles.heroStatLabel, styles.heroStatLabelMetric]}>XP</Text>
+                </View>
+              </View>
+            )
+          ) : null}
+        </View>
+
+        <View style={styles.tabBarUnderlay} accessibilityRole="tablist">
+          <View style={styles.tabBarRowUnderline}>
+            {PROFILE_TAB_BAR.map((t) => {
+              const selected = activeTab === t.id;
+              return (
+                <Pressable
+                  key={t.id}
+                  style={({ pressed }) => [styles.tabUnderlineItem, pressed && styles.heroPressDim]}
+                  onPress={() => setActiveTab(t.id)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={t.label}
+                >
+                  <Text
+                    style={[
+                      styles.tabUnderlineLabel,
+                      selected ? styles.tabUnderlineLabelActive : styles.tabUnderlineLabelInactive,
                     ]}
-                    onPress={() => setActiveTab(t.id)}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={t.label}
                   >
-                    <Text style={[styles.tabPillLabel, selected && styles.tabPillLabelSelected]}>{t.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                    {t.label}
+                  </Text>
+                  {selected ? <View style={styles.tabUnderlineBar} /> : <View style={styles.tabUnderlineSpacer} />}
+                </Pressable>
+              );
+            })}
           </View>
         </View>
       </View>
@@ -471,6 +666,41 @@ export function ProfileScreen() {
               ) : null
             }
           />
+        ) : activeTab === 'tracker' ? (
+          <ScrollView
+            style={styles.scrollTab}
+            contentContainerStyle={[styles.secondaryTabContent, { paddingBottom: bottomPad }]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.trackerCard}>
+              <MaterialCommunityIcons name="chart-timeline-variant" size={44} color={colors.brand} />
+              <Text style={styles.trackerTitle}>Your study tracker</Text>
+              <Text style={styles.trackerBody}>
+                View streaks, mocks, heatmaps, and topic progress on the Progress tab.
+              </Text>
+              <Pressable
+                style={({ pressed }) => [styles.trackerCta, pressed && styles.heroPressDim]}
+                onPress={() => goToMainTab('Progress')}
+                accessibilityRole="button"
+                accessibilityLabel="Open Progress tab"
+              >
+                <Text style={styles.trackerCtaText}>Open Progress</Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.onBrand} />
+              </Pressable>
+            </View>
+          </ScrollView>
+        ) : activeTab === 'battles' ? (
+          <ScrollView
+            style={styles.scrollTab}
+            contentContainerStyle={[styles.secondaryTabContent, { paddingBottom: bottomPad }]}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.trackerCard}>
+              <MaterialCommunityIcons name="sword-cross" size={44} color={colors.textMuted} />
+              <Text style={styles.trackerTitle}>Battles</Text>
+              <Text style={styles.trackerBody}>Challenge friends and climb the leaderboard. Coming soon.</Text>
+            </View>
+          </ScrollView>
         ) : activeTab === 'posts' ? (
           <FlatList
             data={myPosts}
@@ -727,167 +957,323 @@ function createProfileStyles(colors: ThemeColors) {
     topSlot: {
       flexShrink: 0,
       zIndex: 2,
-      backgroundColor: colors.surfaceSubtle,
+      backgroundColor: colors.surface,
       ...Platform.select({
-        android: { elevation: 6 },
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.1,
+          shadowRadius: 10,
+        },
+        android: {
+          elevation: 6,
+        },
         default: {},
       }),
     },
-    topFixedContent: {
-      paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 5,
-      paddingBottom: 6,
+    purpleHeader: {
+      backgroundColor: colors.brand,
+      paddingHorizontal: 20,
+      paddingBottom: 20,
     },
-    bottomSlot: {
+    /** Avatar | name + exams (flex) | Edit profile */
+    heroHeaderRow: {
+      width: '100%',
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 12,
+    },
+    heroRowIdentity: {
       flex: 1,
-      minHeight: 0,
-      zIndex: 1,
+      minWidth: 0,
+      alignItems: 'flex-start',
+      gap: 5,
     },
-    headerCard: {
+    /** Keeps horizontal ScrollView from stretching to sibling height on iOS. */
+    badgeChipScroll: {
+      flexGrow: 0,
+      alignSelf: 'stretch',
+    },
+    editProfileAlign: {
+      flexShrink: 0,
+      alignSelf: 'flex-start',
+    },
+    heroPressDim: {
+      opacity: 0.82,
+    },
+    editProfileIconBtn: {
+      padding: 10,
+      borderRadius: theme.radius.pill,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,255,255,0.95)',
+      backgroundColor: 'rgba(255,255,255,0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroName: {
+      alignSelf: 'stretch',
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.xxl,
+      // lineHeight: 28,
+      color: colors.onBrand,
+      letterSpacing: -0.4,
+      textAlign: 'left',
+    },
+    badgeChipRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'nowrap',
+      gap: 8,
+      paddingVertical: 2,
+    },
+    examChipRotator: {
+      flexShrink: 0,
+      alignSelf: 'flex-start',
+    },
+    examChipRotatingText: {
+      width: '100%',
+    },
+    chipPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: theme.radius.pill,
+      borderWidth: 1,
+      maxWidth: 260,
+    },
+    chipFrost: {
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderColor: 'rgba(255,255,255,0.45)',
+    },
+    chipLightText: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.xs,
+      color: colors.onBrand,
+    },
+    chipTier: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: theme.radius.pill,
+      backgroundColor: '#EA580C',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.35)',
+    },
+    chipTierText: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.xs,
+      color: '#FFFBEB',
+    },
+    heroStatsRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginTop: 0,
+      paddingTop: 14,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: 'rgba(255,255,255,0.22)',
+    },
+    heroStatCell: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 4,
+    },
+    heroXpValueRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    heroStatValue: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.onBrand,
+      fontVariant: ['tabular-nums'],
+    },
+    heroStatLabel: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fontSizes.meta,
+      color: 'rgba(255,255,255,0.78)',
+      textTransform: 'lowercase',
+    },
+    heroStatLabelMetric: {
+      textTransform: 'none',
+      letterSpacing: 0.4,
+    },
+    tabBarUnderlay: {
+      backgroundColor: colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderSubtle,
+    },
+    tabBarRowUnderline: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+      paddingHorizontal: 12,
+    },
+    tabUnderlineItem: {
+      flex: 1,
+      alignItems: 'center',
+      paddingTop: 12,
+      paddingBottom: 0,
+    },
+    tabUnderlineLabel: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.sm,
+      paddingBottom: 10,
+    },
+    tabUnderlineLabelInactive: {
+      color: colors.textPrimary,
+      opacity: 0.55,
+    },
+    tabUnderlineLabelActive: {
+      color: colors.brand,
+      opacity: 1,
+    },
+    tabUnderlineBar: {
+      width: '100%',
+      height: 3,
+      borderTopLeftRadius: 2,
+      borderTopRightRadius: 2,
+      backgroundColor: colors.brand,
+    },
+    tabUnderlineSpacer: {
+      height: 3,
+    },
+    secondaryTabContent: {
+      paddingHorizontal: theme.spacing.screenPaddingH,
+      paddingTop: 16,
+      flexGrow: 1,
+    },
+    trackerCard: {
       backgroundColor: colors.surface,
       borderRadius: 14,
-      paddingTop: 4,
-      paddingHorizontal: 10,
-      paddingBottom: 8,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.borderSubtle,
+      padding: 22,
+      alignItems: 'center',
+      gap: 10,
       ...Platform.select({
         ios: {
           shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.05,
+          shadowOpacity: 0.06,
           shadowRadius: 8,
         },
         android: { elevation: 2 },
         default: {},
       }),
     },
+    trackerTitle: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.lg,
+      color: colors.textPrimary,
+      textAlign: 'center',
+    },
+    trackerBody: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 22,
+      maxWidth: 320,
+    },
+    trackerCta: {
+      marginTop: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 12,
+      paddingHorizontal: 18,
+      borderRadius: theme.radius.pill,
+      backgroundColor: colors.brandLight,
+    },
+    trackerCtaText: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.brand,
+    },
+    bottomSlot: {
+      flex: 1,
+      minHeight: 0,
+      zIndex: 1,
+    },
     savedList: {
       flex: 1,
     },
     savedListContent: {
       paddingHorizontal: theme.spacing.screenPaddingH,
-      paddingTop: 4,
+      paddingTop: 10,
     },
     savedListContentEmpty: {
       flexGrow: 1,
     },
     savedEmptyWrap: {
       flex: 1,
-      minHeight: 120,
+      minHeight: 200,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 24,
-      paddingVertical: 32,
+      paddingHorizontal: theme.spacing.screenPaddingH,
+      paddingVertical: 28,
     },
-    savedEmptyTitle: {
-      marginTop: 12,
+    emptyStateCard: {
+      width: '100%',
+      maxWidth: 360,
+      alignItems: 'center',
+      paddingVertical: 28,
+      paddingHorizontal: 22,
+      borderRadius: 16,
+      backgroundColor: colors.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.06,
+          shadowRadius: 10,
+        },
+        android: { elevation: 2 },
+        default: {},
+      }),
+    },
+    emptyStateIconRing: {
+      width: 76,
+      height: 76,
+      borderRadius: 38,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.brandLight,
+      marginBottom: 16,
+    },
+    emptyStateTitle: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+      textAlign: 'center',
+      lineHeight: 22,
+      letterSpacing: -0.2,
+    },
+    emptyStateHint: {
+      marginTop: 10,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.xs,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 18,
+      opacity: 0.95,
     },
     scrollTab: {
       flex: 1,
     },
-    avatarRow: {
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    nameRow: {
-      alignSelf: 'stretch',
-      alignItems: 'center',
-    },
-    nameRowLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexWrap: 'wrap',
-      gap: 4,
-      alignSelf: 'center',
-      width: '100%',
-      maxWidth: '100%',
-      paddingHorizontal: 2,
-    },
-    welcomeHeadline: {
-      flexShrink: 1,
-      minWidth: 0,
-      maxWidth: '100%',
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.md,
-      color: colors.textPrimary,
-      letterSpacing: -0.15,
-      lineHeight: 22,
-      textAlign: 'center',
-    },
-    levelBadgeInline: {
-      marginLeft: 0,
-      flexShrink: 0,
-    },
-    usernameLine: {
-      marginTop: 2,
-      alignSelf: 'center',
-      width: '100%',
-      textAlign: 'center',
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.xs,
-      color: colors.textMuted,
-    },
-    muted: {
-      marginTop: 6,
-      alignSelf: 'center',
-      width: '100%',
-      textAlign: 'center',
-      fontFamily: theme.typography.regular,
-      fontSize: theme.fintSizes.xs,
-      color: colors.textMuted,
-    },
-    /** Three tabs: equal width across the bar */
-    tabBarShell: {
-      width: '100%',
-      maxWidth: '100%',
-      alignSelf: 'stretch',
-      marginTop: 5,
-      paddingVertical: 4,
-      paddingHorizontal: 4,
-      borderRadius: 14,
-      backgroundColor: colors.surface,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: colors.borderSubtle,
-      overflow: 'hidden',
-    },
-    tabBarRow: {
-      flexDirection: 'row',
-      width: '100%',
-      alignItems: 'stretch',
-      justifyContent: 'space-between',
-    },
-    tabPill: {
-      flex: 1,
-      flexBasis: 0,
-      minWidth: 0,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      paddingVertical: 11,
-      paddingHorizontal: 4,
-      borderRadius: 10,
-    },
-    tabPillSelected: {
-      backgroundColor: colors.brandLight,
-    },
-    tabPillPressed: {
-      opacity: 0.88,
-    },
-    tabPillLabel: {
-      flexShrink: 1,
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.xs,
-      color: colors.textMuted,
-      textAlign: 'center',
-    },
-    tabPillLabelSelected: {
-      color: colors.brand,
-    },
     emptyCtaBtn: {
-      marginTop: 16,
+      marginTop: 18,
+      minWidth: 200,
+    },
+    primaryBtnPressed: {
+      opacity: 0.88,
     },
     aboutScrollContent: {
       paddingTop: 8,
@@ -1087,41 +1473,6 @@ function createProfileStyles(colors: ThemeColors) {
     },
     footerSpinner: {
       paddingVertical: 16,
-    },
-    countsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 6,
-      paddingVertical: 6,
-      paddingHorizontal: 8,
-      borderRadius: 10,
-      backgroundColor: colors.surfaceSubtle,
-    },
-    countBlock: {
-      flex: 1,
-      alignItems: 'center',
-      gap: 2,
-      paddingVertical: 2,
-      borderRadius: 10,
-    },
-    countBlockPressed: {
-      opacity: 0.72,
-    },
-    countValue: {
-      fontFamily: theme.typography.semiBold,
-      fontSize: theme.fintSizes.md,
-      color: colors.textPrimary,
-      fontVariant: ['tabular-nums'],
-    },
-    countLabel: {
-      fontFamily: theme.typography.medium,
-      fontSize: theme.fontSizes.meta,
-      color: colors.textMuted,
-    },
-    countDivider: {
-      width: 1,
-      alignSelf: 'stretch',
-      backgroundColor: colors.borderSubtle,
     },
   });
 }
