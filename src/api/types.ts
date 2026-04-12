@@ -40,6 +40,7 @@ export type TokenUser = {
   gender?: string;
   dob?: string;
   grade?: string;
+  institute?: string;
   bio?: string;
   avatar_url?: string;
   /** R2 CDN sizes (`400`, `100`, `40`, `24`); each URL includes `?v=` cache-bust. */

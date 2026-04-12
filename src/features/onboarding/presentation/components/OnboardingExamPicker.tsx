@@ -60,6 +60,17 @@ function createOnboardingExamInterestsStyles(colors: ThemeColors) {
     flex: 1,
     backgroundColor: colors.surface,
   },
+  screenRootCompact: {
+    flexGrow: 0,
+    flexShrink: 0,
+    backgroundColor: 'transparent',
+  },
+  categoriesScrollContentCompact: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 8,
+    flexGrow: 0,
+  },
   listFlex: {
     flex: 1,
   },
@@ -992,6 +1003,8 @@ function ModalChrome({
 export type OnboardingExamPickerProps = {
   selectedExams: SelectedExamDraft[];
   onSelectionChange: (next: SelectedExamDraft[]) => void;
+  /** Embedded in Edit Profile: selected row + search only (no category grid). */
+  compact?: boolean;
 };
 
 /**
@@ -1000,6 +1013,7 @@ export type OnboardingExamPickerProps = {
 export function OnboardingExamPicker({
   selectedExams,
   onSelectionChange,
+  compact = false,
 }: OnboardingExamPickerProps) {
   const colors = useThemeColors();
   const styles = useMemo(
@@ -1111,66 +1125,89 @@ export function OnboardingExamPicker({
   }
 
   return (
-    <View style={styles.screenRoot}>
+    <View style={compact ? styles.screenRootCompact : styles.screenRoot}>
       <ScrollView
-        style={styles.listFlex}
-        contentContainerStyle={styles.categoriesScrollContent}
+        style={compact ? undefined : styles.listFlex}
+        contentContainerStyle={
+          compact ? styles.categoriesScrollContentCompact : styles.categoriesScrollContent
+        }
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={loading && Boolean(categories?.length)} onRefresh={refresh} />
+          compact ? undefined : (
+            <RefreshControl refreshing={loading && Boolean(categories?.length)} onRefresh={refresh} />
+          )
         }
       >
-        <View style={styles.mainSearchBlock}>
-          <Pressable
-            style={styles.searchShell}
-            onPress={() => setSheet({ type: 'search' })}
-            accessibilityRole="button"
-            accessibilityLabel="Search exams"
-          >
-            <MaterialCommunityIcons name="magnify" size={22} color={colors.textMuted} />
-            <Text style={styles.searchTriggerLabel}>Search</Text>
-          </Pressable>
-        </View>
-        {selectedStrip}
-        <View style={styles.chipWrap}>
-          {(categories ?? []).map((cat) => {
-            const active =
-              sheet?.type === 'category' && sheet.id === cat.id;
-            return (
+        {compact ? (
+          <>
+            {selectedStrip}
+            <View style={styles.mainSearchBlock}>
               <Pressable
-                key={cat.id}
-                style={({ pressed }) => [
-                  styles.examChoiceChip,
-                  active && styles.examChoiceChipSelected,
-                  pressed && styles.examChoiceChipPressed,
-                ]}
-                onPress={() => setSheet({ type: 'category', id: cat.id, name: cat.name })}
-                android_ripple={{
-                  color: active ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
-                }}
+                style={styles.searchShell}
+                onPress={() => setSheet({ type: 'search' })}
                 accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={categoryExamDisplayName(cat.name)}
+                accessibilityLabel="Search exams"
               >
-                <View style={styles.examChoiceChipTrack} pointerEvents="none" />
-                {active ? <View style={styles.examChoiceChipFill} pointerEvents="none" /> : null}
-                <View style={styles.examChoiceChipRow}>
-                  <Text
-                    style={[styles.examChoiceChipLabel, active && styles.examChoiceChipLabelOnFill]}
-                    numberOfLines={1}
-                  >
-                    {categoryExamDisplayName(cat.name)}
-                  </Text>
-                </View>
+                <MaterialCommunityIcons name="magnify" size={22} color={colors.textMuted} />
+                <Text style={styles.searchTriggerLabel}>Search exams</Text>
               </Pressable>
-            );
-          })}
-        </View>
-        {(categories ?? []).length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No categories yet.</Text>
-          </View>
-        ) : null}
+            </View>
+          </>
+        ) : (
+          <>
+            <View style={styles.mainSearchBlock}>
+              <Pressable
+                style={styles.searchShell}
+                onPress={() => setSheet({ type: 'search' })}
+                accessibilityRole="button"
+                accessibilityLabel="Search exams"
+              >
+                <MaterialCommunityIcons name="magnify" size={22} color={colors.textMuted} />
+                <Text style={styles.searchTriggerLabel}>Search</Text>
+              </Pressable>
+            </View>
+            {selectedStrip}
+            <View style={styles.chipWrap}>
+              {(categories ?? []).map((cat) => {
+                const active =
+                  sheet?.type === 'category' && sheet.id === cat.id;
+                return (
+                  <Pressable
+                    key={cat.id}
+                    style={({ pressed }) => [
+                      styles.examChoiceChip,
+                      active && styles.examChoiceChipSelected,
+                      pressed && styles.examChoiceChipPressed,
+                    ]}
+                    onPress={() => setSheet({ type: 'category', id: cat.id, name: cat.name })}
+                    android_ripple={{
+                      color: active ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={categoryExamDisplayName(cat.name)}
+                  >
+                    <View style={styles.examChoiceChipTrack} pointerEvents="none" />
+                    {active ? <View style={styles.examChoiceChipFill} pointerEvents="none" /> : null}
+                    <View style={styles.examChoiceChipRow}>
+                      <Text
+                        style={[styles.examChoiceChipLabel, active && styles.examChoiceChipLabelOnFill]}
+                        numberOfLines={1}
+                      >
+                        {categoryExamDisplayName(cat.name)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {(categories ?? []).length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyText}>No categories yet.</Text>
+              </View>
+            ) : null}
+          </>
+        )}
       </ScrollView>
 
       <Modal

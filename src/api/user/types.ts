@@ -32,6 +32,8 @@ export type MeResponse = {
   bio: string | null;
   gender: string | null;
   grade: string | null;
+  /** School, college, or coaching — when the backend returns it on `/me`. */
+  institute?: string | null;
   /** `null` or `YYYY-MM-DD` */
   dob: string | null;
   level?: number | null;
@@ -59,6 +61,7 @@ export type PatchMeRequest = Partial<{
   username: string | null;
   gender: string | null;
   grade: string | null;
+  institute: string | null;
   /** `YYYY-MM-DD` or null to clear */
   dob: string | null;
   target_year: number;
