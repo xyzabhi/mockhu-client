@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppError, authApi, FORGOT_PASSWORD_PUBLIC_MESSAGE } from '../../../../api';
+import { AppError, authApi } from '../../../../api';
 import {
   type ThemeColors,
   useThemeColors,
@@ -31,8 +31,6 @@ export type ForgotPasswordEmailScreenProps = {
   onContinueToReset: (email: string) => void;
 };
 
-type Phase = 'enterEmail' | 'checkEmail';
-
 export function ForgotPasswordEmailScreen({
   initialEmail = '',
   onBack,
@@ -42,7 +40,6 @@ export function ForgotPasswordEmailScreen({
   const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
 
-  const [phase, setPhase] = useState<Phase>('enterEmail');
   const [email, setEmail] = useState(initialEmail);
   const [focusedField, setFocusedField] = useState<'email' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,7 +64,7 @@ export function ForgotPasswordEmailScreen({
       if (__DEV__ && data.otp != null && data.otp !== '') {
         console.log('[Mockhu dev] Forgot password OTP (dev only):', data.otp);
       }
-      setPhase('checkEmail');
+      onContinueToReset(normalized);
     } catch (e) {
       const message =
         e instanceof AppError && e.status != null && e.status >= 500
@@ -79,10 +76,6 @@ export function ForgotPasswordEmailScreen({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleContinue = () => {
-    onContinueToReset(email.trim().toLowerCase());
   };
 
   return (
@@ -116,75 +109,57 @@ export function ForgotPasswordEmailScreen({
             <MaterialCommunityIcons name="arrow-left" size={26} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.headerContent}>
-            <Text style={styles.title}>
-              {phase === 'enterEmail' ? 'Forgot password' : 'Check your email'}
-            </Text>
+            <Text style={styles.title}>Forgot password</Text>
             <Text style={styles.subtitle}>
-              {phase === 'enterEmail'
-                ? 'Enter your account email. We will send a verification code if an account with a password exists.'
-                : FORGOT_PASSWORD_PUBLIC_MESSAGE}
+              Enter your account email. We will send a verification code if an account with a password exists.
             </Text>
           </View>
         </View>
 
-        {phase === 'enterEmail' ? (
-          <View style={styles.form}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={[
-                styles.input,
-                email.length > 0 ? styles.inputFilled : styles.inputDefault,
-                focusedField === 'email' ? styles.inputFocused : styles.inputIdle,
-              ]}
-              placeholder="you@example.com"
-              placeholderTextColor={colors.textHint}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={email}
-              onChangeText={(t) => setEmail(t.toLowerCase())}
-              onFocus={() => setFocusedField('email')}
-              onBlur={() => setFocusedField(null)}
-              accessibilityLabel="Email address"
-              textContentType="emailAddress"
-              autoComplete="email"
-            />
-          </View>
-        ) : null}
+        <View style={styles.form}>
+          <Text style={styles.label}>Email</Text>
+          <TextInput
+            style={[
+              styles.input,
+              email.length > 0 ? styles.inputFilled : styles.inputDefault,
+              focusedField === 'email' ? styles.inputFocused : styles.inputIdle,
+            ]}
+            placeholder="you@example.com"
+            placeholderTextColor={colors.textHint}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={(t) => setEmail(t.toLowerCase())}
+            onFocus={() => setFocusedField('email')}
+            onBlur={() => setFocusedField(null)}
+            accessibilityLabel="Email address"
+            textContentType="emailAddress"
+            autoComplete="email"
+          />
+        </View>
       </ScrollView>
 
       <View style={[styles.primaryButtonContainer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
         {submitError ? <Text style={styles.errorText}>{submitError}</Text> : null}
-        {phase === 'enterEmail' ? (
-          <Pressable
-            style={[
-              styles.primaryButton,
-              (!emailValid || isSubmitting) && styles.primaryButtonDisabled,
-            ]}
-            onPress={() => void handleSendForgot()}
-            disabled={!emailValid || isSubmitting}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !emailValid || isSubmitting }}
-            accessibilityLabel="Send reset code"
-          >
-            {isSubmitting ? (
-              <ActivityIndicator size="small" color={colors.onBrand} />
-            ) : (
-              <Text style={styles.primaryButtonText}>Send code</Text>
-            )}
-          </Pressable>
-        ) : (
-          <Pressable
-            style={styles.primaryButton}
-            onPress={handleContinue}
-            android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-            accessibilityRole="button"
-            accessibilityLabel="Continue to enter code and new password"
-          >
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          </Pressable>
-        )}
+        <Pressable
+          style={[
+            styles.primaryButton,
+            (!emailValid || isSubmitting) && styles.primaryButtonDisabled,
+          ]}
+          onPress={() => void handleSendForgot()}
+          disabled={!emailValid || isSubmitting}
+          android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !emailValid || isSubmitting }}
+          accessibilityLabel="Send reset code"
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={colors.onBrand} />
+          ) : (
+            <Text style={styles.primaryButtonText}>Send code</Text>
+          )}
+        </Pressable>
       </View>
     </KeyboardAvoidingView>
   );

@@ -32,7 +32,6 @@ export const theme = {
     /** Disabled primary CTA: white fill, brand outline + brand label */
     ctaDisabledBackground: '#ffffff',
     /** Legacy aliases (icons) */
-    iconPhone: '#111827',
     iconEmail: '#111827',
     iconFacebook: '#1877F2',
     iconApple: '#111827',
@@ -62,7 +61,6 @@ export const theme = {
     danger: '#f87171',
     onBrand: '#ffffff',
     ctaDisabledBackground: '#18181b',
-    iconPhone: '#e4e4e7',
     iconEmail: '#e4e4e7',
     iconFacebook: '#1877F2',
     iconApple: '#e4e4e7',

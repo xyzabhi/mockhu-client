@@ -12,8 +12,8 @@ type AuthLayoutProps = {
   children: ReactNode;
 };
 
-const HERO_FLEX = 3;
-const SHEET_FLEX = 7;
+const HERO_FLEX = 2.5;
+const SHEET_FLEX = 7.5;
 
 /** Aligns Android text metrics with iOS (Roboto extra padding). */
 const textAndroid = Platform.OS === 'android' ? ({ includeFontPadding: false } as const) : {};
@@ -122,14 +122,13 @@ function createAuthLayoutStyles(colors: ThemeColors) {
       flex: 1,
       minHeight: 0,
       width: '100%',
-      marginTop: 20,
+      marginTop: 28,
     },
     footer: {
       width: '100%',
       alignItems: 'center',
       flexShrink: 0,
-      marginTop: 16,
-      paddingTop: 10,
+      paddingTop: 12,
     },
     footerText: {
       fontFamily: theme.typography.regular,

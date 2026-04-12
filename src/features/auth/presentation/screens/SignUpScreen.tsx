@@ -3,7 +3,6 @@ import { SocialAuthButtons } from '../components/SocialAuthButtons';
 
 type SignUpScreenProps = {
   onSwitchToLogin: () => void;
-  onPressPhone: () => void;
   onPressEmail: () => void;
   onPressGoogle?: () => void | Promise<void>;
   googleBusy?: boolean;
@@ -12,7 +11,6 @@ type SignUpScreenProps = {
 
 export function SignUpScreen({
   onSwitchToLogin,
-  onPressPhone,
   onPressEmail,
   onPressGoogle,
   googleBusy,
@@ -26,7 +24,6 @@ export function SignUpScreen({
       <SocialAuthButtons
         switchCtaLabel="Already have an account? Login"
         onSwitchMode={onSwitchToLogin}
-        onPressPhone={onPressPhone}
         onPressEmail={onPressEmail}
         onPressGoogle={onPressGoogle}
         googleBusy={googleBusy}

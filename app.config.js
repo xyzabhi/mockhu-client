@@ -1,4 +1,4 @@
-// Merges app.json and adds the Google Sign-In config plugin (Expo without Firebase).
+// Merges app.json and adds Google Sign-In + expo-web-browser.
 // Official setup: https://react-native-google-signin.github.io/docs/setting-up/expo
 // `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` must be set in .env before `npx expo prebuild --clean` / `expo run:ios`
 // so `iosUrlScheme` matches Google Cloud (same as the doc’s com.googleusercontent.apps.* value).
