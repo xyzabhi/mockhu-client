@@ -26,6 +26,8 @@ export type MainTabParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Onboarding: undefined;
+  /** Shown once after onboarding API succeeds; Skip / Continue → Main. */
+  PostOnboardingSuggestions: undefined;
   SuggestedUsers: undefined;
   FollowList: { userId: string; kind: 'followers' | 'following' };
   /** Job alerts matched to profile / exams (placeholder until API). */

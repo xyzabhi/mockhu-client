@@ -10,8 +10,7 @@ import { hydrateSessionUserFromMe, loadPersistedSession, setReauthHandler } from
 import { refreshTokens } from '../api/refreshCoordinator';
 import * as sessionStore from '../api/sessionStore';
 import { useThemeColors, useThemePreference } from '../presentation/theme/ThemeContext';
-import { OnboardingDraftProvider } from '../features/onboarding/OnboardingDraftContext';
-import { OnboardingLayout } from '../features/onboarding/OnboardingLayout';
+import { OnboardingCompletionScreen } from '../features/onboarding/presentation/screens/OnboardingCompletionScreen';
 import { AuthNavigator } from './AuthNavigator';
 import {
   flushPendingNavigationReset,
@@ -33,19 +32,18 @@ import { BookmarksScreen } from './screens/BookmarksScreen';
 import { GlobalSearchScreen } from './screens/GlobalSearchScreen';
 import { TrendingScreen } from './screens/TrendingScreen';
 import { UserProfileScreen } from './screens/UserProfileScreen';
+import { PostOnboardingSuggestionsScreen } from './screens/PostOnboardingSuggestionsScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function OnboardingScreen() {
   return (
-    <OnboardingDraftProvider>
-      <OnboardingLayout
-        onFinish={() => {
-          resetToRoute('Main');
-        }}
-      />
-    </OnboardingDraftProvider>
+    <OnboardingCompletionScreen
+      onFinish={() => {
+        resetToRoute('PostOnboardingSuggestions');
+      }}
+    />
   );
 }
 
@@ -149,6 +147,11 @@ export function RootNavigator() {
       >
         <Stack.Screen name="Auth" component={AuthNavigator} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen
+          name="PostOnboardingSuggestions"
+          component={PostOnboardingSuggestionsScreen}
+          options={{ animation: 'fade' }}
+        />
         <Stack.Screen
           name="SuggestedUsers"
           component={SuggestedUsersScreen}

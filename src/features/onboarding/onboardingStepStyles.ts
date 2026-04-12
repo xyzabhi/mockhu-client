@@ -27,7 +27,7 @@ export function onboardingInputShadow() {
 }
 
 /**
- * Shared layout + labels for onboarding step bodies (below OnboardingLayout header).
+ * Shared layout + labels for onboarding form fields (OnboardingCompletionScreen).
  */
 export function createOnboardingStepStyles(colors: ThemeColors) {
   return StyleSheet.create({

@@ -44,6 +44,8 @@ export type EmailOtpRequestScreenProps =
       mode: 'login';
       onBack: () => void;
       onLoggedIn: (tokens: TokenResponse) => void;
+      /** Opens forgot-password flow; receives current email field (may be empty). */
+      onForgotPassword?: (prefilledEmail: string) => void;
     };
 
 export function EmailOtpRequestScreen(props: EmailOtpRequestScreenProps) {
@@ -282,6 +284,17 @@ export function EmailOtpRequestScreen(props: EmailOtpRequestScreenProps) {
                 autoComplete="password"
                 accessibilityLabel="Password"
               />
+              {props.onForgotPassword ? (
+                <Pressable
+                  onPress={() => props.onForgotPassword?.(email.trim().toLowerCase())}
+                  style={styles.forgotPasswordHit}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Forgot password"
+                >
+                  <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+                </Pressable>
+              ) : null}
             </>
           )}
         </View>
@@ -452,6 +465,16 @@ function createStyles(colors: ThemeColors) {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.md,
       color: colors.onBrand,
+    },
+    forgotPasswordHit: {
+      alignSelf: 'flex-end',
+      marginTop: 10,
+      paddingVertical: 4,
+    },
+    forgotPasswordText: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.sm,
+      color: colors.brand,
     },
   });
 }

@@ -53,6 +53,11 @@ function AuthEmailNav({
         mode="login"
         onBack={() => navigation.goBack()}
         onLoggedIn={(tokens) => resetToRootAfterAuth(tokens)}
+        onForgotPassword={(prefilledEmail) =>
+          navigation.navigate('AuthForgotPasswordEmail', {
+            prefilledEmail: prefilledEmail.length > 0 ? prefilledEmail : undefined,
+          })
+        }
       />
     );
   }

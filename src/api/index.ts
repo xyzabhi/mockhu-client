@@ -190,3 +190,4 @@ export type {
   SearchUserResult,
 } from './search/types';
 export { useGlobalSearch } from './hooks/useGlobalSearch';
+export { useExamSearch } from './hooks/useExamSearch';

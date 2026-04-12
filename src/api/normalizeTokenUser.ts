@@ -30,16 +30,19 @@ export function normalizeTokenUserProfile(u: TokenUser): TokenUser {
   };
 
   const level = numOr(r.level, undefined);
+  const target_year = numOr(r.target_year, r.targetYear);
 
   const next: Record<string, unknown> = { ...r };
   delete next.firstName;
   delete next.lastName;
   delete next.userName;
+  delete next.targetYear;
 
   if (first_name !== undefined) next.first_name = first_name;
   if (last_name !== undefined) next.last_name = last_name;
   if (username !== undefined) next.username = username;
   if (level !== undefined) next.level = level;
+  if (target_year !== undefined) next.target_year = target_year;
   if (typeof r.tier === 'string' && r.tier.trim()) next.tier = r.tier.trim();
   if (typeof r.tier_color_hint === 'string' && r.tier_color_hint.trim()) {
     next.tier_color_hint = r.tier_color_hint.trim();

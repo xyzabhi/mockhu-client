@@ -54,7 +54,31 @@ Helpers (from `src/api/config.ts`):
 | `health.ts` | `GET /health` (plain JSON, not the standard envelope) |
 | `user/userApi.ts` | Example feature module using `apiGet` |
 | `hooks/useSession.ts` | React hook subscribed to session changes |
+| `onboarding/onboardingApi.ts` | `postOnboarding` — authenticated `POST /api/v1/onboarding` |
 | `index.ts` | Public exports |
+
+---
+
+## Onboarding (`POST /api/v1/onboarding`)
+
+**Auth:** Bearer access token (same session as the rest of the app). Base URL and path: `{EXPO_PUBLIC_MOCKHU_API_BASE_URL}/api/v1/onboarding` — see **Configuration** (`getApiBaseUrl()` / `getApiV1Url()`).
+
+**Body (JSON, snake_case only):**
+
+| Field | Type | Rules |
+|-------|------|--------|
+| `first_name` | string | Required, non-empty after trim |
+| `last_name` | string | Required, non-empty after trim |
+| `exam_ids` | `number[]` | Required, at least one id (must exist and be active on the server) |
+| `target_year` | number | Required; the app sends a year from the **current calendar year** through **2035** inclusive |
+
+Do **not** send `exam_category_ids`, `bio`, `avatar_url`, `username`, `dob`, `gender`, or `grade` on this endpoint.
+
+**Success:** Standard envelope; `data` includes at least `id`, `first_name`, `last_name`, `target_year`, `username`, `is_onboarded`, `exam_ids`, `created_at`, `updated_at`. The app merges `data` into the session via `mergeSessionUser` and treats the user as onboarded.
+
+**Errors:** Non-2xx responses become **`AppError`** with `message` from the API (e.g. **400** validation, **404** invalid/inactive `exam_id`, **401** missing or invalid token).
+
+**Exam list:** The onboarding UI loads choices from the public catalog — `GET /api/v1/exams` (`examCatalogApi.listExams`) — using the same numeric ids the backend expects.
 
 ---
 

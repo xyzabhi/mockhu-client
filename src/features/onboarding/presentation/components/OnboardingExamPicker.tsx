@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import {
   ActivityIndicator,
@@ -22,32 +23,23 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useExamCategories, useExamsList } from '../../../../api';
-import type { Exam, ExamCategory } from '../../../../api';
+import { useExamCategories, useExamSearch, useExamsList } from '../../../../api';
+import type { Exam, SearchExamResult } from '../../../../api';
 import {
   type ThemeColors,
   useThemeColors,
 } from '../../../../presentation/theme/ThemeContext';
 import { theme } from '../../../../presentation/theme/theme';
 import { formatCompactCount } from '../../../../shared/utils/formatCompactCount';
-import { useOnboardingDraft } from '../../OnboardingDraftContext';
+import {
+  MAX_ONBOARDING_EXAM_SELECTIONS,
+  type SelectedExamDraft,
+} from '../../onboardingDraft';
 import { createOnboardingStepStyles } from '../../onboardingStepStyles';
 import {
   type MessageModalShowConfig,
   useMessageModal,
 } from '../../../../shared/components/MessageModal';
-import type { OnboardingStepScreenProps } from '../../onboardingStepTypes';
-
-type PickedCategory = { id: number; name: string };
-
-type SelectedExamEntry = {
-  id: number;
-  name: string;
-  category_id: number;
-  user_count?: number;
-};
-
-const MAX_EXAM_SELECTIONS = 4;
 
 function categoryNameSlug(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
@@ -76,6 +68,50 @@ function createOnboardingExamInterestsStyles(colors: ThemeColors) {
     paddingTop: 8,
     paddingBottom: 24,
     flexGrow: 1,
+  },
+  mainSearchBlock: {
+    marginBottom: 12,
+  },
+  selectedStripRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  selectedStripMeta: {
+    fontFamily: theme.typography.medium,
+    fontSize: 12,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  selectedStripScroll: {
+    flex: 1,
+  },
+  selectedStripScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 4,
+  },
+  selectedPill: {
+    alignSelf: 'flex-start',
+    maxWidth: 220,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    backgroundColor: colors.brand,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+  },
+  selectedPillLabel: {
+    fontFamily: theme.typography.medium,
+    fontSize: theme.fintSizes.sm,
+    lineHeight: 18,
+    color: colors.onBrand,
+  },
+  searchLoadingRow: {
+    paddingVertical: 24,
+    alignItems: 'center',
   },
   modalSearchBlock: {
     paddingBottom: 12,
@@ -157,6 +193,13 @@ function createOnboardingExamInterestsStyles(colors: ThemeColors) {
     fontFamily: theme.typography.regular,
     fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
+    paddingVertical: 10,
+  },
+  searchTriggerLabel: {
+    flex: 1,
+    fontFamily: theme.typography.regular,
+    fontSize: theme.fintSizes.md,
+    color: colors.textMuted,
     paddingVertical: 10,
   },
   modalRoot: {
@@ -356,28 +399,6 @@ function createOnboardingExamInterestsStyles(colors: ThemeColors) {
     fontSize: theme.fintSizes.md,
     color: colors.textPrimary,
   },
-  selectedBlock: {
-    marginBottom: 20,
-  },
-  selectedHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  selectedSectionTitle: {
-    fontFamily: theme.typography.semiBold,
-    fontSize: theme.fintSizes.sm,
-    color: colors.textMuted,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  selectedCountMeta: {
-    fontFamily: theme.typography.medium,
-    fontSize: theme.fintSizes.sm,
-    color: colors.textMuted,
-    fontVariant: ['tabular-nums'],
-  },
   });
 }
 
@@ -414,6 +435,222 @@ function SearchField({
           <MaterialCommunityIcons name="close-circle" size={20} color={colors.textMuted} />
         </Pressable>
       ) : null}
+    </View>
+  );
+}
+
+type SheetState =
+  | null
+  | { type: 'category'; id: number; name: string }
+  | { type: 'search' };
+
+/** Same sheet as category; exams appear only after the user types a search query. */
+function SearchExamsModalBody({
+  onClose,
+  selectedExamIds,
+  onToggleExam,
+  onRegisterSheetMessageShow,
+  bottomInset,
+  styles,
+  colors,
+}: {
+  onClose: () => void;
+  selectedExamIds: Set<number>;
+  onToggleExam: (
+    examId: number,
+    examName: string,
+    categoryId: number,
+    userCount?: number,
+  ) => void;
+  onRegisterSheetMessageShow?: (
+    show: ((config: MessageModalShowConfig) => void) | null,
+  ) => void;
+  bottomInset: number;
+  styles: ReturnType<typeof createOnboardingExamInterestsStyles>;
+  colors: ThemeColors;
+}) {
+  const { query, setQuery, exams, loading, error, refetch } = useExamSearch();
+  const { modal, show: showModal } = useMessageModal();
+
+  useEffect(() => {
+    onRegisterSheetMessageShow?.(showModal);
+    return () => {
+      onRegisterSheetMessageShow?.(null);
+    };
+  }, [showModal, onRegisterSheetMessageShow]);
+
+  const q = query.trim();
+
+  const renderSearchExamChip = useCallback(
+    (item: SearchExamResult) => {
+      const selected = selectedExamIds.has(item.id);
+      return (
+        <Pressable
+          style={({ pressed }) => [
+            styles.examChoiceChip,
+            selected && styles.examChoiceChipSelected,
+            pressed && styles.examChoiceChipPressed,
+          ]}
+          onPress={() =>
+            onToggleExam(item.id, item.name, item.category_id, item.user_count)
+          }
+          android_ripple={{
+            color: selected ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
+          }}
+          accessibilityRole="button"
+          accessibilityState={{ selected }}
+          accessibilityHint={selected ? 'Double tap to deselect' : 'Double tap to select'}
+          accessibilityLabel={categoryExamDisplayName(item.name)}
+        >
+          <View style={styles.examChoiceChipTrack} pointerEvents="none" />
+          {selected ? <View style={styles.examChoiceChipFill} pointerEvents="none" /> : null}
+          <View style={styles.examChoiceChipRow}>
+            <Text
+              style={[styles.examChoiceChipLabel, selected && styles.examChoiceChipLabelOnFill]}
+              numberOfLines={1}
+            >
+              {categoryExamDisplayName(item.name)}
+            </Text>
+            {item.user_count > 0 ? (
+              <Text
+                style={[styles.examChoiceChipMeta, selected && styles.examChoiceChipMetaSelected]}
+              >
+                {formatCompactCount(item.user_count)}
+              </Text>
+            ) : null}
+          </View>
+        </Pressable>
+      );
+    },
+    [selectedExamIds, onToggleExam, styles],
+  );
+
+  const selectedHere = useMemo(
+    () => exams.filter((e) => selectedExamIds.has(e.id)),
+    [exams, selectedExamIds],
+  );
+
+  const searchMiss =
+    q.length > 0 && !loading && !error && exams.length === 0;
+  const primaryEnabled = selectedHere.length > 0 || searchMiss;
+  const primaryLabel =
+    searchMiss && selectedHere.length === 0 ? 'Request' : 'Select';
+
+  const handlePrimaryPress = useCallback(() => {
+    const pickedRows = exams.filter((e) => selectedExamIds.has(e.id));
+    const miss = q.length > 0 && exams.length === 0 && !loading && !error;
+    if (pickedRows.length === 0 && !miss) return;
+    if (pickedRows.length > 0) {
+      onClose();
+      return;
+    }
+    showModal({
+      title: 'Request',
+      message: `Noted: “${q}”.`,
+    });
+  }, [exams, selectedExamIds, q, loading, error, onClose, showModal]);
+
+  const listHeader = (
+    <View style={styles.modalSearchBlock}>
+      <SearchField
+        value={query}
+        onChange={setQuery}
+        placeholder="Search"
+        accessibilityLabel="Search exams"
+        styles={styles}
+        colors={colors}
+      />
+    </View>
+  );
+
+  const sheetMax = Math.round(Dimensions.get('window').height * 0.88);
+
+  let body: ReactNode;
+  if (!q) {
+    body = (
+      <View style={styles.empty}>
+        <Text style={styles.emptyText}>Type to search.</Text>
+      </View>
+    );
+  } else if (loading && exams.length === 0 && !error) {
+    body = (
+      <View style={styles.searchLoadingRow}>
+        <ActivityIndicator size="large" color={colors.brand} />
+      </View>
+    );
+  } else if (error) {
+    body = (
+      <View style={styles.footerBlock}>
+        <Text style={styles.errorInline}>{error.message}</Text>
+        <Pressable onPress={refetch} style={styles.retrySmall}>
+          <Text style={styles.retrySmallText}>Retry</Text>
+        </Pressable>
+      </View>
+    );
+  } else if (!loading && exams.length === 0) {
+    body = (
+      <View style={styles.empty}>
+        <Text style={styles.emptyText}>No matches.</Text>
+      </View>
+    );
+  } else {
+    body = (
+      <View style={styles.chipWrap}>
+        {exams.map((item) => (
+          <Fragment key={item.id}>{renderSearchExamChip(item)}</Fragment>
+        ))}
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.sheetOuter, { height: sheetMax }]}>
+      {modal}
+      <View style={[styles.sheet, styles.sheetFlex]}>
+        <ModalChrome title="Search" onClose={onClose} styles={styles} colors={colors} />
+        <ScrollView
+          style={styles.modalFlatList}
+          contentContainerStyle={styles.modalListContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {listHeader}
+          {body}
+        </ScrollView>
+        <View style={[styles.modalRequestBar, { paddingBottom: bottomInset + 12 }]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.modalRequestButton,
+              !primaryEnabled && styles.modalRequestButtonDisabled,
+              primaryEnabled && pressed && styles.modalRequestButtonPressed,
+            ]}
+            onPress={handlePrimaryPress}
+            disabled={!primaryEnabled}
+            android_ripple={
+              primaryEnabled ? { color: 'rgba(255,255,255,0.2)' } : { color: 'transparent' }
+            }
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !primaryEnabled }}
+            accessibilityLabel={
+              primaryEnabled
+                ? selectedHere.length > 0
+                  ? 'Done'
+                  : 'Request missing exam'
+                : 'Pick exams or request'
+            }
+          >
+            <View style={styles.modalRequestTrack} pointerEvents="none" />
+            {primaryEnabled ? <View style={styles.modalRequestFill} pointerEvents="none" /> : null}
+            <Text
+              style={[
+                styles.modalRequestText,
+                primaryEnabled && styles.modalRequestTextOnBrand,
+              ]}
+            >
+              {primaryLabel}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     </View>
   );
 }
@@ -566,10 +803,10 @@ function CategoryExamsModalBody({
   const q = examSearch.trim();
   const emptyMessage =
     items.length === 0
-      ? 'No exams in this category.'
+      ? 'Nothing here yet.'
       : q
-        ? 'No exams match your search. Try another term or load more.'
-        : 'No exams in this category.';
+        ? 'No matches.'
+        : 'Nothing here yet.';
 
   const searchMiss = q.length > 0 && filteredItems.length === 0;
   const selectedHere = useMemo(
@@ -592,7 +829,10 @@ function CategoryExamsModalBody({
       return;
     }
     const cat = categoryExamDisplayName(categoryName);
-    showModal({ title: 'Request an exam', message: `We’ll note your request for “${term}” under ${cat}.` });
+    showModal({
+      title: 'Request',
+      message: `Noted: “${term}” (${cat}).`,
+    });
   }, [items, selectedExamIds, examSearch, filteredItems, categoryName, onClose, showModal]);
 
   const listHeader = (
@@ -600,7 +840,7 @@ function CategoryExamsModalBody({
       <SearchField
         value={examSearch}
         onChange={setExamSearch}
-        placeholder="Search exams"
+        placeholder="Search"
         accessibilityLabel="Search exams"
         styles={styles}
         colors={colors}
@@ -695,9 +935,9 @@ function CategoryExamsModalBody({
             accessibilityLabel={
               primaryEnabled
                 ? selectedHere.length > 0
-                  ? 'Select interested exams and close'
-                  : 'Request an exam missing from search results'
-                : 'Select exams or search for a missing exam to continue'
+                  ? 'Done'
+                  : 'Request missing exam'
+                : 'Pick exams or request'
             }
           >
             <View style={styles.modalRequestTrack} pointerEvents="none" />
@@ -749,10 +989,18 @@ function ModalChrome({
   );
 }
 
+export type OnboardingExamPickerProps = {
+  selectedExams: SelectedExamDraft[];
+  onSelectionChange: (next: SelectedExamDraft[]) => void;
+};
+
 /**
- * Interests step: category list only; tap a category to pick exams in the sheet.
+ * Category chips → bottom sheet with exam chips per category; selected exams as removable chips (max 4).
  */
-export function OnboardingExamInterestsScreen({ onStepValidityChange }: OnboardingStepScreenProps) {
+export function OnboardingExamPicker({
+  selectedExams,
+  onSelectionChange,
+}: OnboardingExamPickerProps) {
   const colors = useThemeColors();
   const styles = useMemo(
     () => ({
@@ -761,7 +1009,6 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
     }),
     [colors],
   );
-  const { draft, updateDraft } = useOnboardingDraft();
   const { modal, show: showModal } = useMessageModal();
   const sheetMessageShowRef = useRef<((c: MessageModalShowConfig) => void) | null>(null);
   const registerSheetMessageShow = useCallback(
@@ -770,13 +1017,11 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
     },
     [],
   );
-  const insets = useSafeAreaInsets();
-  const [picked, setPicked] = useState<PickedCategory | null>(null);
-  const [selectedExams, setSelectedExams] = useState<SelectedExamEntry[]>(() =>
-    draft.selected_exams.slice(0, MAX_EXAM_SELECTIONS),
-  );
   const selectedExamsRef = useRef(selectedExams);
   selectedExamsRef.current = selectedExams;
+
+  const insets = useSafeAreaInsets();
+  const [sheet, setSheet] = useState<SheetState>(null);
 
   const selectedExamIds = useMemo(
     () => new Set(selectedExams.map((e) => e.id)),
@@ -789,47 +1034,62 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
     (examId: number, examName: string, categoryId: number, userCount?: number) => {
       const prev = selectedExamsRef.current;
       if (prev.some((e) => e.id === examId)) {
-        const next = prev.filter((e) => e.id !== examId);
-        updateDraft({ selected_exams: next });
-        setSelectedExams(next);
+        onSelectionChange(prev.filter((e) => e.id !== examId));
         return;
       }
-      if (prev.length >= MAX_EXAM_SELECTIONS) {
+      if (prev.length >= MAX_ONBOARDING_EXAM_SELECTIONS) {
         const showLimit =
           sheetMessageShowRef.current != null
             ? sheetMessageShowRef.current
             : showModal;
         showLimit({
           title: 'Limit reached',
-          message: `You have already selected ${MAX_EXAM_SELECTIONS} exams. Remove one to add another.`,
+          message: `Max ${MAX_ONBOARDING_EXAM_SELECTIONS} exams — remove one to add another.`,
         });
         return;
       }
-      const next = [
+      onSelectionChange([
         ...prev,
         { id: examId, name: examName, category_id: categoryId, user_count: userCount },
-      ];
-      updateDraft({ selected_exams: next });
-      setSelectedExams(next);
+      ]);
     },
-    [updateDraft, showModal],
+    [onSelectionChange, showModal],
   );
 
-  /** One-time: cap persisted draft if it had more than 4 exams. */
-  useEffect(() => {
-    if (draft.selected_exams.length > MAX_EXAM_SELECTIONS) {
-      const trimmed = draft.selected_exams.slice(0, MAX_EXAM_SELECTIONS);
-      setSelectedExams(trimmed);
-      updateDraft({ selected_exams: trimmed });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- migration only
-  }, []);
+  const selectedStrip = useMemo(() => {
+    if (selectedExams.length === 0) return null;
+    return (
+      <View style={styles.selectedStripRow}>
+        <Text style={styles.selectedStripMeta}>
+          {selectedExams.length}/{MAX_ONBOARDING_EXAM_SELECTIONS}
+        </Text>
+        <ScrollView
+          horizontal
+          nestedScrollEnabled
+          showsHorizontalScrollIndicator={false}
+          style={styles.selectedStripScroll}
+          contentContainerStyle={styles.selectedStripScrollContent}
+        >
+          {selectedExams.map((e) => (
+            <Pressable
+              key={e.id}
+              style={({ pressed }) => [styles.selectedPill, pressed && styles.examChoiceChipPressed]}
+              onPress={() => toggleExam(e.id, e.name, e.category_id, e.user_count)}
+              android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${categoryExamDisplayName(e.name)}`}
+            >
+              <Text style={styles.selectedPillLabel} numberOfLines={1}>
+                {categoryExamDisplayName(e.name)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }, [selectedExams, toggleExam, styles]);
 
-  useEffect(() => {
-    onStepValidityChange?.(selectedExams.length > 0);
-  }, [selectedExams.length, onStepValidityChange]);
-
-  const closeModal = useCallback(() => setPicked(null), []);
+  const closeModal = useCallback(() => setSheet(null), []);
 
   if (loading && !categories) {
     return (
@@ -860,55 +1120,22 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
           <RefreshControl refreshing={loading && Boolean(categories?.length)} onRefresh={refresh} />
         }
       >
-        {selectedExams.length > 0 ? (
-          <View style={styles.selectedBlock}>
-            <View style={styles.selectedHeaderRow}>
-              <Text style={styles.selectedSectionTitle}>Selected exams</Text>
-              <Text style={styles.selectedCountMeta}>
-                {selectedExams.length}/{MAX_EXAM_SELECTIONS}
-              </Text>
-            </View>
-            <View style={styles.chipWrap}>
-              {selectedExams.map((e) => (
-                <Pressable
-                  key={e.id}
-                  style={({ pressed }) => [
-                    styles.examChoiceChip,
-                    styles.examChoiceChipSelected,
-                    pressed && styles.examChoiceChipPressed,
-                  ]}
-                  onPress={() =>
-                    toggleExam(e.id, e.name, e.category_id, e.user_count)
-                  }
-                  android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${categoryExamDisplayName(e.name)}`}
-                  accessibilityHint="Double tap to remove from your interests"
-                >
-                  <View style={styles.examChoiceChipTrack} pointerEvents="none" />
-                  <View style={styles.examChoiceChipFill} pointerEvents="none" />
-                  <View style={styles.examChoiceChipRow}>
-                    <Text
-                      style={[
-                        styles.examChoiceChipLabel,
-                        styles.examChoiceChipLabelOnFill,
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {categoryExamDisplayName(e.name)}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        ) : null}
-        <Text style={styles.helpText}>
-          Tap a category to open exams. You can pick up to {MAX_EXAM_SELECTIONS} in total.
-        </Text>
+        <View style={styles.mainSearchBlock}>
+          <Pressable
+            style={styles.searchShell}
+            onPress={() => setSheet({ type: 'search' })}
+            accessibilityRole="button"
+            accessibilityLabel="Search exams"
+          >
+            <MaterialCommunityIcons name="magnify" size={22} color={colors.textMuted} />
+            <Text style={styles.searchTriggerLabel}>Search</Text>
+          </Pressable>
+        </View>
+        {selectedStrip}
         <View style={styles.chipWrap}>
           {(categories ?? []).map((cat) => {
-            const active = picked?.id === cat.id;
+            const active =
+              sheet?.type === 'category' && sheet.id === cat.id;
             return (
               <Pressable
                 key={cat.id}
@@ -917,7 +1144,7 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
                   active && styles.examChoiceChipSelected,
                   pressed && styles.examChoiceChipPressed,
                 ]}
-                onPress={() => setPicked({ id: cat.id, name: cat.name })}
+                onPress={() => setSheet({ type: 'category', id: cat.id, name: cat.name })}
                 android_ripple={{
                   color: active ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.12)',
                 }}
@@ -947,7 +1174,7 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
       </ScrollView>
 
       <Modal
-        visible={picked != null}
+        visible={sheet != null}
         animationType="slide"
         transparent
         onRequestClose={closeModal}
@@ -956,11 +1183,22 @@ export function OnboardingExamInterestsScreen({ onStepValidityChange }: Onboardi
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={closeModal} accessibilityLabel="Dismiss" />
           <View style={styles.modalAlignEnd} pointerEvents="box-none">
-            {picked ? (
+            {sheet?.type === 'search' ? (
+              <SearchExamsModalBody
+                key="search-sheet"
+                onClose={closeModal}
+                selectedExamIds={selectedExamIds}
+                onToggleExam={toggleExam}
+                onRegisterSheetMessageShow={registerSheetMessageShow}
+                bottomInset={insets.bottom}
+                styles={styles}
+                colors={colors}
+              />
+            ) : sheet?.type === 'category' ? (
               <CategoryExamsModalBody
-                key={picked.id}
-                categoryId={picked.id}
-                categoryName={picked.name}
+                key={sheet.id}
+                categoryId={sheet.id}
+                categoryName={sheet.name}
                 onClose={closeModal}
                 selectedExamIds={selectedExamIds}
                 onToggleExam={toggleExam}

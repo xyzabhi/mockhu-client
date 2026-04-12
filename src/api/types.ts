@@ -54,6 +54,8 @@ export type TokenUser = {
   is_private?: boolean;
   exam_category_ids?: number[];
   exam_ids?: number[];
+  /** Exam year goal from POST /onboarding or `/me` when provided. */
+  target_year?: number;
   created_at?: string;
   updated_at?: string;
 };
