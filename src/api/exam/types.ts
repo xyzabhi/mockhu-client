@@ -37,3 +37,26 @@ export type ListExamsParams = {
   limit?: number;
   offset?: number;
 };
+
+/**
+ * `GET /exams/:exam_id/subjects` — syllabus row; `subject_id` is used for per-subject topics.
+ */
+export type ExamSubject = {
+  subject_id: string;
+  name: string;
+  color?: string | null;
+  weightage?: number | null;
+  sort_order?: number | null;
+  importance?: string | null;
+};
+
+/**
+ * `GET /exams/:exam_id/subjects/:subject_id/topics` — topic row within a subject.
+ */
+export type ExamTopic = {
+  topic_id: string;
+  name: string;
+  difficulty?: string | null;
+  importance?: string | null;
+  sort_order?: number | null;
+};

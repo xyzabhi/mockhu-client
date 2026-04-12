@@ -79,7 +79,14 @@ export {
 } from './user/meResponseMap';
 
 export { examCatalogApi } from './exam/examCatalogApi';
-export type { Exam, ExamCategory, ExamListData, ListExamsParams } from './exam/types';
+export type {
+  Exam,
+  ExamCategory,
+  ExamListData,
+  ExamSubject,
+  ExamTopic,
+  ListExamsParams,
+} from './exam/types';
 
 export { postOnboarding } from './onboarding/onboardingApi';
 export type { OnboardingPayload, OnboardingResponseData } from './onboarding/types';
@@ -160,6 +167,10 @@ export { useExamCategories, type UseExamCategoriesOptions } from './hooks/useExa
 export { useExamCategoryById } from './hooks/useExamCategoryById';
 export { useExamById } from './hooks/useExamById';
 export { useExamsList, type UseExamsListOptions } from './hooks/useExamsList';
+export {
+  useTrackerExamSubjects,
+  type TrackerExamSubjectsGroup,
+} from './hooks/useTrackerExamSubjects';
 export { useFollow } from './hooks/useFollow';
 export { useUserSuggestions } from './hooks/useUserSuggestions';
 export { useInterestSuggestions } from './hooks/useInterestSuggestions';
@@ -177,6 +188,10 @@ export {
   expandInterestsToExamIds,
   type UseUserInterestsResult,
 } from './hooks/useUserInterests';
+export {
+  useResolvedUserExamTags,
+  type ResolvedExamTag,
+} from './hooks/useResolvedUserExamTags';
 
 export { searchApi } from './search/searchApi';
 export type {

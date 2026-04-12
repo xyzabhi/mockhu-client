@@ -1,3 +1,4 @@
+import AntDesign from '@expo/vector-icons/AntDesign';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -20,8 +21,8 @@ import { FloatingBottomTabBar } from './FloatingBottomTabBar';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-/** Default icon size when the navigator does not pass `size`. */
-const TAB_ICON_SIZE = 24;
+/** Tab icons use this size; navigator default `size` is ignored so we stay consistent. */
+const TAB_ICON_SIZE = 26;
 
 /** Matches header side slots so the title stays visually centered (esp. Android). */
 const HEADER_SIDE_SLOT = 48;
@@ -48,7 +49,7 @@ function backToHomeHeaderOptions(
           accessibilityRole="button"
           accessibilityLabel="Back to home"
         >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.textPrimary} />
+          <MaterialCommunityIcons name="arrow-left" size={TAB_ICON_SIZE} color={colors.textPrimary} />
         </Pressable>
       </View>
     ),
@@ -74,9 +75,9 @@ export function MainTabNavigator() {
 
   const postFabStyle = useMemo(
     () => ({
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 50,
+      height: 50,
+      borderRadius: 25,
       backgroundColor: colors.brand,
       alignItems: 'center' as const,
       justifyContent: 'center' as const,
@@ -136,8 +137,8 @@ export function MainTabNavigator() {
         options={{
           title: 'Home',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Octicons name="home-fill" size={size ?? TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Octicons name="home-fill" size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
@@ -145,10 +146,10 @@ export function MainTabNavigator() {
         name="Progress"
         component={ProgressScreen}
         options={({ navigation }) => ({
-          title: 'Progress',
+          title: 'Explore',
           ...backToHomeHeaderOptions(colors, navigation),
-          tabBarIcon: ({ color, size }) => (
-            <Octicons name="graph" size={size ?? TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color }) => (
+            <AntDesign name="compass" size={TAB_ICON_SIZE} color={color} />
           ),
         })}
       />
@@ -160,7 +161,7 @@ export function MainTabNavigator() {
           headerShown: false,
           tabBarIcon: () => (
             <View style={postFabStyle}>
-              <MaterialIcons name="add" size={26} color={colors.onBrand} />
+              <MaterialIcons name="add" size={28} color={colors.onBrand} />
             </View>
           ),
         }}
@@ -171,8 +172,8 @@ export function MainTabNavigator() {
         options={({ navigation }) => ({
           title: 'Inbox',
           ...backToHomeHeaderOptions(colors, navigation),
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="notifications" size={size ?? TAB_ICON_SIZE} color={color} />
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="notifications" size={TAB_ICON_SIZE} color={color} />
           ),
         })}
       />
@@ -181,12 +182,12 @@ export function MainTabNavigator() {
         component={ProfileScreen}
         options={{
           headerShown: false,
-          tabBarIcon: ({ color, size, focused }) => (
+          tabBarIcon: ({ focused }) => (
             <View
               style={{
-                width: (size ?? TAB_ICON_SIZE) + 8,
-                height: (size ?? TAB_ICON_SIZE) + 8,
-                borderRadius: ((size ?? TAB_ICON_SIZE) + 8) / 2,
+                width: TAB_ICON_SIZE + 8,
+                height: TAB_ICON_SIZE + 8,
+                borderRadius: (TAB_ICON_SIZE + 8) / 2,
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: 2,
@@ -199,7 +200,7 @@ export function MainTabNavigator() {
                 seed={profileSeed}
                 avatarUrl={profile?.avatar_url}
                 avatarUrls={profile?.avatar_urls}
-                size={(size ?? TAB_ICON_SIZE) - 2}
+                size={TAB_ICON_SIZE - 2}
               />
             </View>
           ),

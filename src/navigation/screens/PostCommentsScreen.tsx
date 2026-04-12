@@ -451,7 +451,7 @@ export function PostCommentsScreen({ route, navigation }: Props) {
                 accessibilityLabel="Close"
                 style={styles.iconBtn}
               >
-                <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
+                <MaterialCommunityIcons name="close" size={26} color={colors.textPrimary} />
               </Pressable>
               <View style={styles.headerCenter}>
                 <Text style={styles.headerTitle} numberOfLines={1}>

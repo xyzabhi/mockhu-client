@@ -1,0 +1,210 @@
+{
+	"info": {
+		"name": "Mockhu — Exams API",
+		"description": "Exam catalog, per-exam syllabus (subjects → topics), search, and authenticated **my exams** / interests / onboarding.\n\n**Collection variables**\n- `baseUrl` — e.g. `http://localhost:8080`\n- `access_token` — JWT access token (`Bearer`) for the **Authenticated** folder\n- `user_id` — UUID string (must match JWT for `/users/:id/interests`)\n- `exam_id`, `category_id` — integers\n- `exam_subject_id` — string subject id from `GET /exams/:id/subjects` (e.g. `subj_maths`)\n\nPublic routes match `AuthMiddleware` skips (no JWT).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:8080" },
+		{ "key": "access_token", "value": "" },
+		{ "key": "user_id", "value": "" },
+		{ "key": "exam_id", "value": "1" },
+		{ "key": "category_id", "value": "1" },
+		{ "key": "exam_subject_id", "value": "subj_maths" }
+	],
+	"item": [
+		{
+			"name": "1. Exam categories (public)",
+			"item": [
+				{
+					"name": "List exam categories",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/exam-categories",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "exam-categories"],
+							"query": [
+								{
+									"key": "active",
+									"value": "all",
+									"disabled": true,
+									"description": "If set to `all`, include inactive. Omit = active only."
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get exam category by id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/exam-categories/{{category_id}}"
+					}
+				},
+				{
+					"name": "List exams in category",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/exam-categories/{{category_id}}/exams?limit=20&offset=0",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "exam-categories", "{{category_id}}", "exams"],
+							"query": [
+								{ "key": "limit", "value": "20" },
+								{ "key": "offset", "value": "0" }
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Exams & syllabus (public)",
+			"item": [
+				{
+					"name": "List exams",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/exams?limit=20&offset=0",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "exams"],
+							"query": [
+								{
+									"key": "category_id",
+									"value": "{{category_id}}",
+									"disabled": true
+								},
+								{
+									"key": "exam_category_id",
+									"value": "",
+									"disabled": true,
+									"description": "Alias of category_id"
+								},
+								{ "key": "limit", "value": "20" },
+								{ "key": "offset", "value": "0" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get exam by id",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/exams/{{exam_id}}"
+					}
+				},
+				{
+					"name": "Get exam subjects",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/exams/{{exam_id}}/subjects",
+						"description": "Use `subject_id` from each row for topics-by-subject request."
+					}
+				},
+				{
+					"name": "Get exam topics (all subjects)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/exams/{{exam_id}}/topics"
+					}
+				},
+				{
+					"name": "Get exam topics for one subject",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/exams/{{exam_id}}/subjects/{{exam_subject_id}}/topics",
+						"description": "`exam_subject_id` must be linked to this exam (404 if not)."
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Search (public)",
+			"item": [
+				{
+					"name": "Search exams only",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/search?q=jee&type=exams&limit=20",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "search"],
+							"query": [
+								{ "key": "q", "value": "jee" },
+								{ "key": "type", "value": "exams" },
+								{ "key": "limit", "value": "20" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Search exam categories only",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/search?q=engineering&type=exam_categories",
+							"host": ["{{baseUrl}}"],
+							"path": ["api", "v1", "search"],
+							"query": [
+								{ "key": "q", "value": "engineering" },
+								{ "key": "type", "value": "exam_categories" }
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Authenticated (JWT)",
+			"auth": {
+				"type": "bearer",
+				"bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+			},
+			"item": [
+				{
+					"name": "GET my selected exams (full objects)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/me/exams",
+						"description": "From `user_interest_exams`; same shape as catalog exam. Order matches saved selection."
+					}
+				},
+				{
+					"name": "GET my interest ids (categories + exams)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/v1/users/{{user_id}}/interests",
+						"description": "`user_id` in path must equal JWT user."
+					}
+				},
+				{
+					"name": "POST onboarding (save names + exam_ids + target_year)",
+					"request": {
+						"method": "POST",
+						"header": [{ "key": "Content-Type", "value": "application/json" }],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"Ada\",\n  \"last_name\": \"Lovelace\",\n  \"exam_ids\": [1, 2],\n  \"target_year\": 2026\n}"
+						},
+						"url": "{{baseUrl}}/api/v1/onboarding",
+						"description": "Sets interests and completes onboarding. `target_year` 1990–2100."
+					}
+				}
+			]
+		}
+	]
+}

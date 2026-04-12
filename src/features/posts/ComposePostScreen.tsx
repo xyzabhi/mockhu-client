@@ -428,7 +428,7 @@ export function ComposePostScreen() {
             accessibilityLabel="Close"
             style={({ pressed }) => [styles.headerIconBtn, pressed && styles.pressed]}
           >
-            <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
+            <MaterialCommunityIcons name="close" size={26} color={colors.textPrimary} />
           </Pressable>
         </View>
         <View style={styles.headerCenter} pointerEvents="none">
@@ -784,7 +784,7 @@ export function ComposePostScreen() {
                     />
                   ) : (
                     <View style={styles.previewLinkPlaceholder}>
-                      <MaterialCommunityIcons name="link-variant" size={28} color={colors.textMuted} />
+                      <MaterialCommunityIcons name="link-variant" size={26} color={colors.textMuted} />
                     </View>
                   )}
                   <View style={styles.previewLinkTextCol}>

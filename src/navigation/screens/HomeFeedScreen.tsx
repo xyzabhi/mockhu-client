@@ -500,7 +500,7 @@ export function HomeFeedScreen() {
               accessibilityLabel="Close menu"
               style={({ pressed }) => [styles.drawerHeaderClose, pressed && styles.drawerClosePressed]}
             >
-              <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
+              <MaterialCommunityIcons name="close" size={26} color={colors.textPrimary} />
             </Pressable>
           </View>
           <View style={styles.drawerBody}>

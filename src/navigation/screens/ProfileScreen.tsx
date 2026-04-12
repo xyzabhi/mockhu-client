@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
+  LayoutAnimation,
   Platform,
   Pressable,
   RefreshControl,
@@ -13,6 +14,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  UIManager,
   useWindowDimensions,
   View,
 } from 'react-native';
@@ -22,9 +24,11 @@ import {
   examCatalogApi,
   hydrateSessionUserFromMe,
   normalizeTokenUserProfile,
+  type ExamTopic,
   useBookmarkFeed,
   useFollowList,
   useSession,
+  useTrackerExamSubjects,
   useUserInterests,
   useUserPostsFeed,
   useUserProfile,
@@ -41,12 +45,12 @@ import { useMessageModal } from '../../shared/components/MessageModal';
 import { PostFeedSkeleton, SkeletonBox, SkeletonGroup } from '../../shared/components/skeleton';
 import type { MainTabParamList, RootStackParamList } from '../types';
 
-type ProfileTabId = 'posts' | 'tracker' | 'battles' | 'saved' | 'about' | 'settings';
+type ProfileTabId = 'posts' | 'tracker' | 'activity' | 'saved' | 'about' | 'settings';
 
 const PROFILE_TAB_BAR: { id: ProfileTabId; label: string }[] = [
   { id: 'posts', label: 'Posts' },
   { id: 'tracker', label: 'Tracker' },
-  { id: 'battles', label: 'Battles' },
+  { id: 'activity', label: 'Activity' },
 ];
 
 /** Fixed chip width from longest label (semiBold xs + horizontal padding), capped to screen. */
@@ -73,6 +77,25 @@ function formatExamChipLine(e: ExamPrepChipRow): string {
     return `${e.name} · ${formatExamYearTwoDigit(e.year)}`;
   }
   return e.name;
+}
+
+function formatSubjectWeightage(w: number | null | undefined): string | null {
+  if (w == null || !Number.isFinite(w)) return null;
+  if (w >= 0 && w <= 1) return `${Math.round(w * 100)}% weight`;
+  return `${w}% weight`;
+}
+
+function sortBySortOrderThenName<T extends { sort_order?: number | null; name: string }>(
+  items: T[],
+): T[] {
+  return [...items].sort((a, b) => {
+    const ao = a.sort_order;
+    const bo = b.sort_order;
+    if (ao != null && bo != null && ao !== bo) return ao - bo;
+    if (ao != null && bo == null) return -1;
+    if (ao == null && bo != null) return 1;
+    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
 }
 
 const EXAM_CHIP_ROTATE_MS = 3200;
@@ -263,6 +286,110 @@ export function ProfileScreen() {
     error: interestsError,
     refetch: refetchInterests,
   } = useUserInterests(userId);
+
+  const trackerTabActive = activeTab === 'tracker';
+  const [trackerRefreshing, setTrackerRefreshing] = useState(false);
+  const {
+    groups: trackerSubjectGroups,
+    loading: trackerSubjectsLoading,
+    error: trackerSubjectsError,
+    refresh: refreshTrackerSubjects,
+  } = useTrackerExamSubjects({
+    enabled: trackerTabActive,
+    userId,
+    accessToken,
+    examIdsFallback: examIdsDirect,
+  });
+
+  useEffect(() => {
+    if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+  }, []);
+
+  const onRefreshTracker = useCallback(async () => {
+    setTrackerRefreshing(true);
+    try {
+      setTrackerExpanded({});
+      setTrackerTopicsByKey({});
+      await Promise.all([refetchInterests(), refreshTrackerSubjects()]);
+    } finally {
+      setTrackerRefreshing(false);
+    }
+  }, [refetchInterests, refreshTrackerSubjects]);
+
+  const sortedTrackerGroups = useMemo(
+    () =>
+      [...trackerSubjectGroups].sort((a, b) =>
+        a.examName.localeCompare(b.examName, undefined, { sensitivity: 'base' }),
+      ),
+    [trackerSubjectGroups],
+  );
+
+  const [trackerExamId, setTrackerExamId] = useState<number | null>(null);
+  useEffect(() => {
+    if (sortedTrackerGroups.length === 0) {
+      setTrackerExamId(null);
+      return;
+    }
+    setTrackerExamId((prev) => {
+      if (prev != null && sortedTrackerGroups.some((g) => g.examId === prev)) return prev;
+      return sortedTrackerGroups[0].examId;
+    });
+  }, [sortedTrackerGroups]);
+
+  const selectedTrackerGroup = useMemo(() => {
+    if (trackerExamId == null) return null;
+    return sortedTrackerGroups.find((g) => g.examId === trackerExamId) ?? null;
+  }, [sortedTrackerGroups, trackerExamId]);
+
+  const sortedTrackerSubjects = useMemo(() => {
+    if (!selectedTrackerGroup?.subjects.length) return [];
+    return sortBySortOrderThenName(selectedTrackerGroup.subjects);
+  }, [selectedTrackerGroup]);
+
+  const [trackerExpanded, setTrackerExpanded] = useState<Record<string, boolean>>({});
+  const [trackerTopicsByKey, setTrackerTopicsByKey] = useState<
+    Record<string, { topics: ExamTopic[]; loading: boolean; error?: string }>
+  >({});
+
+  useEffect(() => {
+    setTrackerExpanded({});
+  }, [trackerExamId]);
+
+  const loadTrackerTopics = useCallback(async (examId: number, subjectId: string) => {
+    const k = `${examId}:${subjectId}`;
+    setTrackerTopicsByKey((p) => ({
+      ...p,
+      [k]: { topics: p[k]?.topics ?? [], loading: true, error: undefined },
+    }));
+    try {
+      const topics = await examCatalogApi.listExamTopicsForSubject(examId, subjectId);
+      setTrackerTopicsByKey((p) => ({ ...p, [k]: { topics, loading: false } }));
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Could not load topics';
+      setTrackerTopicsByKey((p) => ({ ...p, [k]: { topics: [], loading: false, error: msg } }));
+    }
+  }, []);
+
+  const onTrackerSubjectToggle = useCallback((examId: number, subjectId: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    const k = `${examId}:${subjectId}`;
+    let nextOpen = false;
+    setTrackerExpanded((p) => {
+      nextOpen = !p[k];
+      return { ...p, [k]: nextOpen };
+    });
+    if (nextOpen) {
+      setTrackerTopicsByKey((tp) => {
+        const t = tp[k];
+        const shouldFetch =
+          !t || (t.topics.length === 0 && !t.loading) || Boolean(t.error);
+        if (shouldFetch) void loadTrackerTopics(examId, subjectId);
+        return tp;
+      });
+    }
+  }, [loadTrackerTopics]);
 
   /** Resolved exam names for each selected id (target year appended when set). */
   const [examPrepRows, setExamPrepRows] = useState<ExamPrepChipRow[]>([]);
@@ -671,34 +798,202 @@ export function ProfileScreen() {
             style={styles.scrollTab}
             contentContainerStyle={[styles.secondaryTabContent, { paddingBottom: bottomPad }]}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              accessToken?.trim() && userId ? (
+                <RefreshControl
+                  refreshing={trackerRefreshing}
+                  onRefresh={onRefreshTracker}
+                  tintColor={colors.brand}
+                  colors={[colors.brand]}
+                  {...(Platform.OS === 'android'
+                    ? { progressBackgroundColor: colors.surface }
+                    : {})}
+                />
+              ) : undefined
+            }
           >
-            <View style={styles.trackerCard}>
-              <MaterialCommunityIcons name="chart-timeline-variant" size={44} color={colors.brand} />
-              <Text style={styles.trackerTitle}>Your study tracker</Text>
-              <Text style={styles.trackerBody}>
-                View streaks, mocks, heatmaps, and topic progress on the Progress tab.
+            {!userId ? (
+              <Text style={styles.trackerListNote}>Sign in to load your exam subjects.</Text>
+            ) : !accessToken?.trim() ? (
+              <Text style={styles.trackerListNote}>Session expired — sign in again to refresh subjects.</Text>
+            ) : trackerSubjectsError ? (
+              <Text style={styles.trackerListError}>{trackerSubjectsError}</Text>
+            ) : trackerSubjectsLoading && trackerSubjectGroups.length === 0 ? (
+              <View style={styles.trackerLoadingRow}>
+                <ActivityIndicator color={colors.brand} />
+                <Text style={styles.trackerListNote}>Loading subjects…</Text>
+              </View>
+            ) : trackerSubjectGroups.length === 0 ? (
+              <Text style={styles.trackerListNote}>
+                Add exam interests in onboarding or your profile to see subjects here.
               </Text>
-              <Pressable
-                style={({ pressed }) => [styles.trackerCta, pressed && styles.heroPressDim]}
-                onPress={() => goToMainTab('Progress')}
-                accessibilityRole="button"
-                accessibilityLabel="Open Progress tab"
-              >
-                <Text style={styles.trackerCtaText}>Open Progress</Text>
-                <MaterialCommunityIcons name="chevron-right" size={20} color={colors.onBrand} />
-              </Pressable>
-            </View>
+            ) : (
+              <View style={styles.trackerListWrap}>
+                {sortedTrackerGroups.length > 1 ? (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    style={styles.trackerChipScroll}
+                    contentContainerStyle={styles.trackerChipScrollContent}
+                    accessibilityLabel="Select exam for syllabus"
+                  >
+                    {sortedTrackerGroups.map((g) => {
+                      const selected = g.examId === trackerExamId;
+                      return (
+                        <Pressable
+                          key={g.examId}
+                          onPress={() => setTrackerExamId(g.examId)}
+                          style={({ pressed }) => [
+                            styles.trackerChip,
+                            selected && styles.trackerChipSelected,
+                            pressed && styles.trackerChipPressed,
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={`Exam ${g.examName}`}
+                        >
+                          <Text
+                            style={[styles.trackerChipLabel, selected && styles.trackerChipLabelSelected]}
+                            numberOfLines={1}
+                          >
+                            {g.examName}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                ) : sortedTrackerGroups.length === 1 ? (
+                  <Text style={styles.trackerSingleExamTitle} numberOfLines={2}>
+                    {sortedTrackerGroups[0].examName}
+                  </Text>
+                ) : null}
+
+                {selectedTrackerGroup?.loadError ? (
+                  <Text style={styles.trackerListErrorSmall}>{selectedTrackerGroup.loadError}</Text>
+                ) : sortedTrackerSubjects.length === 0 ? (
+                  <Text style={styles.trackerListNote}>No subjects listed for this exam yet.</Text>
+                ) : selectedTrackerGroup ? (
+                  sortedTrackerSubjects.map((s) => {
+                    const examId = selectedTrackerGroup.examId;
+                    const rowKey = `${examId}:${s.subject_id}`;
+                    const open = !!trackerExpanded[rowKey];
+                    const weight = formatSubjectWeightage(s.weightage);
+                    const topicEntry = trackerTopicsByKey[rowKey];
+                    const topicCountLabel =
+                      !open && topicEntry && !topicEntry.loading && !topicEntry.error
+                        ? `${topicEntry.topics.length} topic${topicEntry.topics.length === 1 ? '' : 's'}`
+                        : null;
+                    const meta = [weight, s.importance?.trim(), topicCountLabel]
+                      .filter(Boolean)
+                      .join(' · ');
+                    return (
+                      <View key={rowKey} style={styles.trackerSubjectShell}>
+                        <Pressable
+                          onPress={() => onTrackerSubjectToggle(examId, s.subject_id)}
+                          android_ripple={{ color: colors.borderSubtle }}
+                          style={({ pressed }) => [
+                            styles.trackerSubjectHeader,
+                            open && styles.trackerSubjectHeaderOpen,
+                            Platform.OS === 'ios' && pressed && styles.trackerSubjectHeaderPressed,
+                          ]}
+                          accessibilityRole="button"
+                          accessibilityState={{ expanded: open }}
+                          accessibilityLabel={`${s.name}, ${open ? 'expanded' : 'collapsed'}`}
+                          accessibilityHint="Shows or hides topics for this subject"
+                        >
+                          <View style={styles.trackerSubjectHeaderText}>
+                            <Text style={styles.trackerSubjectName} numberOfLines={2}>
+                              {s.name}
+                            </Text>
+                            {meta ? (
+                              <Text style={styles.trackerSubjectMeta} numberOfLines={1}>
+                                {meta}
+                              </Text>
+                            ) : null}
+                          </View>
+                          <View style={[styles.trackerSubjectChevron, open && styles.trackerSubjectChevronOpen]}>
+                            <MaterialCommunityIcons
+                              name={open ? 'chevron-up' : 'chevron-down'}
+                              size={20}
+                              color={colors.textHint}
+                            />
+                          </View>
+                        </Pressable>
+                        {open ? (
+                          <View style={styles.trackerTopicsPanel}>
+                            {topicEntry?.loading ? (
+                              <View style={styles.trackerTopicLoading}>
+                                <ActivityIndicator size="small" color={colors.brand} />
+                                <Text style={styles.trackerTopicLoadingText}>Loading topics…</Text>
+                              </View>
+                            ) : topicEntry?.error ? (
+                              <View style={styles.trackerTopicErrorWrap}>
+                                <Text style={styles.trackerListErrorSmall}>{topicEntry.error}</Text>
+                                <Pressable
+                                  onPress={() => void loadTrackerTopics(examId, s.subject_id)}
+                                  style={({ pressed }) => [
+                                    styles.trackerTopicRetry,
+                                    pressed && styles.trackerTopicRetryPressed,
+                                  ]}
+                                  accessibilityRole="button"
+                                  accessibilityLabel="Retry loading topics"
+                                >
+                                  <Text style={styles.trackerTopicRetryText}>Try again</Text>
+                                </Pressable>
+                              </View>
+                            ) : topicEntry && topicEntry.topics.length === 0 ? (
+                              <Text style={styles.trackerTopicEmpty}>No topics for this subject.</Text>
+                            ) : (
+                              <>
+                                {topicEntry && topicEntry.topics.length > 0 ? (
+                                  <Text style={styles.trackerTopicsPanelCaption} accessibilityRole="header">
+                                    {topicEntry.topics.length} topic
+                                    {topicEntry.topics.length === 1 ? '' : 's'}
+                                  </Text>
+                                ) : null}
+                                {sortBySortOrderThenName(topicEntry?.topics ?? []).map((t, idx, arr) => {
+                                  const tmeta = [t.difficulty?.trim(), t.importance?.trim()]
+                                    .filter(Boolean)
+                                    .join(' · ');
+                                  const isLast = idx === arr.length - 1;
+                                  return (
+                                    <View
+                                      key={`${rowKey}-${t.topic_id}`}
+                                      style={[styles.trackerTopicRow, isLast && styles.trackerTopicRowLast]}
+                                    >
+                                      <Text style={styles.trackerTopicName} numberOfLines={2}>
+                                        {t.name}
+                                      </Text>
+                                      {tmeta ? (
+                                        <Text style={styles.trackerTopicMeta} numberOfLines={1}>
+                                          {tmeta}
+                                        </Text>
+                                      ) : null}
+                                    </View>
+                                  );
+                                })}
+                              </>
+                            )}
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })
+                ) : null}
+              </View>
+            )}
           </ScrollView>
-        ) : activeTab === 'battles' ? (
+        ) : activeTab === 'activity' ? (
           <ScrollView
             style={styles.scrollTab}
             contentContainerStyle={[styles.secondaryTabContent, { paddingBottom: bottomPad }]}
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.trackerCard}>
-              <MaterialCommunityIcons name="sword-cross" size={44} color={colors.textMuted} />
-              <Text style={styles.trackerTitle}>Battles</Text>
-              <Text style={styles.trackerBody}>Challenge friends and climb the leaderboard. Coming soon.</Text>
+              <MaterialCommunityIcons name="pulse" size={44} color={colors.textMuted} />
+              <Text style={styles.trackerTitle}>Activity</Text>
+              <Text style={styles.trackerBody}>Your recent study activity and progress. Coming soon.</Text>
             </View>
           </ScrollView>
         ) : activeTab === 'posts' ? (
@@ -1180,20 +1475,228 @@ function createProfileStyles(colors: ThemeColors) {
       lineHeight: 22,
       maxWidth: 320,
     },
-    trackerCta: {
-      marginTop: 8,
+    trackerListWrap: {
+      marginTop: 4,
+      width: '100%',
+      maxWidth: 420,
+      alignSelf: 'center',
+    },
+    trackerChipScroll: {
+      marginBottom: 14,
+      flexGrow: 0,
+      maxHeight: 48,
+    },
+    trackerChipScrollContent: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
-      paddingVertical: 12,
-      paddingHorizontal: 18,
-      borderRadius: theme.radius.pill,
-      backgroundColor: colors.brandLight,
+      gap: 8,
+      paddingBottom: 4,
     },
-    trackerCtaText: {
+    trackerChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: theme.radius.pill,
+      backgroundColor: colors.surfaceSubtle,
+      borderWidth: theme.borderWidth.default,
+      borderColor: colors.borderSubtle,
+      maxWidth: 220,
+    },
+    trackerChipSelected: {
+      backgroundColor: colors.brand,
+      borderWidth: 1,
+      borderColor: colors.buttonBorder,
+    },
+    trackerChipPressed: {
+      opacity: 0.88,
+    },
+    trackerChipLabel: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fontSizes.filterChip,
+      color: colors.textPrimary,
+    },
+    trackerChipLabelSelected: {
+      color: colors.onBrand,
+    },
+    trackerSingleExamTitle: {
       fontFamily: theme.typography.semiBold,
       fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+      marginBottom: 14,
+      letterSpacing: -0.2,
+    },
+    trackerSubjectShell: {
+      backgroundColor: colors.surface,
+      borderRadius: theme.radius.card,
+      marginBottom: 10,
+      borderWidth: theme.borderWidth.default,
+      borderColor: colors.borderSubtle,
+      overflow: 'hidden',
+      ...Platform.select({
+        ios: {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.05,
+          shadowRadius: 3,
+        },
+        android: { elevation: 1 },
+        default: {},
+      }),
+    },
+    trackerSubjectHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      paddingVertical: 14,
+      paddingLeft: theme.spacing.cardPaddingH,
+      paddingRight: 10,
+      minHeight: 52,
+    },
+    trackerSubjectHeaderOpen: {
+      backgroundColor: colors.surfaceSubtle,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderSubtle,
+    },
+    trackerSubjectHeaderPressed: {
+      opacity: 0.92,
+    },
+    trackerSubjectHeaderText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    trackerSubjectName: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fintSizes.md,
+      color: colors.textPrimary,
+      letterSpacing: -0.15,
+      lineHeight: 22,
+    },
+    trackerSubjectMeta: {
+      marginTop: 3,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textHint,
+      lineHeight: 18,
+    },
+    trackerSubjectChevron: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.surfaceSubtle,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.borderSubtle,
+    },
+    trackerSubjectChevronOpen: {
+      backgroundColor: colors.surface,
+    },
+    trackerTopicsPanel: {
+      backgroundColor: colors.surfaceSubtle,
+      paddingBottom: 4,
+      paddingHorizontal: theme.spacing.cardPaddingH,
+    },
+    trackerTopicRow: {
+      paddingVertical: 12,
+      paddingRight: 4,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.borderSubtle,
+    },
+    trackerTopicRowLast: {
+      borderBottomWidth: 0,
+    },
+    trackerTopicName: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textPrimary,
+      lineHeight: 20,
+    },
+    trackerTopicMeta: {
+      marginTop: 3,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textHint,
+      lineHeight: 17,
+    },
+    trackerTopicLoading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 2,
+    },
+    trackerTopicLoadingText: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textMuted,
+    },
+    trackerTopicEmpty: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textHint,
+      paddingVertical: 14,
+      paddingHorizontal: 2,
+      lineHeight: 20,
+    },
+    trackerTopicsPanelCaption: {
+      fontFamily: theme.typography.medium,
+      fontSize: theme.fontSizes.meta,
+      color: colors.textMuted,
+      paddingTop: 10,
+      paddingBottom: 4,
+      letterSpacing: 0.2,
+    },
+    trackerTopicErrorWrap: {
+      paddingVertical: 12,
+      paddingHorizontal: 2,
+      gap: 10,
+    },
+    trackerTopicRetry: {
+      alignSelf: 'flex-start',
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: theme.radius.badge,
+      backgroundColor: colors.surface,
+      borderWidth: theme.borderWidth.default,
+      borderColor: colors.borderSubtle,
+    },
+    trackerTopicRetryPressed: {
+      opacity: 0.88,
+    },
+    trackerTopicRetryText: {
+      fontFamily: theme.typography.semiBold,
+      fontSize: theme.fontSizes.meta,
       color: colors.brand,
+    },
+    trackerListNote: {
+      marginTop: 16,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.textMuted,
+      textAlign: 'center',
+      lineHeight: 20,
+      maxWidth: 340,
+      alignSelf: 'center',
+    },
+    trackerListError: {
+      marginTop: 16,
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fintSizes.sm,
+      color: colors.danger,
+      textAlign: 'center',
+    },
+    trackerListErrorSmall: {
+      fontFamily: theme.typography.regular,
+      fontSize: theme.fontSizes.meta,
+      color: colors.danger,
+      marginBottom: 6,
+    },
+    trackerLoadingRow: {
+      marginTop: 20,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 10,
     },
     bottomSlot: {
       flex: 1,

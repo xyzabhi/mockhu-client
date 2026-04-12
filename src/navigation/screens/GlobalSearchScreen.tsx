@@ -87,7 +87,7 @@ export function GlobalSearchScreen() {
           accessibilityLabel="Go back"
           style={styles.backBtn}
         >
-          <MaterialCommunityIcons name="arrow-left" size={24} color={colors.textPrimary} />
+          <MaterialCommunityIcons name="arrow-left" size={26} color={colors.textPrimary} />
         </Pressable>
         <View style={styles.inputWrap}>
           <MaterialCommunityIcons name="magnify" size={20} color={colors.textMuted} />

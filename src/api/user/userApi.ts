@@ -1,3 +1,4 @@
+import type { Exam } from '../exam/types';
 import { apiDelete, apiGet, apiPatch, apiPost, apiPostMultipart } from '../apiClient';
 import type {
   FollowListQuery,
@@ -69,6 +70,22 @@ export async function patchUserInterests(
 /** `GET /api/v1/users/:user_id/interests` — interests (separate from `/me`). */
 export async function getUserInterests(userId: string): Promise<UserInterestsResponse> {
   return apiGet<UserInterestsResponse>(`/users/${encodeURIComponent(userId)}/interests`);
+}
+
+function normalizeMyExamsPayload(data: unknown): Exam[] {
+  if (Array.isArray(data)) return data as Exam[];
+  if (data && typeof data === 'object') {
+    const r = data as Record<string, unknown>;
+    const raw = r.exams ?? r.items;
+    if (Array.isArray(raw)) return raw as Exam[];
+  }
+  return [];
+}
+
+/** `GET /api/v1/me/exams` — JWT; full exam rows in onboarding / interest order. */
+export async function getMyExams(): Promise<Exam[]> {
+  const raw = await apiGet<unknown>('/me/exams');
+  return normalizeMyExamsPayload(raw);
 }
 
 function buildFollowListQuery(params?: FollowListQuery): string {
@@ -183,6 +200,7 @@ export const userApi = {
   patchUserInterests,
   setPrivacy,
   uploadMeAvatar,
+  getMyExams,
   getUserInterests,
   followUser,
   unfollowUser,

@@ -19,7 +19,57 @@ import type {
   UnbookmarkPostResponse,
   UnstarResponse,
 } from './types';
-import { TOPIC_OPTIONS } from './topicCatalog';
+const KNOWN_POST_TYPES = new Set<string>(['DOUBT', 'TIP', 'WIN', 'EXPERIENCE']);
+
+function val(raw: Record<string, unknown>, ...keys: string[]): unknown {
+  for (const k of keys) {
+    if (Object.prototype.hasOwnProperty.call(raw, k) && raw[k] !== undefined && raw[k] !== null) {
+      return raw[k];
+    }
+  }
+  return undefined;
+}
+
+function coercePostString(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  if (typeof v === 'boolean') return v ? 'true' : 'false';
+  return '';
+}
+
+function coercePostInt(v: unknown, fallback = 0): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.trunc(v);
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    if (Number.isFinite(n)) return Math.trunc(n);
+  }
+  return fallback;
+}
+
+function coercePostBool(v: unknown): boolean {
+  if (v === true || v === 'true' || v === 1 || v === '1') return true;
+  if (v === false || v === 'false' || v === 0 || v === '0') return false;
+  return false;
+}
+
+function coercePostType(v: unknown): PostType {
+  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';
+  if (s && KNOWN_POST_TYPES.has(s)) return s as PostType;
+  return 'DOUBT';
+}
+
+function coerceStringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === 'string');
+}
+
+function optStr(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v);
+  return null;
+}
 
 /** Parse `author.badge` from feed/post/comment payloads (JSON numbers may be strings). */
 export function normalizeAuthorBadge(raw: unknown): AuthorBadge | undefined {
@@ -82,30 +132,65 @@ function normalizeThread(t: CommentThread): CommentThread {
   };
 }
 
-/** Map feed/post payloads to `PostResponse` — booleans and counts come from the API only. */
-export function normalizePost(p: PostResponse): PostResponse {
-  const author = p.author;
+/**
+ * Map feed/post payloads to `PostResponse`.
+ * Tolerates camelCase/snake_case, numeric strings, and missing fields so backend variants still render.
+ */
+export function normalizePost(p: PostResponse | Record<string, unknown>): PostResponse {
+  const raw = (typeof p === 'object' && p !== null ? p : {}) as Record<string, unknown>;
+
+  const authorRaw = val(raw, 'author');
+  let author: PostResponse['author'] = undefined;
+  if (authorRaw != null && typeof authorRaw === 'object') {
+    const a = authorRaw as Record<string, unknown>;
+    author = {
+      username: coercePostString(val(a, 'username', 'userName')),
+      first_name: optStr(val(a, 'first_name', 'firstName')),
+      last_name: optStr(val(a, 'last_name', 'lastName')),
+      avatar_url: optStr(val(a, 'avatar_url', 'avatarUrl')),
+      badge: normalizeAuthorBadge(val(a, 'badge')) ?? undefined,
+    };
+  }
+
+  const id = coercePostString(val(raw, 'id', 'post_id'));
+  const userId = coercePostString(val(raw, 'user_id', 'userId'));
+  const createdAt = coercePostString(val(raw, 'created_at', 'createdAt'));
+  const updatedAt = coercePostString(val(raw, 'updated_at', 'updatedAt'));
+  const stableId =
+    id ||
+    (userId || createdAt
+      ? `synth:${userId || 'anon'}:${createdAt || updatedAt || '0'}`
+      : `synth:${Math.random().toString(36).slice(2, 12)}`);
+
+  const linkUrl = val(raw, 'link_url', 'linkUrl');
+  const linkTitle = val(raw, 'link_title', 'linkTitle');
+  const linkDesc = val(raw, 'link_desc', 'linkDesc');
+  const linkImg = val(raw, 'link_img', 'linkImg');
+
   return {
-    ...p,
-    title: typeof p.title === 'string' ? p.title : '',
-    content: typeof p.content === 'string' ? p.content : '',
-    tags: Array.isArray(p.tags) ? p.tags : [],
-    images: Array.isArray(p.images) ? p.images : [],
-    upvote_count: typeof p.upvote_count === 'number' ? p.upvote_count : 0,
-    star_count: typeof p.star_count === 'number' ? p.star_count : 0,
-    starred_by_me: p.starred_by_me === true,
-    bookmarked_by_me: p.bookmarked_by_me === true,
-    comment_count: typeof p.comment_count === 'number' ? p.comment_count : 0,
-    author:
-      author === null || author === undefined
-        ? author
-        : {
-            username: typeof author.username === 'string' ? author.username : '',
-            first_name: author.first_name,
-            last_name: author.last_name,
-            avatar_url: author.avatar_url ?? undefined,
-            badge: normalizeAuthorBadge(author.badge) ?? undefined,
-          },
+    id: stableId,
+    user_id: userId,
+    topic_id: coercePostInt(val(raw, 'topic_id', 'topicId')),
+    subject_id: coercePostInt(val(raw, 'subject_id', 'subjectId')),
+    exam_id: coercePostInt(val(raw, 'exam_id', 'examId')),
+    title: typeof raw.title === 'string' ? raw.title : coercePostString(raw.title),
+    post_type: coercePostType(val(raw, 'post_type', 'postType')),
+    content: typeof raw.content === 'string' ? raw.content : coercePostString(raw.content),
+    link_url: linkUrl == null ? null : coercePostString(linkUrl) || null,
+    link_title: linkTitle == null ? null : coercePostString(linkTitle) || null,
+    link_desc: linkDesc == null ? null : coercePostString(linkDesc) || null,
+    link_img: linkImg == null ? null : coercePostString(linkImg) || null,
+    is_anonymous: coercePostBool(val(raw, 'is_anonymous', 'isAnonymous')),
+    upvote_count: coercePostInt(val(raw, 'upvote_count', 'upvoteCount')),
+    star_count: coercePostInt(val(raw, 'star_count', 'starCount')),
+    starred_by_me: coercePostBool(val(raw, 'starred_by_me', 'starredByMe')),
+    bookmarked_by_me: coercePostBool(val(raw, 'bookmarked_by_me', 'bookmarkedByMe')),
+    comment_count: coercePostInt(val(raw, 'comment_count', 'commentCount')),
+    images: coerceStringArray(val(raw, 'images')),
+    tags: coerceStringArray(val(raw, 'tags')),
+    author,
+    created_at: createdAt || new Date(0).toISOString(),
+    updated_at: updatedAt || createdAt || new Date(0).toISOString(),
   };
 }
 
@@ -159,9 +244,18 @@ export function mergeUnbookmarkResponse(
 
 function normalizeFeed(data: PostFeedResponse): PostFeedResponse {
   const rows = data.posts;
+  const next = data.next_cursor;
+  const posts: PostResponse[] = [];
+  for (const row of Array.isArray(rows) ? rows : []) {
+    try {
+      posts.push(normalizePost(row as Record<string, unknown>));
+    } catch {
+      /* skip malformed row; keep feed usable */
+    }
+  }
   return {
-    next_cursor: data.next_cursor ?? null,
-    posts: (Array.isArray(rows) ? rows : []).map((row) => normalizePost(row as PostResponse)),
+    next_cursor: next ?? null,
+    posts,
   };
 }
 

@@ -482,7 +482,7 @@ export function PostCard({
             />
           ) : (
             <View style={styles.linkImgPlaceholder}>
-              <MaterialCommunityIcons name="link-variant" size={28} color={colors.textPrimary} />
+              <MaterialCommunityIcons name="link-variant" size={26} color={colors.textPrimary} />
             </View>
           )}
           <View style={styles.linkText}>

@@ -181,7 +181,7 @@ export function EmailOtpVerificationScreen({
             accessibilityRole="button"
             accessibilityLabel="Go back"
           >
-            <MaterialCommunityIcons name="arrow-left" size={28} color={colors.textPrimary} />
+            <MaterialCommunityIcons name="arrow-left" size={26} color={colors.textPrimary} />
           </Pressable>
           <View style={styles.headerContent}>
             <Text style={styles.title}>{title}</Text>

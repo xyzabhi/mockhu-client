@@ -122,7 +122,7 @@ export function TargetYearPicker({
         </Text>
         <MaterialCommunityIcons
           name={open ? 'chevron-up' : 'chevron-down'}
-          size={28}
+          size={26}
           color={colors.textPrimary}
         />
       </Pressable>

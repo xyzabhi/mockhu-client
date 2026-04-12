@@ -130,7 +130,7 @@ export function FullScreenImageViewer({
             accessibilityRole="button"
             accessibilityLabel="Close"
           >
-            <MaterialCommunityIcons name="close" size={24} color={colors.textPrimary} />
+            <MaterialCommunityIcons name="close" size={26} color={colors.textPrimary} />
           </Pressable>
 
           {post?.authorUsername ? (
@@ -138,7 +138,7 @@ export function FullScreenImageViewer({
               <UserAvatar
                 seed={post.authorId ?? post.authorUsername}
                 avatarUrl={post.authorAvatarUrl}
-                size={28}
+                size={26}
               />
               <Text style={styles.authorName} numberOfLines={1}>
                 {post.authorUsername}
